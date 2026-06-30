@@ -32,6 +32,7 @@ interface AppContextType {
   setActiveClinic: (clinic: Clinic) => void;
   addClinic: (clinic: Clinic) => void;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithUser: (userData: User) => void;
   logout: () => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -139,6 +140,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem("clifav_user", JSON.stringify(userData));
+    if (userData.clinics && userData.clinics.length > 0) {
+      setActiveClinicState(userData.clinics[0]);
+      localStorage.setItem("clifav_active_clinic", JSON.stringify(userData.clinics[0]));
+    }
+    router.push("/dashboard/agenda");
+  };
+
   const logout = () => {
     setUser(null);
     setActiveClinicState(null);
@@ -173,6 +184,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveClinic,
         addClinic,
         login,
+        loginWithUser,
         logout,
         sidebarCollapsed,
         setSidebarCollapsed,
