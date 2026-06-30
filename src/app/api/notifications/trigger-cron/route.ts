@@ -117,6 +117,48 @@ export async function POST(request: Request) {
         });
 
         if (!existingLog) {
+          let sentStatus = "SENT";
+          let apiError = "";
+
+          // Envío real de WhatsApp si la API está configurada
+          if (reminder.channel === "WHATSAPP" && process.env.WHATSAPP_API_URL && process.env.WHATSAPP_INSTANCE_NAME && process.env.WHATSAPP_API_TOKEN) {
+            try {
+              // Asegurar formato internacional (ej: 34600000000)
+              const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
+              const targetUrl = `${process.env.WHATSAPP_API_URL}/message/sendText/${process.env.WHATSAPP_INSTANCE_NAME}`;
+              
+              const res = await fetch(targetUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "apikey": process.env.WHATSAPP_API_TOKEN,
+                },
+                body: JSON.stringify({
+                  number: formattedPhone,
+                  options: {
+                    delay: 1200,
+                    presence: "composing",
+                    linkPreview: false
+                  },
+                  textMessage: {
+                    text: message
+                  }
+                }),
+              });
+
+              if (!res.ok) {
+                const errText = await res.text();
+                sentStatus = "FAILED";
+                apiError = `Error API (${res.status}): ${errText}`;
+                console.error("Error al enviar WhatsApp a través de Evolution API:", errText);
+              }
+            } catch (err: any) {
+              sentStatus = "FAILED";
+              apiError = err.message || "Error de red";
+              console.error("Error de conexión con Evolution API:", err);
+            }
+          }
+
           const log = await prisma.notificationLog.create({
             data: {
               clinicId,
@@ -126,7 +168,8 @@ export async function POST(request: Request) {
               channel: reminder.channel,
               recipient: `${recipient} (Desde ${senderNumber})`,
               message: message,
-              status: "SENT",
+              status: sentStatus,
+              errorMessage: apiError || null,
             },
           });
           simulatedLogs.push(log);
