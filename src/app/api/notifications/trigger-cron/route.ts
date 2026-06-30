@@ -166,10 +166,11 @@ export async function POST(request: Request) {
               clientName: `${app.client?.firstName} ${app.client?.lastName || ""}`.trim(),
               appointmentId: app.id,
               channel: reminder.channel,
-              recipient: `${recipient} (Desde ${senderNumber})`,
+              recipient: sentStatus === "FAILED" 
+                ? `${recipient} (Desde ${senderNumber}) [Error: ${apiError}]`
+                : `${recipient} (Desde ${senderNumber})`,
               message: message,
               status: sentStatus,
-              errorMessage: apiError || null,
             },
           });
           simulatedLogs.push(log);
