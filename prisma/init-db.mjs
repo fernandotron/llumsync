@@ -11,7 +11,7 @@ try {
 
 const prisma = new PrismaClient({
   adapter: new PrismaBetterSqlite3({
-    url: "file:./dev.db",
+    url: "file:./prisma/dev.db",
   }),
 });
 
