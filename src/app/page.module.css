@@ -142,69 +142,14 @@
   margin-bottom: 20px;
   text-align: center;
   animation: shake 0.3s ease;
+  z-index: 100;
+  position: relative;
 }
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
-}
-
-.demoAccounts {
-  margin-top: 32px;
-  border-top: 1px dashed var(--border-color);
-  padding-top: 24px;
-}
-
-.demoAccounts h3 {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
-
-.demoList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.demoBtn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 12px;
-  text-align: left;
-  transition: all 0.2s;
-  color: var(--text-secondary);
-}
-.demoBtn:hover {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--text-primary);
-  transform: translateX(2px);
-}
-
-.demoBtn strong {
-  color: var(--text-primary);
-}
-
-.roleBadge {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  background: var(--primary-light);
-  color: var(--primary);
-  padding: 2px 6px;
-  border-radius: 4px;
 }
 
 .registerLinkContainer {
@@ -229,81 +174,417 @@
   color: var(--accent);
 }
 
-.stepIndicator {
+/* ────────────────────────────────────────────────────────── */
+/* SPLIT SCREEN REGISTRATION FLOW (DOCFAV STYLE)             */
+/* ────────────────────────────────────────────────────────── */
+
+.wizardContainer {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 24px;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
 }
 
-.stepDot {
+.leftPanel {
+  width: 340px;
+  background-color: #d1eae0; /* Mint green docfav style */
+  padding: 48px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  border-right: 1px solid var(--border-color);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 60px;
+}
+
+.logoIcon {
+  width: 36px;
+  height: 36px;
+  background-color: #facc15; /* Docfav yellow accent */
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  font-size: 11px;
+  font-weight: 800;
+  color: #1e293b;
+  font-size: 18px;
+}
+
+.logoText {
+  font-size: 22px;
   font-weight: 700;
-  color: var(--text-muted);
-  transition: all 0.3s;
+  color: #2c3e50;
+  letter-spacing: -0.5px;
 }
 
-.stepDotActive {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
-  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+.stepsTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #557a6c;
+  margin-bottom: 28px;
 }
 
-.stepDotCompleted {
-  background: var(--success);
-  border-color: var(--success);
-  color: white;
+.stepsList {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  position: relative;
 }
 
-.specialtyGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
+.stepsList::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 15px;
+  bottom: 15px;
+  width: 2px;
+  background-color: #a3d5c1;
+  z-index: 1;
 }
 
-.specialtyBtn {
+.stepItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 2;
+}
+
+.stepBadge {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #e2f2eb;
+  border: 2px solid #a3d5c1;
+  color: #557a6c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.stepItemActive .stepBadge {
+  background-color: #ffffff;
+  border-color: #2e7d32;
+  color: #2e7d32;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.15);
+}
+
+.stepItemCompleted .stepBadge {
+  background-color: #2e7d32;
+  border-color: #2e7d32;
+  color: #ffffff;
+}
+
+.stepName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #557a6c;
+  white-space: nowrap;
+}
+
+.stepItemActive .stepName {
+  color: #1b5e20;
+  font-weight: 700;
+}
+
+.stepItemCompleted .stepName {
+  color: #557a6c;
+  font-weight: 600;
+}
+
+.rightPanel {
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px 12px;
-  background: var(--bg-input);
+  padding: 40px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.card {
+  width: 100%;
+  max-width: 540px;
+  background: var(--bg-card);
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  box-sizing: border-box;
+}
+
+.cardTitle {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  text-align: center;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.cardSubtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+/* Step 1: Usage grid */
+.usageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.usageCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  padding: 24px 16px;
+  background: var(--bg-input);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 13px;
-  text-align: center;
 }
-.specialtyBtn:hover {
-  background: var(--bg-hover);
-  border-color: var(--primary);
+.usageCard:hover {
+  border-color: #2e7d32;
   transform: translateY(-2px);
 }
 
-.specialtyBtnActive {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+.usageCardActive {
+  background: rgba(46, 125, 50, 0.04);
+  border-color: #2e7d32;
 }
 
-.specialtyIcon {
-  font-size: 20px;
+.usageIcon {
+  font-size: 28px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usageTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.usageDesc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Step 2 & 3 custom components */
+.passwordContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passwordInput {
+  width: 100%;
+  padding-right: 40px !important;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.typeContainer {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  justify-content: center;
+}
+
+.typeBtn {
+  padding: 8px 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.typeBtnActive {
+  background-color: #2e7d32;
+  color: #ffffff;
+  border-color: #2e7d32;
+}
+
+.continueBtn {
+  width: 100%;
+  padding: 14px;
+  background-color: #facc15; /* Docfav yellow accent */
+  color: #1e293b;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.continueBtn:hover:not(:disabled) {
+  background-color: #eab308;
+  transform: translateY(-1px);
+}
+
+.continueBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.footerButtons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.backBtn:hover {
+  color: var(--text-primary);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.checkboxInput {
+  margin-top: 2px;
+}
+
+/* Specialties select dropdown */
+.specialtySelect {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  outline: none;
+}
+.specialtySelect:focus {
+  border-color: #2e7d32;
+}
+
+/* Autocomplete address */
+.autocompleteContainer {
+  position: relative;
+}
+
+.autocompleteList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  padding: 0;
+}
+
+.autocompleteItem {
+  list-style: none;
+  padding: 12px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+.autocompleteItem:last-child {
+  border-bottom: none;
+}
+.autocompleteItem:hover {
+  background-color: var(--bg-hover);
+  color: var(--primary);
+}
+
+/* Google mock styling inside register */
+.googleRegisterCard {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-top: 16px;
+  transition: background 0.2s;
+}
+.googleRegisterCard:hover {
+  background: var(--bg-hover);
 }
 
 /* Simulated Google Accounts Modal */
@@ -462,4 +743,3 @@
 .googleSubmitBtn:hover {
   background: var(--accent);
 }
-
