@@ -74,8 +74,8 @@ export default function LoginPage() {
 
       <div className={`${styles.loginCard} glass`}>
         <div className={styles.header}>
-          <div className={styles.logo}>CF</div>
-          <h1 className={styles.title}>Clifav</h1>
+          <div className={styles.logo}>LS</div>
+          <h1 className={styles.title}>LlumSync</h1>
           <p className={styles.subtitle}>Gestión Integral de Centros Clínicos</p>
         </div>
 

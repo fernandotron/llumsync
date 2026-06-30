@@ -120,8 +120,8 @@ export default function ClinicWizard() {
       {/* Left panel steps flow indicator */}
       <div className={styles.leftPanel}>
         <div className={styles.logoArea}>
-          <div className={styles.logoIcon}>CF</div>
-          <span className={styles.logoText}>clifav</span>
+          <div className={styles.logoIcon}>LS</div>
+          <span className={styles.logoText}>llumsync</span>
         </div>
 
         <span className={styles.stepsTitle}>TAN SOLO 4 PASOS PARA COMENZAR.</span>

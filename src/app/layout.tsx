@@ -3,7 +3,7 @@ import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 
 export const metadata: Metadata = {
-  title: "Clifav - Gestión Integral de Centros Clínicos",
+  title: "LlumSync - Gestión Integral de Centros Clínicos",
   description: "Plataforma premium para la gestión y administración de centros clínicos, agendas médicas, fichas de pacientes, facturación e historial médico.",
 };
 

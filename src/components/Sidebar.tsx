@@ -74,8 +74,8 @@ export default function Sidebar() {
       {/* Brand Header */}
       <div className={styles.header}>
         <div className={styles.logoArea}>
-          <div className={styles.logoIcon}>CF</div>
-          {!sidebarCollapsed && <span className={styles.logoText}>CLIFAV</span>}
+          <div className={styles.logoIcon}>LS</div>
+          {!sidebarCollapsed && <span className={styles.logoText}>LLUMSYNC</span>}
         </div>
         <button 
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
