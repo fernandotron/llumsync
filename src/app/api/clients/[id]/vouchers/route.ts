@@ -21,7 +21,7 @@ export async function GET(
     });
 
     const enrichedOwn = await Promise.all(
-      ownVouchers.map(async (cv) => {
+      ownVouchers.map(async (cv: any) => {
         const template = await prisma.voucher.findUnique({
           where: { id: cv.voucherId },
           select: { serviceIds: true },
@@ -56,7 +56,7 @@ export async function GET(
     });
 
     const enrichedShared = await Promise.all(
-      sharedVouchers.map(async (cv) => {
+      sharedVouchers.map(async (cv: any) => {
         const template = await prisma.voucher.findUnique({
           where: { id: cv.voucherId },
           select: { serviceIds: true },

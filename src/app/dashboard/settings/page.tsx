@@ -6222,7 +6222,7 @@ export default function SettingsPage() {
                           sello: fpSello,
                         };
                         try {
-                          let saved;
+                          let saved: any;
                           if (editingFiscalProfile) {
                             const res = await fetch(`/api/fiscal-profiles/${editingFiscalProfile.id}`, {
                               method: "PUT",

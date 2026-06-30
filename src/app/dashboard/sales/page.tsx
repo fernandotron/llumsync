@@ -19,6 +19,10 @@ interface Client {
   postalCode?: string;
   isSelfEmployed?: boolean;
   isCompany?: boolean;
+  country?: string;
+  email?: string;
+  phone?: string;
+  birthDate?: Date | string;
 }
 
 interface Service {
@@ -2802,6 +2806,12 @@ export default function SalesPage() {
           metodoPago: getPaymentMethodText(sale.paymentMethod),
           fechaPago: saleDate.toLocaleDateString("es-ES"),
           price: item.price * item.quantity,
+          factura: sale.invoiceNumber && sale.invoiceNumber !== "-" ? "Si" : "",
+          precio: item.price * item.quantity,
+          iva: 0.00,
+          irpf: 0.00,
+          total: item.price * item.quantity,
+          pagado: item.price * item.quantity,
         });
       });
     });
@@ -2867,6 +2877,12 @@ export default function SalesPage() {
         metodoPago: resolvedMetodo,
         fechaPago: resolvedFechaPago,
         price: servicePrice,
+        factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+        precio: servicePrice,
+        iva: 0.00,
+        irpf: 0.00,
+        total: servicePrice,
+        pagado: resolvedEstado === "PAGADO" ? servicePrice : totalPaid,
       });
     });
 
@@ -3673,7 +3689,7 @@ export default function SalesPage() {
                   <p style={{ fontWeight: 600 }}>
                     {activeFiscalProfile?.comercialName
                       ? `${activeFiscalProfile.comercialName}${activeFiscalProfile.nif ? " · " + activeFiscalProfile.nif : ""}`
-                      : (activeClinic?.cifNif || "")}
+                      : ""}
                   </p>
                   {/* Dirección del perfil fiscal */}
                   <p>
@@ -4371,6 +4387,12 @@ export default function SalesPage() {
                                         metodoPago: appt.status === "COMPLETED" ? "Tarjeta" : "-",
                                         fechaPago: appt.status === "COMPLETED" ? appDate.toLocaleDateString("es-ES") : "-",
                                         price: appt.service?.price || 0,
+                                        factura: "",
+                                        precio: appt.service?.price || 0,
+                                        iva: 0.00,
+                                        irpf: 0.00,
+                                        total: appt.service?.price || 0,
+                                        pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
                                       });
                                     }}
                                   >
@@ -4429,6 +4451,12 @@ export default function SalesPage() {
                                         metodoPago: appt.status === "COMPLETED" ? "Tarjeta" : "-",
                                         fechaPago: appt.status === "COMPLETED" ? appDate.toLocaleDateString("es-ES") : "-",
                                         price: appt.service?.price || 0,
+                                        factura: "",
+                                        precio: appt.service?.price || 0,
+                                        iva: 0.00,
+                                        irpf: 0.00,
+                                        total: appt.service?.price || 0,
+                                        pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
                                       });
                                     }}
                                   >
