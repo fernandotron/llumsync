@@ -1076,6 +1076,12 @@ export default function SalesPage() {
           metodoPago: "-",
           fechaPago: "-",
           price: matchService.price,
+          factura: "",
+          precio: matchService.price,
+          iva: 0,
+          irpf: 0,
+          total: matchService.price,
+          pagado: 0,
         };
         setSelectedItemForPayment(checkoutItem);
         // Clean URL params without reload
@@ -5515,6 +5521,12 @@ export default function SalesPage() {
                           metodoPago: "-",
                           fechaPago: "-",
                           price: srv.price,
+                          factura: "",
+                          precio: srv.price,
+                          iva: 0,
+                          irpf: 0,
+                          total: srv.price,
+                          pagado: 0,
                         };
                         setCheckoutItems([...checkoutItems, newArticleItem]);
                         setSelectedServiceId("");
