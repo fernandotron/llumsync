@@ -290,16 +290,28 @@ export default function LoginPage() {
         }),
       });
 
-      if (!regRes.ok) {
-        const regData = await regRes.json();
-        setError(regData.error || "Error al crear tu cuenta de usuario.");
-        setRegisterStep(2);
+      let regUserResult: any;
+      try {
+        regUserResult = await regRes.json();
+      } catch {
+        setError("Error: respuesta inesperada del servidor al crear la cuenta.");
         setLoading(false);
         return;
       }
 
-      const regUserResult = await regRes.json();
-      const userId = regUserResult.user.id;
+      if (!regRes.ok) {
+        // Stay on step 4 so user doesn't lose their data
+        setError(`Error al crear tu cuenta: ${regUserResult?.error || "Error desconocido (código " + regRes.status + ")"}`);
+        setLoading(false);
+        return;
+      }
+
+      const userId = regUserResult?.user?.id;
+      if (!userId) {
+        setError("Error: el servidor no devolvió un ID de usuario válido.");
+        setLoading(false);
+        return;
+      }
 
       // 2. Call Create clinic endpoint
       const clinicAddress = `${address.trim()}, ${city.trim()} (${postalCode.trim()})`;
@@ -314,21 +326,21 @@ export default function LoginPage() {
       });
 
       if (!clinicRes.ok) {
-        setError("La cuenta se creó con éxito, pero hubo un problema al crear la clínica.");
+        let clinicErr = "Error al crear la clínica.";
+        try { const d = await clinicRes.json(); clinicErr = d?.error || clinicErr; } catch {}
+        setError(`Cuenta creada, pero ${clinicErr}`);
         setLoading(false);
         return;
       }
-
-      const createdClinic = await clinicRes.json();
 
       // 3. Log in with the registered credentials
       const loggedIn = await login(registerEmail.trim().toLowerCase(), registerPassword);
       if (!loggedIn) {
         setError("Error al iniciar sesión tras registrar la consulta.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Error en el servidor al finalizar el registro.");
+      setError(`Error inesperado: ${err?.message || String(err)}`);
     } finally {
       setLoading(false);
     }
