@@ -1,0 +1,147 @@
+
+quier ocrear una aplicacion para gestion de cenctros clinicos, te pasare fotos de una que uso, la idea es replicar pero mejorar esta que te pasare, quiero que uses el mejor framework para hacer a fecha de junio de 2026 y me des un diseño moderno como otros centros clinicos en estas fechaslo primero es tener un panel de inicio de sesion, donde pueda iniciar sesion tambien con google y otras formas, seria usuario y contraseña, el usuario el emailasi es la interfaz cuando se inicia sesion lo primero es una agenda donde se ven los pacientes en un calendario los que tienen citas 
+
+al colocar el cursos encima muestra en cada hora las franja horarias en intervalos de 15 min asi como en la imagen 2
+
+
+ en agenda se pueden ver las agendas del personal agregado como en imagen 3 
+
+
+
+
+
+
+
+
+
+de esta manera se puede elegir cual agenda ver, esto desde el administrador y desde ahi se puede crear un usuario
+ tambien en donde dice semana se puede colocar para ver por dia, semana o mes arriba tenemos un intervalos de fecha que podemos seleccionar como queramos 
+en el boton de configuracion me salen estas opciones estos son los filtros en direcciones es por si tenemos varias clínicas, servicios que ya hayamos registrado en otro lado y por clientes que ya hayamos agrado tambien
+
+
+
+
+
+
+
+
+
+
+
+
+
+Este es el menú de la izquierda que es desplegable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Asi se ve el área donde están los contactos, en el engranaje podemos seleccionar que columnas queremos que se vean asi se ve cuando se le da clic 
+
+Es un desplegable pequeño que sale donde muestra esto, 
+Te paso todas las opciones que tiene
+Nombre, Apellidos, Teléfono, Email, Fecha De Creación, Número De Cliente, Última Cita, Dni/nif, Fecha De Nacimiento, Etiquetas, Documentos, Género, Dirección, Municipio, Código Postal, Iban, Bic, País, Tratamientos Estéticos Previos, Otros, Alergias, Medicación, Antecedentes Médicos
+
+
+Si le doy en filtro 
+
+
+Exportar descarga un Excel con estos datos 
+
+En crear contacto
+
+
+
+
+
+
+En otros datos
+
+Si le doy click a un cliente
+
+
+
+
+
+
+
+
+
+Si le doy al botón de opciones
+
+
+En el menú en ventas
+
+
+
+
+
+
+
+
+En estadísticas
+
+
+En configuración
+
+
+
+
+
+
+
+
+En información de consulta
+
+En servicios dentro de consulta
+
+
+
+
+
+
+
+
+
+En configuración en servicios
+
+
+En configuración/usuarios creamos los usuarios y asignamos horarios
+
+
+
+En configuración / sincronizar calendario sincronizamos con Google calendar
+
+En configuración / documentos
+
+Podemos crear documentos personalizados de la clínica
+
+Ahí en variables toma datos en automatico de los que ya existen del cliente o de la clínica
+Tenemos de cliente: Nombre, Apellidos, Email, Telefono, NIF, Edad, Fecha de nacimiento, Calle, Codigo Postal, Municipio, Numero_paciente,
+Tercer: Nombre_Tutor, Apellidos_Tutor, NIF_Tutor, Telefono_Tutor, Email_Tutor, Calle_Tutor, Codigo_Postal_Tutor, Municipio_Tutor
+Otro: Logotipo, Nombre_Negocio, Campo_Firma_Ordinaria, Campo_Firma_Certificada, Fecha_Documento, Fecha_hora_documento, Texto libre, Añadir checkbox
+
+De Usuario: 

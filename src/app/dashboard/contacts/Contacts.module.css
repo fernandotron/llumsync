@@ -1,0 +1,1170 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.clinicSubtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Search bar styling */
+.searchContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  color: var(--text-muted);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 14px 16px 14px 48px;
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  font-size: 15px;
+  transition: all 0.25s ease;
+}
+.searchInput:focus {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md), 0 0 0 3px var(--primary-light);
+  transform: translateY(-1px);
+}
+
+/* Dropdowns positioning */
+.dropdownWrapper {
+  position: relative;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 250px;
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+}
+
+.dropdownHeader {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.dropdownList {
+  max-height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.dropdownItemLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dropdownItemLabel:hover {
+  background: var(--bg-input);
+}
+
+.dropdownItemLabel input {
+  display: none;
+}
+
+.dropdownCheckbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.15s;
+}
+
+.dropdownItemLabel input:checked + .dropdownCheckbox {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.dropdownItemLabel input:checked + .dropdownCheckbox::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(-45deg);
+  position: absolute;
+  top: 3px;
+}
+
+.dropdownItemText {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.dropdownItemLabel input:checked ~ .dropdownItemText {
+  color: var(--text-primary);
+}
+
+/* Filter Dropdown Specifically */
+.filterDropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 280px;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+}
+
+.filterForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Table Wrapper style */
+.tableWrapper {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.loadingState, .emptyState {
+  padding: 60px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tagBadge {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: capitalize;
+}
+
+.actionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-weight: 700;
+  transition: opacity 0.2s;
+}
+.actionLink:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.clientNameLink {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+.clientNameLink:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}
+
+/* Modal and wizard styling */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modalContent {
+  width: 100%;
+  max-width: 600px;
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modalHeader h2 {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalTabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.tabBtn {
+  background: transparent;
+  border: none;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+.tabBtn:hover {
+  color: var(--primary);
+}
+
+.tabBtnActive {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tabContent {
+  animation: tabEnter 0.3s ease forwards;
+}
+
+@keyframes tabEnter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tabHeaderExplanation {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--primary-light);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  border-left: 3px solid var(--primary);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Custom scrollbar for dropdown */
+.dropdownList::-webkit-scrollbar {
+  width: 4px;
+}
+.dropdownList::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+}
+
+/* Bulk Options & Permissions Styles */
+.dropdownItemBtn {
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s;
+  border-radius: 4px;
+}
+.dropdownItemBtn:hover {
+  background: var(--bg-hover);
+}
+
+.rowCheckbox {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.selectedRow td {
+  background: rgba(30, 166, 187, 0.05); /* very light primary color highlight */
+}
+
+/* Pagination Styles */
+.paginationContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+.paginationLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.paginationLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.paginationSelect {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+.paginationRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pageBtnText {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+.pageBtnText:hover:not(:disabled) {
+  color: var(--primary);
+  background: var(--bg-hover);
+}
+.pageBtnText:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pageNum {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+.pageNum:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+.pageNumActive {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid rgba(30, 166, 187, 0.3);
+}
+.pageDots {
+  color: var(--text-muted);
+  font-size: 14px;
+  user-select: none;
+}
+
+/* Permissions Modal */
+.permissionsModalContent {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+.permissionsBody {
+  margin-top: 10px;
+}
+.permissionsText {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.permissionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.permissionsItemLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.permissionsCheckbox {
+  display: none;
+}
+.permissionsCheckboxCustom {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.permissionsCheckbox:checked + .permissionsCheckboxCustom {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.permissionsItemText {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.headerCellContent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sortIconContainer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.sortIconContainer svg {
+  vertical-align: middle;
+}
+
+/* ── Delete Confirmation Modal ── */
+.deleteConfirmModal {
+  display: flex;
+  background: var(--bg-panel-solid);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  width: 420px;
+  max-width: 95vw;
+  animation: fadeInScale 0.18s ease;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.deleteConfirmAccent {
+  width: 6px;
+  flex-shrink: 0;
+  background: #e53935;
+  border-radius: 12px 0 0 12px;
+}
+
+.deleteConfirmBody {
+  flex: 1;
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deleteConfirmHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deleteConfirmIconWrap {
+  color: #e53935;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.deleteConfirmTitle {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.deleteConfirmClose {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.deleteConfirmClose:hover {
+  color: var(--text-primary);
+}
+
+.deleteConfirmText {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.deleteConfirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.deleteConfirmCancelBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.deleteConfirmCancelBtn:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.deleteConfirmDeleteBtn {
+  background: #e53935;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.deleteConfirmDeleteBtn:hover {
+  background: #c62828;
+}
+
+/* ══════════════════════════════════════
+   CREATE CLIENT DRAWER (right side panel)
+══════════════════════════════════════ */
+
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(3px);
+  z-index: 9998;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+.drawerPanel {
+  width: 520px;
+  max-width: 95vw;
+  height: 100%;
+  background: var(--bg-panel-solid);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.2);
+  animation: slideInRight 0.22s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* Drawer Header */
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.drawerTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.drawerCloseBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.drawerCloseBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+/* Drawer Tabs */
+.drawerTabs {
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.drawerTab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.drawerTabActive {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.drawerTab:hover:not(.drawerTabActive) {
+  color: var(--text-primary);
+}
+
+/* Form & scroll area */
+.drawerForm {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.drawerScrollBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Section title */
+.drawerSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 14px;
+  margin-top: 4px;
+}
+
+/* 2-column grid */
+.drawerGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Single field */
+.drawerField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.drawerLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Standard input */
+.drawerInput {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.drawerInput:focus {
+  border-color: var(--primary);
+}
+.drawerInput::placeholder {
+  color: var(--text-muted);
+}
+
+.drawerSelect {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.drawerSelect:focus {
+  border-color: var(--primary);
+}
+
+.drawerTextarea {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.drawerTextarea:focus {
+  border-color: var(--primary);
+}
+
+/* Flag + input combo */
+.drawerInputFlag {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.drawerInputFlag:focus-within {
+  border-color: var(--primary);
+}
+
+.drawerFlag {
+  padding: 0 8px 0 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.drawerInputFlagInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 9px 10px 9px 2px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  min-width: 0;
+}
+.drawerInputFlagInput::placeholder {
+  color: var(--text-muted);
+}
+
+/* Toggle switches */
+.drawerSwitchGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.drawerSwitchRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.drawerSwitchLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.drawerToggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-color);
+  transition: background 0.2s;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.drawerToggleOn {
+  background: var(--primary);
+}
+
+.drawerToggleThumb {
+  position: absolute;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.drawerToggleOn .drawerToggleThumb {
+  transform: translateX(16px);
+}
+
+/* Footer */
+.drawerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background: var(--bg-panel-solid);
+}
+
+.drawerCancelBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.drawerCancelBtn:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.drawerSaveBtn {
+  background: var(--primary);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 26px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.drawerSaveBtn:hover {
+  opacity: 0.88;
+}
+
+/* ===== DATE PICKER BUTTON ===== */
+.drawerInputBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+.drawerInputBtn:hover {
+  border-color: var(--primary);
+}
+
+/* ===== FLAG PICKER BUTTON ===== */
+.flagPickerBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-secondary);
+  height: 100%;
+  flex-shrink: 0;
+}
+.flagPickerBtn:hover {
+  background: var(--bg-hover);
+}
+.flagDial {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ===== COUNTRY DROPDOWN ===== */
+.countryDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 280px;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  z-index: 10000;
+  overflow: hidden;
+}
+.countrySearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+.countrySearchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+}
+.countrySearchInput::placeholder {
+  color: var(--text-muted);
+}
+.countryList {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.countryOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background 0.1s;
+}
+.countryOption:hover {
+  background: var(--bg-input);
+}
+.countryName {
+  flex: 1;
+}
+.countryDial {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ===== BIRTH CALENDAR ===== */
+.birthCalendar {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 280px;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  z-index: 10000;
+  padding: 12px;
+}
+.birthCalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.birthCalNav {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+}
+.birthCalNav:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+.birthCalTitle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.birthCalSelect {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+.birthCalGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.birthCalDayLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4px 0;
+}
+.birthCalDay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.birthCalDay:hover:not(:disabled) {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.birthCalDaySelected {
+  background: var(--primary) !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+.birthCalDayDisabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.4;
+}

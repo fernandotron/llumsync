@@ -1,0 +1,2585 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.clinicSubtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.salesLayout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .salesLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.posPanel, .historyPanel {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+}
+
+.posPanel h2, .historyPanel h2 {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  border-bottom: 1px dashed var(--border-color);
+  padding-bottom: 8px;
+}
+
+.posForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Item Adder Block styling */
+.itemAdderBlock {
+  background: var(--bg-input);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.itemTypeToggle {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-panel-solid);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+  border: 1px solid var(--border-color);
+}
+
+.typeBtn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.typeBtnActive {
+  background: var(--primary);
+  color: white;
+}
+
+.itemSelectRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+@media (max-width: 600px) {
+  .itemSelectRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Cart container styling */
+.cartContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cartContainer h3 {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.emptyCart {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border: 1.5px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.cartList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.cartItem {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  gap: 12px;
+}
+
+.cartItemMeta {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.cartItemName {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cartItemType {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.cartItemMath {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cartItemTotal {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+  width: 70px;
+  text-align: right;
+}
+
+.cartItemRemove {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+
+/* Checkout Footer styling */
+.checkoutFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+.totalsColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: flex-end;
+  width: 250px;
+}
+
+.totalsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.grandTotal {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  border-top: 1.5px solid var(--border-color);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+
+.paymentMethodSelect {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paymentRadios {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-input);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.payBtn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.payBtnActive {
+  background: var(--bg-panel-solid);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Invoices logs table list */
+.tableWrapper {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: var(--bg-panel-solid);
+}
+
+.loadingState, .emptyState {
+  padding: 40px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.viewInvoiceBtn {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+}
+.viewInvoiceBtn:hover {
+  background: var(--primary-light);
+}
+
+/* Invoice Document Layout */
+.invoiceDoc {
+  background: white;
+  color: black;
+  padding: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: monospace;
+}
+
+.invoiceDocHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 2px solid #000000;
+  padding-bottom: 12px;
+}
+
+.invoiceLogo {
+  width: 40px;
+  height: 40px;
+  background: #000;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.invoiceHeaderMeta h3 {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.invoiceHeaderMeta p {
+  font-size: 11px;
+  color: #475569;
+}
+
+.invoiceDocMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px dashed #cbd5e1;
+  padding-bottom: 12px;
+}
+
+.invoiceDocItems {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 12px;
+}
+
+.itemHeader {
+  display: grid;
+  grid-template-columns: 1fr 40px 80px;
+  font-weight: 800;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 4px;
+}
+
+.itemRow {
+  display: grid;
+  grid-template-columns: 1fr 40px 80px;
+}
+
+.itemRow span:last-child, .itemHeader span:last-child {
+  text-align: right;
+}
+
+.invoiceDocTotals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: flex-end;
+  width: 200px;
+}
+
+.invoiceDocGrand {
+  font-size: 15px;
+  font-weight: 800;
+  border-top: 1px solid #000;
+  padding-top: 6px;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modalContent {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modalHeader h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.tabsHeader {
+  display: flex;
+  gap: 24px;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 16px;
+}
+
+.tabBtn {
+  background: transparent;
+  border: none;
+  padding: 10px 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+
+.tabBtn:hover {
+  color: var(--text-primary);
+}
+
+.tabBtnActive {
+  color: var(--primary) !important;
+}
+
+.tabBtnActive::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--primary);
+  border-radius: 2px;
+}
+
+/* Sub-tabs header for Facturas */
+.subTabsHeader {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.subTabBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 20px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.subTabBtn:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.subTabBtnActive {
+  background: var(--primary-light) !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Filter bar components */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterBtn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.dateRangeTag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e0f2fe; /* Light sky blue background */
+  color: #0369a1; /* Dark sky blue text */
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dateRangeTag button {
+  background: transparent;
+  border: none;
+  color: #0369a1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.searchInput {
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 220px;
+}
+
+/* Stats metrics row */
+.metricsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.metricItem {
+  font-weight: 600;
+}
+
+.metricItem span {
+  color: #0ea5e9; /* Sky blue matching screenshot volume */
+}
+
+/* Toggles block */
+.togglesRow {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.switchLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.switchInput {
+  display: none;
+}
+
+.switchSlider {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background-color: var(--border-color);
+  border-radius: 10px;
+  transition: background-color 0.2s;
+}
+
+.switchSlider::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: white;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.switchInput:checked + .switchSlider {
+  background-color: var(--primary);
+}
+
+.switchInput:checked + .switchSlider::after {
+  transform: translateX(16px);
+}
+
+/* Badges for status in tables */
+.badgeGratuito {
+  background-color: #e0f2fe;
+  color: #0284c7;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.badgePagado {
+  background-color: #dcfce7;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badgePendiente {
+  background-color: #fef9c3;
+  color: #a16207;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.badgeIngreso {
+  background-color: #dcfce7;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.badgeGasto {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Summary screen cards style */
+.summaryContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 320px;
+  margin-top: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  border-radius: var(--radius-md);
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-bottom: 1px dashed var(--border-color);
+  padding-bottom: 8px;
+}
+
+.summaryRowTotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  color: #0ea5e9;
+  font-weight: 800;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-top: 4px;
+}
+
+/* POS Drawer / Drawer styles */
+.posDrawerOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 190;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.posDrawerOverlayOpen {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.posDrawer {
+  position: fixed;
+  top: 0;
+  right: -550px;
+  width: 500px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--bg-panel-solid);
+  border-left: 1px solid var(--border-color);
+  box-shadow: var(--shadow-xl);
+  z-index: 200;
+  padding: 32px;
+  overflow-y: auto;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.posDrawerOpen {
+  right: 0 !important;
+}
+
+.posDrawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 16px;
+}
+
+.posDrawerHeader h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* Client link custom style */
+.clientLink {
+  color: #0284c7;
+  font-weight: 600;
+  text-decoration: none;
+}
+.clientLink:hover {
+  text-decoration: underline;
+}
+
+/* Simple Pagination style */
+.paginationBlock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-color);
+  padding-top: 20px;
+}
+
+.paginationBtnRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.paginationNavBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  transition: all 0.2s;
+}
+
+.paginationNavBtn:hover:not(:disabled) {
+  color: var(--primary);
+}
+
+.paginationNavBtn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pageNumberBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.pageNumberBtn:hover:not(.pageNumberBtnActive) {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.pageNumberBtnActive {
+  border: 1px solid var(--accent);
+  color: var(--accent) !important;
+  background: transparent;
+}
+
+.mostrarLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.showCountSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.showCountSelect {
+  padding: 6px 32px 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+
+/* Custom Date Picker Popover styling */
+.datePickerPopover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  margin-top: 8px;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  width: 620px;
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(var(--glass-blur));
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (max-width: 660px) {
+  .datePickerPopover {
+    width: calc(100vw - 32px);
+    max-width: 620px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+.pickerInputsRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.calendarsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: var(--bg-input);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.calendarNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.navArrow {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 10px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.navArrow:hover {
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+}
+
+.calendarMonthLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  width: 45%;
+  text-align: center;
+}
+
+.gridsContainer {
+  display: flex;
+  gap: 24px;
+}
+
+@media (max-width: 600px) {
+  .gridsContainer {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.calendarCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weekHeaders {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.weekHeaderCell {
+  text-align: center;
+}
+
+.calendarDaysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px 2px;
+}
+
+.dayCell {
+  background: transparent;
+  border: none;
+  aspect-ratio: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, color 0.15s;
+  padding: 6px;
+}
+
+.dayCell:hover {
+  background-color: var(--bg-panel-solid);
+}
+
+.dayCellMuted {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+/* Teal circle for start/end dates */
+.dayCellActiveStart,
+.dayCellActiveEnd {
+  background-color: var(--accent) !important;
+  color: #ffffff !important;
+  border-radius: 50% !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(6, 182, 212, 0.4);
+}
+
+/* Light blue range background */
+.dayCellInRange {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  color: #0369a1 !important;
+  border-radius: 0 !important;
+}
+
+/* For visual continuity: first/last range items slightly rounded on outer edges */
+.dayCellInRange:first-of-type {
+  border-top-left-radius: 50%;
+  border-bottom-left-radius: 50%;
+}
+
+.dayCellInRange:last-of-type {
+  border-top-right-radius: 50%;
+  border-bottom-right-radius: 50%;
+}
+
+.pickerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+.btnCancel {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnCancel:hover {
+  background: var(--border-color);
+  color: var(--text-primary);
+}
+
+.btnApply {
+  background: var(--accent);
+  border: 1px solid transparent;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnApply:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+}
+
+/* REF. MOV and NU. V link styles */
+.refMovLink {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.refMovLink:hover {
+  text-decoration: underline;
+  color: var(--primary-hover);
+}
+
+/* Column customizer selector dropdown */
+.columnSelectorWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.gearBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gearBtn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+  transform: rotate(30deg);
+}
+
+.columnDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 120;
+  margin-top: 8px;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  width: 250px;
+  padding: 12px;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.columnDropdownHeader {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.columnDropdownList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.columnDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+}
+
+.columnDropdownItem:hover {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.columnDropdownItem input {
+  cursor: pointer;
+}
+
+/* checkout payment details panel styling */
+.checkoutContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.checkoutHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btnBackToSales {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnBackToSales:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.checkoutHeaderActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.dropdownWrapper {
+  position: relative;
+}
+
+.btnCreateInvoice {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnCreateInvoice:hover {
+  background: var(--bg-input);
+}
+
+.btnSaveCheckout {
+  background: var(--accent);
+  border: 1px solid transparent;
+  color: #ffffff;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnSaveCheckout:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+}
+
+.checkoutBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .checkoutBody {
+    grid-template-columns: 1fr;
+  }
+}
+
+.checkoutCard {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Left panel client details avatar row */
+.clientAvatarRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px dashed var(--border-color);
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+
+.clientAvatarInitials {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background-color: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.clientInfoBlock {
+  display: flex;
+  flex-direction: column;
+}
+
+.clientNameTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.clientNumberLabel {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Articles Section styles */
+.articlesSectionWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHeaderTitle {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.articleItemCardActive {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  overflow: hidden;
+  gap: 8px;
+}
+
+.articleActiveLeftBar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--primary);
+}
+
+.articleActiveContent {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding-left: 4px;
+}
+
+.articleActiveHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.articleActiveName {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.articleActivePrice {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.articleActiveMeta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.articleActiveIcons {
+  display: flex;
+  gap: 6px;
+}
+
+.iconMiniBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.iconMiniBtn:hover {
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+}
+
+.btnAddArticleCheckout {
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.btnAddArticleCheckout:hover {
+  background: var(--bg-input);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.collapsibleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.collapsibleRow:hover {
+  color: var(--text-primary);
+}
+
+/* Middle panel totals rows */
+.totalItemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.taxValueRow {
+  display: flex;
+  align-items: center;
+}
+
+/* Payment record history rows */
+.paymentRecordHistoryBlock {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paymentRecordRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.paymentRecordActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 6px;
+}
+
+/* Right panel payment buttons grid */
+.methodGridContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.methodBtn {
+  border: 1px solid transparent;
+  padding: 12px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.methodBtn:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.methodBtnSelected {
+  border: 2px solid var(--text-primary) !important;
+  transform: scale(1.02);
+}
+
+.methodBtnEfectivo {
+  background-color: #c6f6d5;
+  color: #22543d;
+}
+
+.methodBtnBono {
+  background-color: #fef08a;
+  color: #854d0e;
+}
+
+.methodBtnPresupuesto {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.methodBtnTarjeta {
+  background-color: #feebc8;
+  color: #744210;
+}
+
+.methodBtnTransferencia {
+  background-color: #e9d8fd;
+  color: #44337a;
+}
+
+.methodBtnBizum {
+  background-color: #e6fffa;
+  color: #234e52;
+}
+
+.methodBtnDomiciliado {
+  background-color: #ebf8ff;
+  color: #2b6cb0;
+}
+
+.methodBtnPaypal {
+  background-color: #90cdf4;
+  color: #2b6cb0;
+}
+
+.methodBtnOtro {
+  width: 100%;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+
+.methodBtnOtro:hover {
+  background: var(--bg-input);
+}
+
+.methodBtnCustom {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.paymentMethodRowHover:hover {
+  background-color: var(--bg-input);
+}
+
+.btnActionCobrar {
+  width: 100%;
+  background-color: #fbd38d;
+  color: #7b341e;
+  border: none;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-md);
+}
+
+.btnActionCobrar:hover {
+  background-color: #f6ad55;
+  transform: translateY(-1px);
+}
+
+/* Success status card panel style */
+.successBannerCard {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+.successTextBanner {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.btnDeletePaymentSuccess {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.btnDeletePaymentSuccess:hover {
+  text-decoration: underline;
+}
+
+.btnBackToPaymentsOutline {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnBackToPaymentsOutline:hover {
+  background: var(--bg-input);
+}
+
+.cobrarInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currencySymbol {
+  position: absolute;
+  right: 12px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+/* ===== MODAL OVERLAY & BOX ===== */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.modalBox {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 520px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modalTitle {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.modalCloseBtn {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.modalCloseBtn:hover {
+  color: var(--text-primary);
+}
+
+.modalBody {
+  padding: 20px 24px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 24px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.btnModalSecondary {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnModalSecondary:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.btnModalPrimary {
+  background: var(--accent);
+  border: 1px solid transparent;
+  color: #ffffff;
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnModalPrimary:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+}
+
+.btnModalPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== EDIT SERVICE FORM ===== */
+.editServiceForm {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 100px;
+}
+
+.formFieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.fieldWithUnit {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fieldWithUnit input {
+  padding-right: 28px;
+}
+
+.fieldUnit {
+  position: absolute;
+  right: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* ===== DISCOUNT FORM ===== */
+.discountForm {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+@media (max-width: 480px) {
+  .discountForm {
+    flex-direction: column;
+  }
+  .editServiceForm {
+    flex-direction: column;
+  }
+}
+
+/* ===== ADD ARTICLE CHOICES ===== */
+.addArticleChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.addArticleBtn {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  color: var(--accent);
+  padding: 14px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.addArticleBtn:hover {
+  background: rgba(6, 182, 212, 0.06);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* ===== APPOINTMENT HISTORY (Pasado / Futuro) ===== */
+.apptHistoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.apptHistoryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.apptHistoryItem:last-child {
+  border-bottom: none;
+}
+
+.apptHistoryInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apptHistoryName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.apptHistoryPrice {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.apptHistoryBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apptHistoryDate {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.btnCobrarSmall {
+  background: var(--accent);
+  border: none;
+  color: #ffffff;
+  padding: 5px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnCobrarSmall:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.35);
+  transform: translateY(-1px);
+}
+
+.rowActionsBtn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.rowActionsBtn:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.rowDropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  min-width: 100px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.rowDropdownMenu button {
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: 600;
+  transition: background-color 0.15s;
+  width: 100%;
+}
+
+.rowDropdownMenu button:hover {
+  background: var(--bg-input);
+}
+
+.rowDropdownMenu button.deleteOption {
+  color: var(--danger);
+}
+
+.rowDropdownMenu button.deleteOption:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Custom Invoicing Editor Styles (Image 3) */
+.invoiceEditContainer {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .invoiceEditContainer {
+    grid-template-columns: 1fr;
+  }
+}
+
+.invoiceEditMain {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.invoiceEditSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.invoiceHeaderCard {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.invoiceHeaderLogoArea {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+}
+
+.invoiceLogoCircle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.companyMetaInfo {
+  text-align: left;
+}
+
+.companyMetaInfo h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.companyMetaInfo p {
+  margin: 2px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.invoiceFieldsRow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.invoiceFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.invoiceFieldGroup label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.dirigidoSection {
+  margin-top: 15px;
+}
+
+.dirigidoTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.dirigidoCard {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  position: relative;
+}
+
+.dirigidoCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.dirigidoCardHeader strong {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.btnEditClient {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.btnEditClient:hover {
+  background: var(--border-color);
+}
+
+.dirigidoCardBody {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Concepts table inside Editor */
+.conceptsTableWrapper {
+  margin-top: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.conceptsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.conceptsTable th {
+  background: var(--bg-input);
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.conceptsTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+
+.conceptInputText {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+}
+
+.conceptInputNumber {
+  width: 60px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  text-align: center;
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+}
+
+.conceptSubtotalVal {
+  font-weight: bold;
+  text-align: right;
+  font-size: 13px;
+}
+
+.invoiceTotalsArea {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 15px;
+  padding-right: 12px;
+}
+
+.invoiceTotalsRow {
+  display: flex;
+  justify-content: space-between;
+  width: 200px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.invoiceTotalsRow.grand {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.observacionesArea {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.observacionesArea label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.observacionesTextarea {
+  width: 100%;
+  height: 80px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 13px;
+  resize: none;
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+}
+
+/* Sidebar Panels (Image 3 right column) */
+.sidebarCard {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebarCardTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  letter-spacing: 0.5px;
+}
+
+.sidebarToggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.sidebarToggleLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Toggle Switch HTML/CSS */
+.toggleSwitch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-color);
+  transition: background 0.2s;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.toggleSwitchActive {
+  background: var(--primary);
+}
+
+.toggleSwitchThumb {
+  position: absolute;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.toggleSwitchActive .toggleSwitchThumb {
+  transform: translateX(16px);
+}
+
+/* Estado de Factura (Image 3 right column bottom) */
+.invoiceStateRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.statePill {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.statePill.pagado {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.statePill.nopagado {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.statePill.parcial {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.btnChangeState {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.btnChangeState:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.dropdownChangeStateMenu {
+  position: absolute;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  margin-top: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dropdownChangeStateItem {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.dropdownChangeStateItem:hover {
+  background: var(--bg-input);
+}
+
+/* Contact Edit slide drawer overlay (Image 4) */
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+.drawerPanel {
+  width: 500px;
+  max-width: 90vw;
+  height: 100%;
+  background: var(--bg-panel-solid);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.2);
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.drawerTitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.drawerBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.drawerSectionTitle {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+  margin: 0 0 12px 0;
+}
+
+.drawerGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.drawerField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drawerField label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.drawerInput {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.drawerInput:focus {
+  border-color: var(--primary);
+}
+
+.drawerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-panel-solid);
+}
+
+.btnTerceros {
+  background: transparent;
+  border: 1.5px solid var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btnCancel {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btnSave {
+  background: var(--primary);
+  border: none;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.optionsDropdownMenu {
+  position: absolute;
+  top: 45px;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdownOptionBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.2s;
+}
+
+.dropdownOptionBtn:hover {
+  background: var(--bg-input);
+}
+

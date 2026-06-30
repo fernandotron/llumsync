@@ -1,0 +1,165 @@
+--- Element 0 (p) ---
+Text: quier ocrear una aplicacion para gestion de cenctros clinicos, te pasare fotos de una que uso, la idea es replicar pero mejorar esta que te pasare, quiero que uses el mejor framework para hacer a fecha de junio de 2026 y me des un diseño moderno como otros centros clinicos en estas fechaslo primero es tener un panel de inicio de sesion, donde pueda iniciar sesion tambien con google y otras formas, seria usuario y contraseña, el usuario el emailasi es la interfaz cuando se inicia sesion lo primero es una agenda donde se ven los pacientes en un calendario los que tienen citas
+
+--- Element 1 (p) ---
+Images: media/image1.png
+
+--- Element 2 (p) ---
+Text: al colocar el cursos encima muestra en cada hora las franja horarias en intervalos de 15 min asi como en la imagen 2
+Images: media/image2.png
+
+--- Element 3 (p) ---
+Text: en agenda se pueden ver las agendas del personal agregado como en imagen 3
+
+--- Element 4 (p) ---
+Images: media/image3.png
+
+--- Element 5 (p) ---
+Text: de esta manera se puede elegir cual agenda ver, esto desde el administrador y desde ahi se puede crear un usuario
+
+--- Element 6 (p) ---
+Text: tambien en donde dice semana se puede colocar para ver por dia, semana o mes arriba tenemos un intervalos de fecha que podemos seleccionar como queramos
+
+--- Element 7 (p) ---
+Text: en el boton de configuracion me salen estas opciones estos son los filtros en direcciones es por si tenemos varias clínicas, servicios que ya hayamos registrado en otro lado y por clientes que ya hayamos agrado tambien
+
+--- Element 8 (p) ---
+Images: media/image4.png, media/image5.png
+
+--- Element 9 (p) ---
+Images: media/image6.png
+
+--- Element 10 (p) ---
+Text: Este es el menú de la izquierda que es desplegable
+
+--- Element 11 (p) ---
+Images: media/image7.png
+
+--- Element 12 (p) ---
+Text: Asi se ve el área donde están los contactos, en el engranaje podemos seleccionar que columnas queremos que se vean asi se ve cuando se le da clic
+Images: media/image8.png
+
+--- Element 13 (p) ---
+Images: media/image9.png
+
+--- Element 14 (p) ---
+Text: Es un desplegable pequeño que sale donde muestra esto,
+
+--- Element 15 (p) ---
+Text: Te paso todas las opciones que tiene
+
+--- Element 16 (p) ---
+Text: Nombre, Apellidos, Teléfono, Email, Fecha De Creación, Número De Cliente, Última Cita, Dni/nif, Fecha De Nacimiento, Etiquetas, Documentos, Género, Dirección, Municipio, Código Postal, Iban, Bic, País, Tratamientos Estéticos Previos, Otros, Alergias, Medicación, Antecedentes Médicos
+
+--- Element 17 (p) ---
+Text: Si le doy en filtro
+
+--- Element 18 (p) ---
+Images: media/image10.png
+
+--- Element 19 (p) ---
+Text: Exportar descarga un Excel con estos datos
+
+--- Element 20 (p) ---
+Text: En crear contacto
+
+--- Element 21 (p) ---
+Images: media/image11.png
+
+--- Element 22 (p) ---
+Text: En otros datos
+
+--- Element 23 (p) ---
+Images: media/image12.png
+
+--- Element 24 (p) ---
+Text: Si le doy click a un cliente
+
+--- Element 25 (p) ---
+Images: media/image13.png
+
+--- Element 26 (p) ---
+Text: Si le doy al botón de opciones
+
+--- Element 27 (p) ---
+Images: media/image14.png
+
+--- Element 28 (p) ---
+Text: En el menú en ventas
+
+--- Element 29 (p) ---
+Images: media/image15.png
+
+--- Element 30 (p) ---
+Text: En estadísticas
+
+--- Element 31 (p) ---
+Images: media/image16.png
+
+--- Element 32 (p) ---
+Text: En configuración
+
+--- Element 33 (p) ---
+Images: media/image17.png
+
+--- Element 34 (p) ---
+Text: En información de consulta
+
+--- Element 35 (p) ---
+Images: media/image18.png
+
+--- Element 36 (p) ---
+Text: En servicios dentro de consulta
+
+--- Element 37 (p) ---
+Images: media/image19.png
+
+--- Element 38 (p) ---
+Text: En configuración en servicios
+
+--- Element 39 (p) ---
+Images: media/image20.png
+
+--- Element 40 (p) ---
+Text: En configuración/usuarios creamos los usuarios y asignamos horarios
+
+--- Element 41 (p) ---
+Images: media/image21.png
+
+--- Element 42 (p) ---
+Images: media/image22.png
+
+--- Element 43 (p) ---
+Text: En configuración / sincronizar calendario sincronizamos con Google calendar
+
+--- Element 44 (p) ---
+Images: media/image23.png
+
+--- Element 45 (p) ---
+Text: En configuración / documentos
+
+--- Element 46 (p) ---
+Images: media/image24.png
+
+--- Element 47 (p) ---
+Text: Podemos crear documentos personalizados de la clínica
+
+--- Element 48 (p) ---
+Images: media/image25.png
+
+--- Element 49 (p) ---
+Text: Ahí en variables toma datos en automatico de los que ya existen del cliente o de la clínica
+
+--- Element 50 (p) ---
+Text: Tenemos de cliente: Nombre, Apellidos, Email, Telefono, NIF, Edad, Fecha de nacimiento, Calle, Codigo Postal, Municipio, Numero_paciente,
+
+--- Element 51 (p) ---
+Text: Tercer: Nombre_Tutor, Apellidos_Tutor, NIF_Tutor, Telefono_Tutor, Email_Tutor, Calle_Tutor, Codigo_Postal_Tutor, Municipio_Tutor
+
+--- Element 52 (p) ---
+Text: Otro: Logotipo, Nombre_Negocio, Campo_Firma_Ordinaria, Campo_Firma_Certificada, Fecha_Documento, Fecha_hora_documento, Texto libre, Añadir checkbox
+
+--- Element 53 (p) ---
+Text: De Usuario:
+Images: media/image26.png
+

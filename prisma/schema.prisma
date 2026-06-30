@@ -1,0 +1,528 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Clinic {
+  id                  String               @id @default(uuid())
+  name                String
+  address             String
+  phone               String?
+  email               String?
+  logo                String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  users               User[]
+  clients             Client[]
+  appointments        Appointment[]
+  sales               Sale[]
+  movements           Movement[]
+  timeBlocks          TimeBlock[]
+  vouchers            Voucher[]
+  episodeFormTemplates EpisodeFormTemplate[]
+  clientFormTemplates  ClientFormTemplate[]
+  whiteboardTemplates  WhiteboardTemplate[]
+  waitlistEntries      WaitlistEntry[]
+  controlHorarioActivo Boolean @default(false)
+  workEntries          WorkEntry[]
+  budgets              Budget[]
+  budgetTemplates      BudgetTemplate[]
+  reminders            AppointmentReminder[]
+  notificationLogs     NotificationLog[]
+  notifyAssignedUser   Boolean @default(true) // Configuración: Al usuario relacionado
+  adminNotificationUserIds String @default("") // Configuración: Empleados seleccionados para notificaciones (CSV)
+  senderEmail          String @default("") // Configuración: Email emisor
+  defaultWhatsappMode  String @default("Web") // Configuración: Whatsapp por defecto (Web / App)
+  inventoryProducts    InventoryProduct[]
+  commissionConfigs UserCommissionConfig[]
+  liquidations      Liquidation[]
+  services            Service[]
+  fiscalProfiles    FiscalProfile[]
+}
+
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  name         String
+  role         String        // "ADMIN", "DOCTOR", "THERAPIST", "RECEPTIONIST"
+  phone        String?
+  lastName     String?
+  dniNif       String?
+  address      String?
+  municipality String?
+  postalCode   String?
+  additionalData String?
+  color        String?       @default("#3b82f6")
+  showInAgenda Boolean       @default(true)
+  permissionsJson String     @default("{}")
+  clinics      Clinic[]
+  appointments Appointment[]
+  shifts       Shift[]
+  allowedClients Client[] @relation("ClientAllowedUsers")
+  timeBlocks   TimeBlock[]
+  waitlistEntries WaitlistEntry[]
+  workEntries  WorkEntry[]
+  inventoryTransactions InventoryTransaction[]
+  commissionConfigs UserCommissionConfig[]
+  liquidations      Liquidation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Shift {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayOfWeek Int      // 0 (Sunday) to 6 (Saturday)
+  startTime String   // e.g., "09:00"
+  endTime   String   // e.g., "18:00"
+  clinicId  String?
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id             String        @id @default(uuid())
+  name           String
+  price          Float
+  duration       Int           // in minutes
+  color          String        // HEX color e.g., "#3b82f6"
+  category       String?
+  description    String?
+  type           String?       @default("Presencial")
+  tax            Float?        @default(0)
+  total          Float?        @default(0)
+  allowedUserIds String?       @default("")
+  clinicId       String?
+  clinic         Clinic?       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  waitlistEntries WaitlistEntry[]
+  consumibles    ServiceProduct[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Client {
+  id                 String           @id @default(uuid())
+  clientNumber       Int              @unique
+  firstName          String
+  lastName           String
+  phone              String?
+  email              String?
+  dniNif             String?
+  birthDate          DateTime?
+  gender             String?
+  address            String?
+  municipality       String?
+  postalCode         String?
+  country            String?
+  province           String?
+  landline           String?
+  iban               String?
+  bic                String?
+  tags               String?          // comma separated or JSON
+  clinicId           String
+  clinic             Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  deletedAt          DateTime?        // null = activo, fecha = en papelera (soft delete)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  appointments       Appointment[]
+  sales              Sale[]
+  documents          SignedDocument[]
+  allowedUsers       User[]           @relation("ClientAllowedUsers")
+  vouchers           ClientVoucher[]
+  files              ClientFile[]
+  waitlistEntries    WaitlistEntry[]
+  
+  // Custom toggles & fields from Docfav screenshot
+  isSelfEmployed     Boolean          @default(false)
+  isCompany          Boolean          @default(false)
+  receivesReminders  Boolean          @default(true)
+  occupation         String?
+  maritalStatus      String?
+  
+  // Medical & aesthetic history
+  aestheticTreatments String?
+  allergies          String?
+  medication         String?
+  medicalHistory     String?
+  otherNotes         String?
+  
+  // Representative details (Tercer)
+  tutorName          String?
+  tutorLastName      String?
+  tutorDniNif        String?
+  tutorPhone         String?
+  tutorEmail         String?
+  tutorAddress       String?
+  tutorPostalCode    String?
+  tutorMunicipality  String?
+  formResponses      String?          @default("{}")
+  followUps          String?          @default("[]")
+  budgets            Budget[]
+}
+
+model Appointment {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  start     DateTime
+  end       DateTime
+  notes     String?
+  status    String   // "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NOSHOW"
+  deletedAt DateTime? // null = activa, fecha = en papelera (soft delete)
+  tags      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Sale {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clinicId      String
+  clinic        Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  total         Float
+  discount      Float    @default(0)
+  paymentMethod String   // "CASH", "CARD", "TRANSFER", "OTHER"
+  itemsJson     String   // JSON string representation of items
+  createdAt     DateTime @default(now())
+}
+
+model DocumentTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  content   String   // HTML template with double braces
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SignedDocument {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  content   String
+  signature String?  // Base64 image URL/string
+  pin       String?  // PIN code to view/sign remotely
+  createdAt DateTime @default(now())
+}
+
+model Movement {
+  id        String   @id @default(uuid())
+  concept   String
+  amount    Float
+  method    String   // "CASH", "CARD", "TRANSFER"
+  type      String   // "INCOME" or "EXPENSE"
+  date      DateTime
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model TimeBlock {
+  id        String   @id @default(uuid())
+  title     String   // Nombre de la reserva
+  start     DateTime
+  end       DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Voucher {
+  id               String   @id @default(uuid())
+  name             String
+  sessions         Int
+  price            Float
+  tax              Float?   @default(0)
+  expirationMonths Int?
+  serviceIds       String?  @default("")
+  clinicId         String
+  clinic           Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ClientVoucher {
+  id                String   @id @default(uuid())
+  clientId          String
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  voucherId         String
+  name              String
+  sessions          Int
+  remainingSessions Int
+  price             Float
+  expirationDate    DateTime?
+  sharedClientIds   String?  @default("") // comma-separated client IDs that share this voucher
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ClientFile {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  fileUrl   String
+  fileSize  Int?
+  createdAt DateTime @default(now())
+}
+
+model EpisodeFormTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  fields    String   @default("[]") // JSON array of field name strings
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ClientFormTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  fields    String   @default("[]") // JSON array of field name strings
+  isMain    Boolean  @default(false)
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhiteboardTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  imageUrl  String
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model WaitlistEntry {
+  id                 String   @id @default(uuid())
+  clientId           String
+  client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId          String?
+  service            Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  clinicId           String
+  clinic             Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  notes              String?
+  preferredDayOfWeek Int?     // e.g. 1 (Mon), 2 (Tue)...
+  preferredTimeRange String?  // e.g. "Mañana", "Tarde"
+  status             String   @default("WAITING") // "WAITING", "ASSIGNED", "CANCELLED"
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model AppointmentLog {
+  id            String   @id @default(uuid())
+  appointmentId String   // ID de la cita (se mantiene aunque la cita se elimine definitivamente)
+  action        String   // CREATED | STATUS_CHANGED | RESCHEDULED | STAFF_CHANGED | SERVICE_CHANGED | NOTES_CHANGED | DELETED | RESTORED
+  userId        String?  // ID del usuario que realizó la acción
+  userName      String?  // Nombre del actor (snapshot, por si se elimina el usuario)
+  previousValue String?  // Valor anterior legible
+  newValue      String?  // Valor nuevo legible
+  createdAt     DateTime @default(now())
+}
+
+model WorkEntry {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinicId            String
+  clinic              Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  clockIn             DateTime  // Hora de entrada
+  clockOut            DateTime? // Hora de salida (null = activa)
+  breakStart          DateTime? // Inicio de pausa
+  totalBreaksMinutes  Int       @default(0) // Acumulado de pausas en minutos
+  inNotes             String?
+  outNotes            String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Budget {
+  id              String       @id @default(uuid())
+  budgetNumber    Int          // Número secuencial de presupuesto
+  title           String       // Nombre o concepto del presupuesto
+  clientId        String
+  client          Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clinicId        String
+  clinic          Clinic       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  status          String       @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  total           Float
+  remainingAmount Float        @default(0) // Saldo restante (para cobros de citas)
+  itemsJson       String       // Representación en JSON de los artículos
+  deletedAt       DateTime?    // Para control de soft-delete en la papelera
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model BudgetTemplate {
+  id              String       @id @default(uuid())
+  name            String       // Nombre de la plantilla (ej: "Tratamiento Fisioterapia")
+  clinicId        String
+  clinic          Clinic       @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  total           Float
+  itemsJson       String       // Artículos preconfigurados de la plantilla (JSON string)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model AppointmentReminder {
+  id              String         @id @default(uuid())
+  name            String         // Nombre de la plantilla (ej: "Recordatorio de cita")
+  channel         String         // EMAIL | WHATSAPP | SMS | WHATSAPP_MANUAL
+  condition       String         // PENDING | CONFIRMED | CANCELLED | etc. (Estado de cita)
+  hoursBefore     Int            @default(24)
+  minutesBefore   Int            @default(0)
+  message         String         // Cuerpo del mensaje con variables
+  clinicId        String
+  clinic          Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  allServices     Boolean        @default(true)
+  serviceIds      String         @default("") // IDs de servicios separados por comas si allServices es false
+  enabled         Boolean        @default(true)
+  isSystem        Boolean        @default(false) // true si es notificación interna para administradores
+  triggerWhen     String         @default("BOTH") // BOTH (crear/modificar) | STATUS_ONLY (solo modificar)
+  templateId      String         @default("") // Identificador de la plantilla oficial (ej: para Whatsapp automático)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model NotificationLog {
+  id              String         @id @default(uuid())
+  clinicId        String
+  clinic          Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  clientId        String
+  clientName      String
+  appointmentId   String?
+  channel         String
+  recipient       String
+  message         String
+  status          String         @default("SENT") // SENT | FAILED
+  sentAt          DateTime       @default(now())
+}
+
+model InventoryProduct {
+  id          String   @id @default(uuid())
+  name        String
+  sku         String?
+  stock       Int      @default(0)
+  minStock    Int      @default(0)
+  costPrice   Float    @default(0)
+  clinicId    String
+  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  services    ServiceProduct[]
+  transactions InventoryTransaction[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ServiceProduct {
+  id        String   @id @default(uuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  productId String
+  product   InventoryProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  clinicId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serviceId, productId])
+}
+
+model InventoryTransaction {
+  id        String   @id @default(uuid())
+  productId String
+  product   InventoryProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String   // "ADD", "REMOVE", "CONSUMPTION"
+  quantity  Int
+  notes     String?
+  clinicId  String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+
+model UserCommissionConfig {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinicId     String
+  clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  defaultType  String   @default("PERCENTAGE") // "PERCENTAGE" | "FIXED"
+  defaultValue Float    @default(0)
+  overridesJson String  @default("{}") // Mapeo de serviceId -> { type: "PERCENTAGE" | "FIXED", value: Float }
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, clinicId])
+}
+
+model Liquidation {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinicId     String
+  clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  periodStart  DateTime
+  periodEnd    DateTime
+  status       String   @default("PENDING") // "PENDING" | "PAID"
+  totalAmount  Float    @default(0)
+  detailsJson  String   @default("[]") // Lista de citas desglosadas (congeladas en formato JSON)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model FiscalProfile {
+  id                  String   @id @default(uuid())
+  clinicId            String
+  clinic              Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  entityType          String   @default("Empresa")
+  comercialName       String   @default("")
+  nif                 String   @default("")
+  address             String   @default("")
+  municipality        String   @default("")
+  postalCode          String   @default("")
+  logo                String   @default("")
+  irpf                Float    @default(0)
+  creditorSuffix      String   @default("0000")
+  iban                String   @default("")
+  bicSwift            String   @default("")
+  serieFacturaOrdinaria       String @default("")
+  serieRectificadaOrdinaria   String @default("")
+  serieFacturaSimplificada    String @default("")
+  serieRectificadaSimplificada String @default("")
+  footerNotes         String   @default("")
+  footerNotesSimplified String @default("")
+  firma               String   @default("")
+  sello               String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
