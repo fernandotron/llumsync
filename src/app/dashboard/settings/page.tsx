@@ -70,19 +70,21 @@ interface Template {
   content: string;
 }
 
-export default function SettingsPage() {
-  const { activeClinic, user: currentUser, setActiveClinic } = useApp();
+function SettingsTabNavigator({ setActiveTab }: { setActiveTab: (tab: any) => void }) {
   const searchParams = useSearchParams();
-  const showGanancias = currentUser?.role === "ADMIN" || hasPermission(currentUser, "contabilidad", "Artículos - Ver Ganancias");
-  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales">("clinic");
-
-  // Auto-navigate to tab from URL param (e.g. ?tab=datosFiscales)
   useEffect(() => {
     const tabParam = searchParams?.get("tab");
     if (tabParam) {
       setActiveTab(tabParam as any);
     }
-  }, [searchParams]);
+  }, [searchParams, setActiveTab]);
+  return null;
+}
+
+export default function SettingsPage() {
+  const { activeClinic, user: currentUser, setActiveClinic } = useApp();
+  const showGanancias = currentUser?.role === "ADMIN" || hasPermission(currentUser, "contabilidad", "Artículos - Ver Ganancias");
+  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales">("clinic");
 
   // Datos Fiscales states
   const [fiscalProfiles, setFiscalProfiles] = useState<any[]>([]);
@@ -2483,7 +2485,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className={styles.container}>
+    <>
+      <React.Suspense fallback={null}>
+        <SettingsTabNavigator setActiveTab={setActiveTab} />
+      </React.Suspense>
+      <div className={styles.container}>
       {/* Header */}
       <header className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
@@ -8848,6 +8854,7 @@ export default function SettingsPage() {
         </div>,
         document.body
       )}
-    </div>
+      </div>
+    </>
   );
 }
