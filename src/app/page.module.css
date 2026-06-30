@@ -206,3 +206,260 @@
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+.registerLinkContainer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.registerLink {
+  color: var(--primary);
+  background: none;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+.registerLink:hover {
+  color: var(--accent);
+}
+
+.stepIndicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.stepDot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: all 0.3s;
+}
+
+.stepDotActive {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+}
+
+.stepDotCompleted {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+}
+
+.specialtyGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.specialtyBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+}
+.specialtyBtn:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.specialtyBtnActive {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+.specialtyIcon {
+  font-size: 20px;
+}
+
+/* Simulated Google Accounts Modal */
+.googleModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.googleModal {
+  background: var(--bg-card);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  text-align: center;
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.googleLogo {
+  display: inline-flex;
+  gap: 2px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+
+.googleTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+
+.googleSubtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 20px;
+}
+
+.googleAccountList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.googleAccountItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+.googleAccountItem:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+}
+
+.googleAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.googleAccountMeta {
+  display: flex;
+  flex-direction: column;
+}
+
+.googleAccountName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.googleAccountEmail {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.googleCustomInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.googleBtnGroup {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.googleCancelBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+.googleCancelBtn:hover {
+  background: var(--bg-hover);
+}
+
+.googleSubmitBtn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+.googleSubmitBtn:hover {
+  background: var(--accent);
+}
+
