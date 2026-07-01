@@ -81,6 +81,7 @@ export async function POST(request: Request) {
           "{{Nombre_Consulta}}": app.clinic?.name || "Clifav Central",
           "{{Dirección_Consulta}}": app.clinic?.address || "Calle Principal 123",
           "{{Fecha_Hora_Cita}}": `${dateFormatted} a las ${timeFormatted}`,
+          "{{Fecha_Cita}}": dateFormatted,
           "{{Fecha_larga}}": longDateFormatted,
           "{{Hora_Cita}}": timeFormatted,
           "{{Nombre_Servicio}}": app.service?.name || "",

@@ -664,7 +664,7 @@ export default function SettingsPage() {
       setReminderFormCondition("PENDING");
       setReminderFormHours("24");
       setReminderFormMinutes("0");
-      setReminderFormMessage("");
+      setReminderFormMessage(isSystem ? "" : "Hola {{Cliente:Nombre}}.\n\nLe recordamos que mañana, {{Fecha_Cita}} a las {{Hora_Cita}}, tiene programada su cita para el servicio de {{Nombre_Servicio}}.\n\nSi no le es posible asistir, por favor infórmenos con la mayor antelación posible para poder reasignar su turno.\n\n¡Que tenga un excelente día!");
       setReminderFormAllServices(true);
       setReminderFormServiceIds([]);
       setReminderFormTriggerWhen("BOTH");
@@ -6814,6 +6814,7 @@ export default function SettingsPage() {
                                     </optgroup>
                                     <optgroup label="Cita">
                                       <option value="{{Fecha_Hora_Cita}}">Fecha y Hora Cita</option>
+                                      <option value="{{Fecha_Cita}}">Fecha Cita</option>
                                       <option value="{{Fecha_larga}}">Fecha larga</option>
                                       <option value="{{Hora_Cita}}">Hora Cita</option>
                                       <option value="{{Nombre_Servicio}}">Nombre Servicio</option>
