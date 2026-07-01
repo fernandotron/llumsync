@@ -201,6 +201,7 @@ export default function SettingsPage() {
   const [configDefaultWhatsappMode, setConfigDefaultWhatsappMode] = useState("Web");
 
   // WhatsApp settings states
+  const [whatsappProvider, setWhatsappProvider] = useState<"meta" | "qr">("meta");
   const [whatsappApiUrl, setWhatsappApiUrl] = useState("");
   const [whatsappInstanceName, setWhatsappInstanceName] = useState("");
   const [whatsappApiToken, setWhatsappApiToken] = useState("");
@@ -208,6 +209,12 @@ export default function SettingsPage() {
   const [whatsappQrCode, setWhatsappQrCode] = useState<string | null>(null);
   const [checkingWhatsappStatus, setCheckingWhatsappStatus] = useState(false);
   const [whatsappStatusMessage, setWhatsappStatusMessage] = useState("");
+
+  // Meta WhatsApp Cloud API states
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
+  const [metaBusinessAccountId, setMetaBusinessAccountId] = useState("");
+  const [metaTemplateName, setMetaTemplateName] = useState("recordatorio_cita");
 
 
   
@@ -822,6 +829,10 @@ export default function SettingsPage() {
           whatsappApiUrl: whatsappApiUrl.trim(),
           whatsappInstanceName: whatsappInstanceName.trim(),
           whatsappApiToken: whatsappApiToken.trim(),
+          metaAccessToken: metaAccessToken.trim(),
+          metaPhoneNumberId: metaPhoneNumberId.trim(),
+          metaBusinessAccountId: metaBusinessAccountId.trim(),
+          metaTemplateName: metaTemplateName.trim(),
         }),
       });
 
@@ -984,6 +995,19 @@ export default function SettingsPage() {
     setWhatsappConnected(activeClinic.whatsappConnected || false);
     setWhatsappQrCode(null);
     setWhatsappStatusMessage("");
+
+    setMetaAccessToken(activeClinic.metaAccessToken || "");
+    setMetaPhoneNumberId(activeClinic.metaPhoneNumberId || "");
+    setMetaBusinessAccountId(activeClinic.metaBusinessAccountId || "");
+    setMetaTemplateName(activeClinic.metaTemplateName || "recordatorio_cita");
+    
+    if (activeClinic.metaAccessToken) {
+      setWhatsappProvider("meta");
+    } else if (activeClinic.whatsappApiToken) {
+      setWhatsappProvider("qr");
+    } else {
+      setWhatsappProvider("meta");
+    }
 
     fetchReminders();
     fetchNotificationLogs();
@@ -7120,191 +7144,332 @@ export default function SettingsPage() {
 
               {notificationsSubTab === "whatsapp" && (
                 <div style={{ padding: "8px 0", animation: "fadeIn 0.3s ease" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
-                    <div>
-                      <h2 style={{ fontSize: "20px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: "10px", color: "var(--text-primary)" }}>
-                        <span>💬</span> Conexión WhatsApp Multi-Clínica
-                      </h2>
-                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px", maxWidth: "600px" }}>
-                        Conecta el número de WhatsApp de tu clínica escaneando el código QR con tu móvil (Dispositivos Vinculados) para enviar recordatorios de citas automáticos.
-                      </p>
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        padding: "6px 12px",
-                        borderRadius: "20px",
-                        fontSize: "12px",
+                  
+                  {/* Selector de Proveedor de WhatsApp */}
+                  <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", marginBottom: "24px", gap: "16px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setWhatsappProvider("meta")}
+                      style={{
+                        padding: "10px 20px",
+                        fontSize: "14px",
                         fontWeight: 600,
-                        background: whatsappConnected ? "rgba(46, 125, 50, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                        color: whatsappConnected ? "#2e7d32" : "#ef4444",
-                        border: "1px solid " + (whatsappConnected ? "rgba(46, 125, 50, 0.3)" : "rgba(239, 68, 68, 0.3)")
-                      }}>
-                        <span style={{
-                          display: "inline-block",
-                          width: "8px",
-                          height: "8px",
-                          borderRadius: "50%",
-                          background: whatsappConnected ? "#4caf50" : "#f44336",
-                          boxShadow: whatsappConnected ? "0 0 10px #4caf50" : "none",
-                          animation: whatsappConnected ? "pulse 2s infinite" : "none"
-                        }}></span>
-                        {whatsappConnected ? "CONECTADO" : "DESCONECTADO"}
-                      </span>
-                    </div>
+                        background: "transparent",
+                        border: "none",
+                        borderBottom: whatsappProvider === "meta" ? "2px solid var(--primary)" : "2px solid transparent",
+                        color: whatsappProvider === "meta" ? "var(--primary)" : "var(--text-secondary)",
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      🟢 Meta API (Oficial - Recomendado)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWhatsappProvider("qr")}
+                      style={{
+                        padding: "10px 20px",
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        background: "transparent",
+                        border: "none",
+                        borderBottom: whatsappProvider === "qr" ? "2px solid var(--primary)" : "2px solid transparent",
+                        color: whatsappProvider === "qr" ? "var(--primary)" : "var(--text-secondary)",
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      📱 Evolution API (Código QR / WhatsApp Web)
+                    </button>
                   </div>
 
-                  <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", flexWrap: "wrap" }}>
-                    {/* Panel Izquierdo: Configuración de Credenciales */}
-                    <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
-                      <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                        ⚙️ Ajustes de la Instancia
-                      </h3>
+                  {/* PROVEEDOR 1: META CLOUD API */}
+                  {whatsappProvider === "meta" && (
+                    <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", flexWrap: "wrap" }}>
+                      
+                      {/* Formulario de Configuración de Meta */}
+                      <div style={{ flex: "1 1 380px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
+                        <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                          🔧 Configuración de Meta WhatsApp
+                        </h3>
 
-                      <div className="form-group" style={{ marginBottom: "16px" }}>
-                        <label className="form-label" style={{ fontWeight: 600 }}>URL de la API de WhatsApp</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={whatsappApiUrl}
-                          onChange={(e) => setWhatsappApiUrl(e.target.value)}
-                          placeholder="Ej: https://mi-evolution-api.up.railway.app"
-                        />
-                        <p style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          Deja vacío para usar el servidor central por defecto.
-                        </p>
-                      </div>
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                          <label className="form-label" style={{ fontWeight: 600 }}>Token de Acceso Permanente (System User Token)</label>
+                          <input
+                            type="password"
+                            className="input"
+                            value={metaAccessToken}
+                            onChange={(e) => setMetaAccessToken(e.target.value)}
+                            placeholder="EAPAA..."
+                          />
+                        </div>
 
-                      <div className="form-group" style={{ marginBottom: "16px" }}>
-                        <label className="form-label" style={{ fontWeight: 600 }}>Nombre de la Instancia (Instance Name)</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={whatsappInstanceName}
-                          onChange={(e) => setWhatsappInstanceName(e.target.value)}
-                          placeholder={`Ej: clinic-${activeClinic?.id.slice(0, 8)}`}
-                        />
-                      </div>
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                          <label className="form-label" style={{ fontWeight: 600 }}>ID del Número de Teléfono (Phone Number ID)</label>
+                          <input
+                            type="text"
+                            className="input"
+                            value={metaPhoneNumberId}
+                            onChange={(e) => setMetaPhoneNumberId(e.target.value)}
+                            placeholder="Ej: 10648215967..."
+                          />
+                        </div>
 
-                      <div className="form-group" style={{ marginBottom: "20px" }}>
-                        <label className="form-label" style={{ fontWeight: 600 }}>Token de Acceso (API Key / apikey)</label>
-                        <input
-                          type="password"
-                          className="input"
-                          value={whatsappApiToken}
-                          onChange={(e) => setWhatsappApiToken(e.target.value)}
-                          placeholder="Introduce el API Token de tu pasarela"
-                        />
-                      </div>
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                          <label className="form-label" style={{ fontWeight: 600 }}>ID de la Cuenta de WhatsApp Business (Opcional)</label>
+                          <input
+                            type="text"
+                            className="input"
+                            value={metaBusinessAccountId}
+                            onChange={(e) => setMetaBusinessAccountId(e.target.value)}
+                            placeholder="Ej: 1045214876..."
+                          />
+                        </div>
 
-                      <div style={{ display: "flex", gap: "10px" }}>
+                        <div className="form-group" style={{ marginBottom: "20px" }}>
+                          <label className="form-label" style={{ fontWeight: 600 }}>Nombre de la Plantilla (Template Name)</label>
+                          <input
+                            type="text"
+                            className="input"
+                            value={metaTemplateName}
+                            onChange={(e) => setMetaTemplateName(e.target.value)}
+                            placeholder="Ej: recordatorio_cita"
+                          />
+                        </div>
+
                         <button
                           type="button"
                           className="btn btn-primary"
                           onClick={handleSaveWhatsappCredentials}
-                          disabled={checkingWhatsappStatus}
-                          style={{ flex: 1 }}
+                          style={{ width: "100%" }}
                         >
-                          Guardar Ajustes
+                          Guardar Configuración Meta
                         </button>
                       </div>
-                    </div>
 
-                    {/* Panel Derecho: Escanear QR / Estado Conexión */}
-                    <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "330px" }}>
-                      
-                      {whatsappConnected ? (
-                        <div style={{ textAlign: "center", padding: "24px" }}>
-                          <span style={{ fontSize: "48px", display: "block", marginBottom: "16px" }}>✅</span>
-                          <h4 style={{ fontSize: "16px", fontWeight: 700, color: "#2e7d32", margin: "0 0 8px" }}>
-                            ¡WhatsApp Conectado!
-                          </h4>
-                          <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 24px", maxWidth: "280px" }}>
-                            Tu sistema está listo. Los recordatorios automáticos de citas serán enviados directamente desde tu número de teléfono vinculado.
+                      {/* Guía de Configuración e Información de Variables */}
+                      <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
+                        <h3 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span>💡</span> Guía de Configuración en Meta
+                        </h3>
+                        <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6", margin: "0 0 16px" }}>
+                          Para que funcione de forma autónoma con tu propio número, debes crear una App de tipo <strong>Negocio</strong> en <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary)", textDecoration: "underline" }}>developers.facebook.com</a> y añadir el producto de WhatsApp.
+                        </p>
+
+                        <div style={{ padding: "12px", background: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-color)", marginBottom: "16px" }}>
+                          <h4 style={{ fontSize: "12px", fontWeight: 700, margin: "0 0 8px" }}>Estructura de la Plantilla de WhatsApp:</h4>
+                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.5", margin: 0 }}>
+                            Crea una plantilla en Meta con el nombre configurado (ej: <code>{metaTemplateName}</code>) que contenga las siguientes variables en su contenido:
                           </p>
-                          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              onClick={handleCheckWhatsappStatus}
-                              disabled={checkingWhatsappStatus}
-                              style={{ fontSize: "12px" }}
-                            >
-                              Verificar Estado
-                            </button>
-                            <button
-                              type="button"
-                              className="btn"
-                              onClick={handleDisconnectWhatsapp}
-                              disabled={checkingWhatsappStatus}
-                              style={{ background: "#ef4444", color: "#fff", border: "none", fontSize: "12px" }}
-                            >
-                              Desconectar
-                            </button>
-                          </div>
+                          <ul style={{ fontSize: "11px", color: "var(--text-primary)", paddingLeft: "16px", marginTop: "8px", marginBottom: 0, lineHeight: "1.6" }}>
+                            <li><code>{"{{1}}"}</code>: Nombre del Paciente (Ej: Fernando)</li>
+                            <li><code>{"{{2}}"}</code>: Nombre de tu Clínica (Ej: {activeClinic?.name})</li>
+                            <li><code>{"{{3}}"}</code>: Nombre del Servicio (Ej: Fisioterapia)</li>
+                            <li><code>{"{{4}}"}</code>: Fecha y Hora de la cita (Ej: 24/09/2026 a las 17:30)</li>
+                          </ul>
+                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontStyle: "italic", marginTop: "8px", marginBottom: 0 }}>
+                            Ejemplo: "Hola {"{{1}}"}, te recordamos tu cita en {"{{2}}"} para {"{{3}}"} el {"{{4}}"}."
+                          </p>
                         </div>
-                      ) : (
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", textAlign: "center" }}>
-                          {whatsappQrCode ? (
-                            <div style={{ padding: "12px", background: "#fff", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", marginBottom: "16px" }}>
-                              <img
-                                src={whatsappQrCode}
-                                alt="Código QR de WhatsApp"
-                                style={{ width: "200px", height: "200px", display: "block" }}
-                              />
+
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                          <span>ℹ️</span>
+                          <span>Meta regala <strong>1.000 conversaciones gratuitas</strong> al mes para tu número de WhatsApp. Solo pagarás a Meta si excedes esa cantidad.</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* PROVEEDOR 2: EVOLUTION API (CÓDIGO QR / WHATSAPP WEB) */}
+                  {whatsappProvider === "qr" && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
+                        <div>
+                          <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+                            Escaneo de Código QR
+                          </h3>
+                          <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                            Escanea este código QR con tu móvil para simular WhatsApp Web utilizando Evolution API.
+                          </p>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "6px 12px",
+                            borderRadius: "20px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            background: whatsappConnected ? "rgba(46, 125, 50, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                            color: whatsappConnected ? "#2e7d32" : "#ef4444",
+                            border: "1px solid " + (whatsappConnected ? "rgba(46, 125, 50, 0.3)" : "rgba(239, 68, 68, 0.3)")
+                          }}>
+                            <span style={{
+                              display: "inline-block",
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              background: whatsappConnected ? "#4caf50" : "#f44336",
+                              boxShadow: whatsappConnected ? "0 0 10px #4caf50" : "none",
+                              animation: whatsappConnected ? "pulse 2s infinite" : "none"
+                            }}></span>
+                            {whatsappConnected ? "CONECTADO" : "DESCONECTADO"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", flexWrap: "wrap" }}>
+                        {/* Panel Izquierdo: Configuración de Credenciales */}
+                        <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
+                          <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                            ⚙️ Ajustes de la Instancia QR
+                          </h3>
+
+                          <div className="form-group" style={{ marginBottom: "16px" }}>
+                            <label className="form-label" style={{ fontWeight: 600 }}>URL de la API de WhatsApp</label>
+                            <input
+                              type="text"
+                              className="input"
+                              value={whatsappApiUrl}
+                              onChange={(e) => setWhatsappApiUrl(e.target.value)}
+                              placeholder="Ej: https://mi-evolution-api.up.railway.app"
+                            />
+                            <p style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                              Deja vacío para usar el servidor central por defecto.
+                            </p>
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: "16px" }}>
+                            <label className="form-label" style={{ fontWeight: 600 }}>Nombre de la Instancia (Instance Name)</label>
+                            <input
+                              type="text"
+                              className="input"
+                              value={whatsappInstanceName}
+                              onChange={(e) => setWhatsappInstanceName(e.target.value)}
+                              placeholder={`Ej: clinic-${activeClinic?.id.slice(0, 8)}`}
+                            />
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: "20px" }}>
+                            <label className="form-label" style={{ fontWeight: 600 }}>Token de Acceso (API Key / apikey)</label>
+                            <input
+                              type="password"
+                              className="input"
+                              value={whatsappApiToken}
+                              onChange={(e) => setWhatsappApiToken(e.target.value)}
+                              placeholder="Introduce el API Token de tu pasarela"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleSaveWhatsappCredentials}
+                            disabled={checkingWhatsappStatus}
+                            style={{ width: "100%" }}
+                          >
+                            Guardar Ajustes QR
+                          </button>
+                        </div>
+
+                        {/* Panel Derecho: Escanear QR / Estado Conexión */}
+                        <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "330px" }}>
+                          
+                          {whatsappConnected ? (
+                            <div style={{ textAlign: "center", padding: "24px" }}>
+                              <span style={{ fontSize: "48px", display: "block", marginBottom: "16px" }}>✅</span>
+                              <h4 style={{ fontSize: "16px", fontWeight: 700, color: "#2e7d32", margin: "0 0 8px" }}>
+                                ¡WhatsApp Conectado!
+                              </h4>
+                              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 24px", maxWidth: "280px" }}>
+                                Tu sistema está listo. Los recordatorios automáticos de citas serán enviados directamente desde tu número de teléfono vinculado.
+                              </p>
+                              <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  onClick={handleCheckWhatsappStatus}
+                                  disabled={checkingWhatsappStatus}
+                                  style={{ fontSize: "12px" }}
+                                >
+                                  Verificar Estado
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  onClick={handleDisconnectWhatsapp}
+                                  disabled={checkingWhatsappStatus}
+                                  style={{ background: "#ef4444", color: "#fff", border: "none", fontSize: "12px" }}
+                                >
+                                  Desconectar
+                                </button>
+                              </div>
                             </div>
                           ) : (
-                            <div style={{ padding: "24px", color: "var(--text-secondary)" }}>
-                              <span style={{ fontSize: "48px", display: "block", marginBottom: "16px" }}>📱</span>
-                              <p style={{ fontSize: "12px", margin: "0 0 16px", maxWidth: "260px" }}>
-                                Haz clic abajo para generar el código QR de conexión y vincular tu número.
-                              </p>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", textAlign: "center" }}>
+                              {whatsappQrCode ? (
+                                <div style={{ padding: "12px", background: "#fff", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", marginBottom: "16px" }}>
+                                  <img
+                                    src={whatsappQrCode}
+                                    alt="Código QR de WhatsApp"
+                                    style={{ width: "200px", height: "200px", display: "block" }}
+                                  />
+                                </div>
+                              ) : (
+                                <div style={{ padding: "24px", color: "var(--text-secondary)" }}>
+                                  <span style={{ fontSize: "48px", display: "block", marginBottom: "16px" }}>📱</span>
+                                  <p style={{ fontSize: "12px", margin: "0 0 16px", maxWidth: "260px" }}>
+                                    Haz clic abajo para generar el código QR de conexión y vincular tu número.
+                                  </p>
+                                </div>
+                              )}
+
+                              {whatsappStatusMessage && (
+                                <p style={{
+                                  fontSize: "12px",
+                                  fontWeight: 500,
+                                  margin: "0 0 16px",
+                                  color: whatsappStatusMessage.includes("Error") ? "#ef4444" : "var(--text-primary)",
+                                  maxWidth: "300px"
+                                }}>
+                                  {whatsappStatusMessage}
+                                </p>
+                              )}
+
+                              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary"
+                                  onClick={handleGetWhatsappQr}
+                                  disabled={checkingWhatsappStatus}
+                                  style={{ fontSize: "12px" }}
+                                >
+                                  {whatsappQrCode ? "Actualizar QR" : "Generar Código QR"}
+                                </button>
+
+                                {whatsappQrCode && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={handleCheckWhatsappStatus}
+                                    disabled={checkingWhatsappStatus}
+                                    style={{ fontSize: "12px" }}
+                                  >
+                                    {checkingWhatsappStatus ? "Verificando..." : "Ya he escaneado"}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           )}
 
-                          {whatsappStatusMessage && (
-                            <p style={{
-                              fontSize: "12px",
-                              fontWeight: 500,
-                              margin: "0 0 16px",
-                              color: whatsappStatusMessage.includes("Error") ? "#ef4444" : "var(--text-primary)",
-                              maxWidth: "300px"
-                            }}>
-                              {whatsappStatusMessage}
-                            </p>
-                          )}
-
-                          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              onClick={handleGetWhatsappQr}
-                              disabled={checkingWhatsappStatus}
-                              style={{ fontSize: "12px" }}
-                            >
-                              {whatsappQrCode ? "Actualizar QR" : "Generar Código QR"}
-                            </button>
-
-                            {whatsappQrCode && (
-                              <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={handleCheckWhatsappStatus}
-                                disabled={checkingWhatsappStatus}
-                                style={{ fontSize: "12px" }}
-                              >
-                                {checkingWhatsappStatus ? "Verificando..." : "Ya he escaneado"}
-                              </button>
-                            )}
-                          </div>
                         </div>
-                      )}
-
+                      </div>
                     </div>
-                  </div>
+                  )}
+
                 </div>
               )}
             </div>

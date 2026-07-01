@@ -48,6 +48,10 @@ model Clinic {
   whatsappInstanceName String?
   whatsappApiToken  String?
   whatsappConnected Boolean @default(false)
+  metaAccessToken       String?
+  metaPhoneNumberId     String?
+  metaBusinessAccountId String?
+  metaTemplateName      String? @default("recordatorio_cita")
 }
 
 

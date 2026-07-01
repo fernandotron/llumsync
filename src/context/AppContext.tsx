@@ -27,6 +27,10 @@ export interface Clinic {
   whatsappInstanceName?: string;
   whatsappApiToken?: string;
   whatsappConnected?: boolean;
+  metaAccessToken?: string;
+  metaPhoneNumberId?: string;
+  metaBusinessAccountId?: string;
+  metaTemplateName?: string;
 }
 
 

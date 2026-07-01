@@ -120,46 +120,98 @@ export async function POST(request: Request) {
           let sentStatus = "SENT";
           let apiError = "";
 
-          // Envío real de WhatsApp si la API está configurada (por clínica o globalmente)
-          const clinicApiUrl = app.clinic?.whatsappApiUrl || process.env.WHATSAPP_API_URL;
-          const clinicInstance = app.clinic?.whatsappInstanceName || process.env.WHATSAPP_INSTANCE_NAME;
-          const clinicToken = app.clinic?.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+          // Envío real de WhatsApp si la API está configurada
+          if (reminder.channel === "WHATSAPP") {
+            const metaAccessToken = app.clinic?.metaAccessToken;
+            const metaPhoneNumberId = app.clinic?.metaPhoneNumberId;
+            const metaTemplateName = app.clinic?.metaTemplateName || "recordatorio_cita";
 
-          if (reminder.channel === "WHATSAPP" && clinicApiUrl && clinicInstance && clinicToken) {
-            try {
-              // Asegurar formato internacional (ej: 34600000000)
-              const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
-              const targetUrl = `${clinicApiUrl}/message/sendText/${clinicInstance}`;
-              
-              const res = await fetch(targetUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "apikey": clinicToken,
-                },
-                body: JSON.stringify({
-                  number: formattedPhone,
-                  options: {
-                    delay: 1200,
-                    presence: "composing",
-                    linkPreview: false
+            const clinicApiUrl = app.clinic?.whatsappApiUrl || process.env.WHATSAPP_API_URL;
+            const clinicInstance = app.clinic?.whatsappInstanceName || process.env.WHATSAPP_INSTANCE_NAME;
+            const clinicToken = app.clinic?.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+
+            // Asegurar formato internacional (ej: 34600000000)
+            const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
+
+            if (metaAccessToken && metaPhoneNumberId) {
+              // 1. OPCIÓN RECOMENDADA: Meta WhatsApp Cloud API (Oficial)
+              try {
+                const targetUrl = `https://graph.facebook.com/v18.0/${metaPhoneNumberId}/messages`;
+                
+                const res = await fetch(targetUrl, {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${metaAccessToken}`,
+                    "Content-Type": "application/json",
                   },
-                  textMessage: {
-                    text: message
-                  }
-                }),
-              });
+                  body: JSON.stringify({
+                    messaging_product: "whatsapp",
+                    to: formattedPhone,
+                    type: "template",
+                    template: {
+                      name: metaTemplateName,
+                      language: { code: "es" },
+                      components: [
+                        {
+                          type: "body",
+                          parameters: [
+                            { type: "text", text: app.client?.firstName || "Paciente" },
+                            { type: "text", text: app.clinic?.name || "Clínica" },
+                            { type: "text", text: app.service?.name || "Servicio" },
+                            { type: "text", text: `${dateFormatted} a las ${timeFormatted}` }
+                          ]
+                        }
+                      ]
+                    }
+                  }),
+                });
 
-              if (!res.ok) {
-                const errText = await res.text();
+                if (!res.ok) {
+                  const errJson = await res.json().catch(() => ({}));
+                  sentStatus = "FAILED";
+                  apiError = `Meta API Error (${res.status}): ${JSON.stringify(errJson)}`;
+                  console.error("Error al enviar WhatsApp a través de Meta API:", errJson);
+                }
+              } catch (err: any) {
                 sentStatus = "FAILED";
-                apiError = `Error API (${res.status}): ${errText}`;
-                console.error("Error al enviar WhatsApp a través de Evolution API:", errText);
+                apiError = err.message || "Error de red";
+                console.error("Error de conexión con Meta API:", err);
               }
-            } catch (err: any) {
-              sentStatus = "FAILED";
-              apiError = err.message || "Error de red";
-              console.error("Error de conexión con Evolution API:", err);
+            } else if (clinicApiUrl && clinicInstance && clinicToken) {
+              // 2. OPCIÓN DE FALLBACK: Evolution API (Código QR)
+              try {
+                const targetUrl = `${clinicApiUrl}/message/sendText/${clinicInstance}`;
+                
+                const res = await fetch(targetUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "apikey": clinicToken,
+                  },
+                  body: JSON.stringify({
+                    number: formattedPhone,
+                    options: {
+                      delay: 1200,
+                      presence: "composing",
+                      linkPreview: false
+                    },
+                    textMessage: {
+                      text: message
+                    }
+                  }),
+                });
+
+                if (!res.ok) {
+                  const errText = await res.text();
+                  sentStatus = "FAILED";
+                  apiError = `Evolution API Error (${res.status}): ${errText}`;
+                  console.error("Error al enviar WhatsApp a través de Evolution API:", errText);
+                }
+              } catch (err: any) {
+                sentStatus = "FAILED";
+                apiError = err.message || "Error de red";
+                console.error("Error de conexión con Evolution API:", err);
+              }
             }
           }
 
