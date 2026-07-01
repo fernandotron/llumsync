@@ -664,7 +664,7 @@ export default function SettingsPage() {
       setReminderFormCondition("PENDING");
       setReminderFormHours("24");
       setReminderFormMinutes("0");
-      setReminderFormMessage(isSystem ? "" : "Hola {{Cliente:Nombre}}.\n\nLe recordamos que mañana, {{Fecha_Cita}} a las {{Hora_Cita}}, tiene programada su cita para el servicio de {{Nombre_Servicio}}.\n\nSi no le es posible asistir, por favor infórmenos con la mayor antelación posible para poder reasignar su turno.\n\n¡Que tenga un excelente día!");
+      setReminderFormMessage(isSystem ? "" : "Hola {{Cliente:Nombre}}.\n\nLe recordamos que mañana, {{Fecha_Cita}} a las {{Hora_Cita}}, tiene programada su cita para el servicio de {{Nombre_Servicio}}.\n\nSi no le es posible asistir, por favor infórmenos con la mayor antelación posible para poder reasignar su turno.\n\n{{Nombre_Consulta}}\n\n¡Que tenga un excelente día!");
       setReminderFormAllServices(true);
       setReminderFormServiceIds([]);
       setReminderFormTriggerWhen("BOTH");
@@ -6589,7 +6589,7 @@ export default function SettingsPage() {
                                 if (chan === "WHATSAPP") {
                                   // Asignar plantilla por defecto para Whatsapp automático
                                   setReminderFormTemplateId("standard");
-                                  setReminderFormMessage("Hola {nombre} le recordamos que el {FechayHora} tiene una cita en {direcciónClínica}. {NombreClínica}");
+                                  setReminderFormMessage("Hola {{Cliente:Nombre}}.\n\nLe recordamos que mañana, {{Fecha_Cita}} a las {{Hora_Cita}}, tiene programada su cita para el servicio de  {{Nombre_Servicio}}.\n\nSi no le es posible asistir, por favor infórmenos con la mayor antelación posible para poder reasignar su turno.\n\n{{Nombre_Consulta}}\n\n¡Que tenga un excelente día!");
                                 } else {
                                   setReminderFormTemplateId("");
                                 }
@@ -6723,7 +6723,7 @@ export default function SettingsPage() {
                                 Este canal enviará una alerta automática al equipo administrativo seleccionado cuando ocurra la condición.
                               </p>
                               <div style={{ background: "var(--bg-app)", padding: "12px", borderRadius: "6px", border: "1px solid var(--border-color)", fontSize: "12px", fontFamily: "monospace" }}>
-                                [CLIFAV AVISO] Se ha registrado o actualizado la cita de {"{Paciente}"} para el servicio {"{Servicio}"} con estado {"{Estado}"}.
+                                [CLIFAV AVISO] Se ha registrado o actualizado la cita de {"{Paciente}"} para el servicio {"{Servicio}"} con estado {"{Estado}"} en fecha {"{Fecha_Cita}"} a las {"{Hora_Cita}"}.
                               </div>
                             </div>
                           ) : reminderFormChannel === "WHATSAPP" ? (
@@ -6738,7 +6738,7 @@ export default function SettingsPage() {
                                     const val = e.target.value;
                                     setReminderFormTemplateId(val);
                                     if (val === "standard") {
-                                      setReminderFormMessage("Hola {nombre} le recordamos que el {FechayHora} tiene una cita en {direcciónClínica}. {NombreClínica}");
+                                      setReminderFormMessage("Hola {{Cliente:Nombre}}.\n\nLe recordamos que mañana, {{Fecha_Cita}} a las {{Hora_Cita}}, tiene programada su cita para el servicio de  {{Nombre_Servicio}}.\n\nSi no le es posible asistir, por favor infórmenos con la mayor antelación posible para poder reasignar su turno.\n\n{{Nombre_Consulta}}\n\n¡Que tenga un excelente día!");
                                     } else if (val === "confirmation") {
                                       setReminderFormMessage("Hola {nombre}, su cita para {servicio} el {FechayHora} ha sido confirmada con éxito.");
                                     }

@@ -139,6 +139,16 @@ export async function POST(request: Request) {
               try {
                 const targetUrl = `https://graph.facebook.com/v18.0/${metaPhoneNumberId}/messages`;
                 
+                const nombrePaciente = app.client?.firstName || "Paciente";
+                const fechaTexto = startD.toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long'
+                }); // Ejemplo: "jueves, 2 de julio"
+                const horaTexto = timeFormatted;
+                const servicioTexto = app.service?.name || "su consulta médica";
+                const nombreConsulta = app.clinic?.name || "nuestro centro";
+
                 const res = await fetch(targetUrl, {
                   method: "POST",
                   headers: {
@@ -156,10 +166,11 @@ export async function POST(request: Request) {
                         {
                           type: "body",
                           parameters: [
-                            { type: "text", text: app.client?.firstName || "Paciente" },
-                            { type: "text", text: app.clinic?.name || "Clínica" },
-                            { type: "text", text: app.service?.name || "Servicio" },
-                            { type: "text", text: `${dateFormatted} a las ${timeFormatted}` }
+                            { type: "text", text: nombrePaciente },   // {{1}} -> Nombre del paciente
+                            { type: "text", text: fechaTexto },       // {{2}} -> Fecha de la cita (ej: "jueves, 2 de julio")
+                            { type: "text", text: horaTexto },        // {{3}} -> Hora de la cita (ej: "12:15")
+                            { type: "text", text: servicioTexto },    // {{4}} -> Nombre del servicio (ej: "Fisioterapia")
+                            { type: "text", text: nombreConsulta }    // {{5}} -> Nombre de la consulta (ej: "Clínica...")
                           ]
                         }
                       ]
