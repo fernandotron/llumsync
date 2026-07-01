@@ -1,6 +1,9 @@
 import { execSync } from "child_process";
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+
+const { Pool } = pg;
 
 try {
   console.log("Running prisma db push...");
@@ -9,11 +12,9 @@ try {
   console.error("Error during prisma db push:", e);
 }
 
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({
-    url: "file:./prisma/dev.db",
-  }),
-});
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   try {
