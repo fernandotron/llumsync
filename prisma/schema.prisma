@@ -44,6 +44,10 @@ model Clinic {
   liquidations      Liquidation[]
   services            Service[]
   fiscalProfiles    FiscalProfile[]
+  whatsappApiUrl    String?
+  whatsappInstanceName String?
+  whatsappApiToken  String?
+  whatsappConnected Boolean @default(false)
 }
 
 

@@ -120,18 +120,22 @@ export async function POST(request: Request) {
           let sentStatus = "SENT";
           let apiError = "";
 
-          // Envío real de WhatsApp si la API está configurada
-          if (reminder.channel === "WHATSAPP" && process.env.WHATSAPP_API_URL && process.env.WHATSAPP_INSTANCE_NAME && process.env.WHATSAPP_API_TOKEN) {
+          // Envío real de WhatsApp si la API está configurada (por clínica o globalmente)
+          const clinicApiUrl = app.clinic?.whatsappApiUrl || process.env.WHATSAPP_API_URL;
+          const clinicInstance = app.clinic?.whatsappInstanceName || process.env.WHATSAPP_INSTANCE_NAME;
+          const clinicToken = app.clinic?.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+
+          if (reminder.channel === "WHATSAPP" && clinicApiUrl && clinicInstance && clinicToken) {
             try {
               // Asegurar formato internacional (ej: 34600000000)
               const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
-              const targetUrl = `${process.env.WHATSAPP_API_URL}/message/sendText/${process.env.WHATSAPP_INSTANCE_NAME}`;
+              const targetUrl = `${clinicApiUrl}/message/sendText/${clinicInstance}`;
               
               const res = await fetch(targetUrl, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "apikey": process.env.WHATSAPP_API_TOKEN,
+                  "apikey": clinicToken,
                 },
                 body: JSON.stringify({
                   number: formattedPhone,

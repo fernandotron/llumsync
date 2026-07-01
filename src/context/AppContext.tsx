@@ -23,6 +23,10 @@ export interface Clinic {
   adminNotificationUserIds?: string;
   senderEmail?: string;
   defaultWhatsappMode?: string;
+  whatsappApiUrl?: string;
+  whatsappInstanceName?: string;
+  whatsappApiToken?: string;
+  whatsappConnected?: boolean;
 }
 
 
