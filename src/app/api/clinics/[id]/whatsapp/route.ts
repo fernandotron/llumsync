@@ -82,6 +82,27 @@ export async function POST(
         }
 
         const connectData = await connectRes.json();
+        const connectionState = connectData.instance?.state || connectData.status;
+        const isConnected = connectionState === "open" || connectionState === "CONNECTED";
+
+        if (isConnected) {
+          await prisma.clinic.update({
+            where: { id },
+            data: {
+              whatsappConnected: true,
+              whatsappInstanceName: instanceName,
+              whatsappApiUrl: apiUrl,
+              whatsappApiToken: apiToken,
+            },
+          });
+
+          return NextResponse.json({
+            instanceName,
+            base64: null,
+            code: null,
+            status: "CONNECTED",
+          });
+        }
         
         // Retornamos el QR base64 o estado que nos de Evolution API
         return NextResponse.json({
