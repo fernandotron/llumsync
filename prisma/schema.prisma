@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Clinic {
@@ -44,6 +44,14 @@ model Clinic {
   liquidations      Liquidation[]
   services            Service[]
   fiscalProfiles    FiscalProfile[]
+  whatsappApiUrl    String?
+  whatsappInstanceName String?
+  whatsappApiToken  String?
+  whatsappConnected Boolean @default(false)
+  metaAccessToken       String?
+  metaPhoneNumberId     String?
+  metaBusinessAccountId String?
+  metaTemplateName      String? @default("recordatorio_cita")
 }
 
 

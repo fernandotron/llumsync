@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     });
 
     // Compute KPI metrics
-    const totalRevenue = sales.reduce((acc, sale) => acc + sale.total, 0);
+    const totalRevenue = sales.reduce((acc: number, sale: any) => acc + sale.total, 0);
     const appointmentsCount = appointments.length;
     const activeClientsCount = totalClientsCount;
     const avgTicket = sales.length > 0 ? totalRevenue / sales.length : 0;
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 
     // Chart Data 2: Appointment volume by staff
     const staffStatsMap: Record<string, { name: string; count: number }> = {};
-    appointments.forEach((app) => {
+    appointments.forEach((app: any) => {
       if (staffStatsMap[app.userId]) {
         staffStatsMap[app.userId].count += 1;
       } else {
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 
     // Chart Data 3: Services popularity distribution (Top Services)
     const serviceStatsMap: Record<string, { name: string; count: number; color: string }> = {};
-    appointments.forEach((app) => {
+    appointments.forEach((app: any) => {
       if (serviceStatsMap[app.serviceId]) {
         serviceStatsMap[app.serviceId].count += 1;
       } else {

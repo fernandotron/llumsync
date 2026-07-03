@@ -263,6 +263,7 @@ export default function ClientDetailPage() {
   const [newItemQty, setNewItemQty] = useState("1");
   const [newItemTax, setNewItemTax] = useState("21");
   const [newItemDiscount, setNewItemDiscount] = useState("0");
+  const [newItemDiscountType, setNewItemDiscountType] = useState<"%" | "€">("%");
   // Catalog services autocompletion
   const [services, setServices] = useState<any[]>([]);
   const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
@@ -272,7 +273,9 @@ export default function ClientDetailPage() {
 
 
   // Associated Vouchers, files and billing sub-tabs
-  const [billingSubTab, setBillingSubTab] = useState<"citas" | "productos" | "bonos" | "suscripciones" | "presupuestos">("bonos");
+  const [billingSubTab, setBillingSubTab] = useState<"citas" | "productos" | "bonos" | "suscripciones" | "presupuestos">("citas");
+  const [citasTimeFilter, setCitasTimeFilter] = useState<"pasado" | "futuro">("pasado");
+  const [citasStatusMenuOpen, setCitasStatusMenuOpen] = useState<string | null>(null);
   const [clinicVouchers, setClinicVouchers] = useState<any[]>([]);
   const [showAddVoucherModal, setShowAddVoucherModal] = useState(false);
   const [selectedVoucherId, setSelectedVoucherId] = useState("");
@@ -1386,10 +1389,13 @@ export default function ClientDetailPage() {
     const price = parseFloat(newItemPrice);
     const qty = parseInt(newItemQty) || 1;
     const tax = parseFloat(newItemTax) || 0;
-    const discount = parseFloat(newItemDiscount) || 0;
+    const discountVal = parseFloat(newItemDiscount) || 0;
     
     const subtotal = price * qty;
-    const discountAmount = (subtotal * discount) / 100;
+    // Discount: if type is %, compute percentage; if €, use fixed amount directly
+    const discountAmount = newItemDiscountType === "%"
+      ? (subtotal * discountVal) / 100
+      : Math.min(discountVal, subtotal);
     const taxAmount = ((subtotal - discountAmount) * tax) / 100;
     const total = subtotal - discountAmount + taxAmount;
 
@@ -1401,7 +1407,8 @@ export default function ClientDetailPage() {
         price,
         qty,
         tax,
-        discount,
+        discount: discountVal,
+        discountType: newItemDiscountType,
         total
       }
     ]);
@@ -5423,41 +5430,269 @@ export default function ClientDetailPage() {
                   </div>
                 )}
 
-                {billingSubTab === "citas" && (
-                  <div>
-                    <h4 className={styles.sectionSubtitle}>Citas del cliente</h4>
-                    {(!client.appointments || client.appointments.length === 0) ? (
-                      <div className={styles.emptyState}>No hay citas registradas para este paciente.</div>
-                    ) : (
-                      <div className="table-container">
-                        <table className="table" style={{ fontSize: "13px" }}>
-                          <thead>
-                            <tr>
-                              <th>Servicio</th>
-                              <th>Profesional</th>
-                              <th>Fecha / Hora</th>
-                              <th>Estado</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {client.appointments.map((app) => (
-                              <tr key={app.id}>
-                                <td><strong>{app.service.name}</strong></td>
-                                <td>{app.user.name}</td>
-                                <td>{new Date(app.start).toLocaleString("es-ES")}</td>
-                                <td>
-                                  <span className={`badge badge-${app.status.toLowerCase()}`}>
-                                    {app.status === "CONFIRMED" ? "Confirmada" : app.status === "COMPLETED" ? "Completada" : app.status === "PENDING" ? "Pendiente" : "Cancelada"}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                {billingSubTab === "citas" && (() => {
+                  const now = new Date();
+                  const allApps = client.appointments || [];
+                  const pastApps = allApps.filter((a: any) => new Date(a.start) < now).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
+                  const futureApps = allApps.filter((a: any) => new Date(a.start) >= now).sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime());
+                  const displayApps = citasTimeFilter === "pasado" ? pastApps : futureApps;
+
+                  const getStatusLabel = (status: string) => {
+                    switch (status) {
+                      case "CONFIRMED": return "Confirmado";
+                      case "COMPLETED": return "Completado";
+                      case "PENDING": return "Sin confirmar";
+                      case "CANCELLED": return "Cancelado";
+                      case "NOSHOW": return "No presentado";
+                      default: return status;
+                    }
+                  };
+
+                  const getStatusColor = (status: string) => {
+                    switch (status) {
+                      case "CONFIRMED": return { bg: "#10b981", text: "#fff" };
+                      case "COMPLETED": return { bg: "#10b981", text: "#fff" };
+                      case "PENDING": return { bg: "#6b7280", text: "#fff" };
+                      case "CANCELLED": return { bg: "#ef4444", text: "#fff" };
+                      case "NOSHOW": return { bg: "#f59e0b", text: "#fff" };
+                      default: return { bg: "#6b7280", text: "#fff" };
+                    }
+                  };
+
+                  const handleChangeAppStatus = async (appId: string, newStatus: string) => {
+                    setCitasStatusMenuOpen(null);
+                    try {
+                      const res = await fetch(`/api/appointments/${appId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: newStatus }),
+                      });
+                      if (res.ok) {
+                        fetchClientDetails();
+                      }
+                    } catch (err) {
+                      console.error("Error updating appointment status", err);
+                    }
+                  };
+
+                  // A cita is "paid" if its status is COMPLETED
+                  const isPaid = (app: any) => app.status === "COMPLETED";
+
+                  return (
+                    <div>
+                      <h4 className={styles.sectionSubtitle}>Citas</h4>
+
+                      {/* Pasado / Futuro toggle */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                        <div style={{ display: "flex", gap: 0, background: "var(--bg-input)", borderRadius: "8px", padding: "3px" }}>
+                          {(["pasado", "futuro"] as const).map(filter => (
+                            <button
+                              key={filter}
+                              type="button"
+                              onClick={() => setCitasTimeFilter(filter)}
+                              style={{
+                                padding: "5px 18px",
+                                borderRadius: "6px",
+                                border: "none",
+                                cursor: "pointer",
+                                fontWeight: citasTimeFilter === filter ? 700 : 400,
+                                fontSize: "13px",
+                                background: citasTimeFilter === filter ? "var(--bg-panel-solid)" : "transparent",
+                                color: citasTimeFilter === filter ? "var(--text-primary)" : "var(--text-secondary)",
+                                boxShadow: citasTimeFilter === filter ? "0 1px 4px rgba(0,0,0,0.12)" : "none",
+                                transition: "all 0.18s"
+                              }}
+                            >
+                              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
+
+                      {displayApps.length === 0 ? (
+                        <div className={styles.emptyState}>No hay citas {citasTimeFilter === "pasado" ? "pasadas" : "futuras"} registradas.</div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          {displayApps.map((app: any) => {
+                            const paid = isPaid(app);
+                            const statusColors = getStatusColor(app.status);
+                            const isMenuOpen = citasStatusMenuOpen === app.id;
+
+                            return (
+                              <div
+                                key={app.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "10px",
+                                  padding: "10px 4px",
+                                  borderBottom: "1px solid var(--border-color)",
+                                  flexWrap: "wrap"
+                                }}
+                              >
+                                {/* Date + time */}
+                                <span style={{ fontSize: "13px", color: "var(--text-secondary)", minWidth: "160px", flexShrink: 0 }}>
+                                  {new Date(app.start).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })},
+                                  {" "}{new Date(app.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}-{new Date(app.end).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+
+                                {/* Service */}
+                                <span style={{ fontSize: "13px", color: "#0ea5e9", fontWeight: 600, minWidth: "120px" }}>
+                                  {app.service?.name || "Servicio"}
+                                </span>
+
+                                {/* User */}
+                                <span style={{ fontSize: "13px", color: "var(--text-primary)", minWidth: "100px" }}>
+                                  {app.user?.name || ""}
+                                </span>
+
+                                {/* Payment badge */}
+                                <span style={{
+                                  padding: "3px 10px",
+                                  borderRadius: "16px",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  background: paid ? "#10b981" : "#ef4444",
+                                  color: "#fff",
+                                  flexShrink: 0
+                                }}>
+                                  {paid ? "PAGADO" : "NO PAGADO"}
+                                </span>
+
+                                {/* Status dropdown */}
+                                <div style={{ position: "relative", flexShrink: 0 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCitasStatusMenuOpen(isMenuOpen ? null : app.id)}
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                      padding: "4px 12px",
+                                      borderRadius: "16px",
+                                      border: "none",
+                                      cursor: "pointer",
+                                      fontWeight: 600,
+                                      fontSize: "12px",
+                                      background: statusColors.bg,
+                                      color: statusColors.text
+                                    }}
+                                  >
+                                    {getStatusLabel(app.status)}
+                                    <span style={{ fontSize: "10px" }}>▾</span>
+                                  </button>
+                                  {isMenuOpen && (
+                                    <div style={{
+                                      position: "absolute",
+                                      top: "100%",
+                                      left: 0,
+                                      background: "var(--bg-panel-solid)",
+                                      border: "1px solid var(--border-color)",
+                                      borderRadius: "8px",
+                                      boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+                                      zIndex: 999,
+                                      minWidth: "160px",
+                                      marginTop: "4px",
+                                      overflow: "hidden"
+                                    }}>
+                                      {(["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NOSHOW"] as const).map(st => {
+                                        const sc = getStatusColor(st);
+                                        return (
+                                          <button
+                                            key={st}
+                                            type="button"
+                                            onClick={() => handleChangeAppStatus(app.id, st)}
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "8px",
+                                              width: "100%",
+                                              padding: "8px 14px",
+                                              border: "none",
+                                              background: app.status === st ? "var(--bg-input)" : "transparent",
+                                              cursor: "pointer",
+                                              fontSize: "13px",
+                                              textAlign: "left",
+                                              fontWeight: app.status === st ? 700 : 400
+                                            }}
+                                          >
+                                            <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: sc.bg, flexShrink: 0 }} />
+                                            {getStatusLabel(st)}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Ver venta / Mostrar en Caja */}
+                                {paid ? (() => {
+                                  let saleId = null;
+                                  if (client.sales) {
+                                    const match = client.sales.find((s: any) => {
+                                      if (s.paymentMethod === "OTHER") return false;
+                                      try {
+                                        const items = JSON.parse(s.itemsJson || "[]");
+                                        return items.some((i: any) => 
+                                          i.id === `db-app-${app.id}` || 
+                                          i.id === app.id || 
+                                          i.name === app.service?.name
+                                        );
+                                      } catch {
+                                        return false;
+                                      }
+                                    });
+                                    if (match) saleId = match.id;
+                                  }
+
+                                  const hrefVal = saleId 
+                                    ? `/dashboard/sales?clientId=${id}&saleId=${saleId}`
+                                    : `/dashboard/sales?clientId=${id}&appointmentId=${app.id}`;
+
+                                  return (
+                                    <a
+                                      href={hrefVal}
+                                      style={{
+                                        padding: "4px 14px",
+                                        borderRadius: "6px",
+                                        border: "1px solid var(--border-color)",
+                                        background: "var(--bg-panel-solid)",
+                                        fontSize: "12px",
+                                        color: "var(--text-primary)",
+                                        textDecoration: "none",
+                                        fontWeight: 500,
+                                        flexShrink: 0
+                                      }}
+                                    >
+                                      Ver venta
+                                    </a>
+                                  );
+                                })() : (
+                                  <a
+                                    href={`/dashboard/sales?clientId=${id}&appointmentId=${app.id}`}
+                                    style={{
+                                      padding: "4px 14px",
+                                      borderRadius: "6px",
+                                      border: "1px solid var(--border-color)",
+                                      background: "var(--bg-panel-solid)",
+                                      fontSize: "12px",
+                                      color: "var(--text-secondary)",
+                                      textDecoration: "none",
+                                      fontWeight: 500,
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    Mostrar en Caja
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {billingSubTab === "productos" && (
                   <div>
@@ -5667,7 +5902,7 @@ export default function ClientDetailPage() {
                     <th style={{ padding: "8px", textAlign: "left" }}>Precio</th>
                     <th style={{ padding: "8px", textAlign: "left" }}>Cant.</th>
                     <th style={{ padding: "8px", textAlign: "left" }}>IVA</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Dcto %</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>Dcto</th>
                     <th style={{ padding: "8px", textAlign: "left" }}>Total</th>
                     <th style={{ padding: "8px", textAlign: "center" }}>Acción</th>
                   </tr>
@@ -5679,7 +5914,7 @@ export default function ClientDetailPage() {
                       <td style={{ padding: "8px" }}>{item.price.toFixed(2)}€</td>
                       <td style={{ padding: "8px" }}>{item.qty}</td>
                       <td style={{ padding: "8px" }}>{item.tax}%</td>
-                      <td style={{ padding: "8px" }}>{item.discount}%</td>
+                      <td style={{ padding: "8px" }}>{item.discount}{item.discountType || "%"}</td>
                       <td style={{ padding: "8px", fontWeight: "bold" }}>{item.total.toFixed(2)}€</td>
                       <td style={{ padding: "8px", textAlign: "center" }}>
                         <button
@@ -5790,14 +6025,35 @@ export default function ClientDetailPage() {
                         <option value="21">21%</option>
                       </select>
                     </td>
-                    <td style={{ padding: "8px", width: "70px" }}>
-                      <input
-                        type="number"
-                        className="input"
-                        value={newItemDiscount}
-                        onChange={(e) => setNewItemDiscount(e.target.value)}
-                        style={{ padding: "6px", fontSize: "12px", width: "100%" }}
-                      />
+                    <td style={{ padding: "8px", width: "110px" }}>
+                      <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                        <input
+                          type="number"
+                          className="input"
+                          value={newItemDiscount}
+                          onChange={(e) => setNewItemDiscount(e.target.value)}
+                          style={{ padding: "6px", fontSize: "12px", flex: 1, minWidth: 0 }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewItemDiscountType(newItemDiscountType === "%" ? "€" : "%")}
+                          style={{
+                            padding: "4px 7px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            background: "var(--primary)",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            flexShrink: 0,
+                            minWidth: "28px"
+                          }}
+                          title="Alternar entre porcentaje y monto fijo"
+                        >
+                          {newItemDiscountType}
+                        </button>
+                      </div>
                     </td>
                     <td style={{ padding: "8px" }}>-</td>
                     <td style={{ padding: "8px", textAlign: "center" }}>

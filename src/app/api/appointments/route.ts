@@ -82,7 +82,7 @@ async function triggerAdminNotifications(appointment: any, isNewAppointment: boo
           where: { id: { in: adminIds } },
           select: { email: true },
         });
-        admins.forEach((admin) => {
+        admins.forEach((admin: any) => {
           if (admin.email) recipients.add(admin.email);
         });
       }

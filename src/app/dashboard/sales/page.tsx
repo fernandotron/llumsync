@@ -19,6 +19,10 @@ interface Client {
   postalCode?: string;
   isSelfEmployed?: boolean;
   isCompany?: boolean;
+  country?: string;
+  email?: string;
+  phone?: string;
+  birthDate?: Date | string;
 }
 
 interface Service {
@@ -196,9 +200,9 @@ const MOCK_ARTICULOS: ArticleItem[] = [
     metodoPago: "Efectivo",
     fechaPago: "08/10/2025",
     price: 260,
-    factura: "",
-    precio: 260,
-    iva: 0,
+    factura: "Si",
+    precio: 214.88,
+    iva: 45.12,
     irpf: 0,
     total: 260,
     pagado: 260,
@@ -271,9 +275,9 @@ const MOCK_ARTICULOS: ArticleItem[] = [
     metodoPago: "Efectivo",
     fechaPago: "08/10/2025",
     price: 100,
-    factura: "",
-    precio: 100,
-    iva: 0,
+    factura: "Si",
+    precio: 82.64,
+    iva: 17.36,
     irpf: 0,
     total: 100,
     pagado: 100,
@@ -346,9 +350,9 @@ const MOCK_ARTICULOS: ArticleItem[] = [
     metodoPago: "Efectivo",
     fechaPago: "06/10/2025",
     price: 260,
-    factura: "",
-    precio: 260,
-    iva: 0,
+    factura: "Si",
+    precio: 214.88,
+    iva: 45.12,
     irpf: 0,
     total: 260,
     pagado: 260,
@@ -371,9 +375,9 @@ const MOCK_ARTICULOS: ArticleItem[] = [
     metodoPago: "Efectivo",
     fechaPago: "15/10/2025",
     price: 260,
-    factura: "",
-    precio: 260,
-    iva: 0,
+    factura: "Si",
+    precio: 214.88,
+    iva: 45.12,
     irpf: 0,
     total: 260,
     pagado: 260,
@@ -396,9 +400,9 @@ const MOCK_ARTICULOS: ArticleItem[] = [
     metodoPago: "Efectivo",
     fechaPago: "16/10/2025",
     price: 120,
-    factura: "",
-    precio: 120,
-    iva: 0,
+    factura: "Si",
+    precio: 99.17,
+    iva: 20.83,
     irpf: 0,
     total: 120,
     pagado: 120,
@@ -421,9 +425,9 @@ const MOCK_ARTICULOS: ArticleItem[] = [
     metodoPago: "Efectivo",
     fechaPago: "15/10/2025",
     price: 250,
-    factura: "",
-    precio: 250,
-    iva: 0,
+    factura: "Si",
+    precio: 206.61,
+    iva: 43.39,
     irpf: 0,
     total: 250,
     pagado: 250,
@@ -446,9 +450,9 @@ const MOCK_ARTICULOS: ArticleItem[] = [
     metodoPago: "Efectivo",
     fechaPago: "07/10/2025",
     price: 260,
-    factura: "",
-    precio: 260,
-    iva: 0,
+    factura: "Si",
+    precio: 214.88,
+    iva: 45.12,
     irpf: 0,
     total: 260,
     pagado: 260,
@@ -522,6 +526,10 @@ export default function SalesPage() {
   // Navigation Tabs State
   const [activeTab, setActiveTab] = useState<"articulos" | "facturas" | "pagos" | "resumen" | "ingresos_gastos" | "presupuestos">("articulos");
   const [activeSubTab, setActiveSubTab] = useState<"emitidas" | "recibidas">("emitidas");
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Date Filters (Initialize with dynamic month-to-date)
   const [dateFilterStart, setDateFilterStart] = useState<Date | null>(() => getMonthToDateRange().start);
@@ -979,6 +987,86 @@ export default function SalesPage() {
     fetchSalesData();
   }, [activeClinic]);
 
+  // Auto-open specific appointment or sale when navigated from contacts page via ?appointmentId=... or ?saleId=...
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const saleId = params.get("saleId");
+    
+    // 1. If we have a saleId, look for the sale and open it as the invoice view directly
+    if (saleId && salesHistory.length > 0) {
+      const sale = salesHistory.find((s: any) => s.id === saleId);
+      if (sale) {
+        setShowPosDrawer(false);
+        handleOpenExistingInvoice(sale);
+        return;
+      }
+    }
+
+    // 2. Fallback or check for appointmentId
+    const appointmentId = params.get("appointmentId");
+    if (!appointmentId || appointments.length === 0) return;
+
+    const appt = appointments.find((a: any) => a.id === appointmentId);
+    if (!appt) return;
+
+    // Always close the POS drawer when deep-linking to an appointment
+    setShowPosDrawer(false);
+
+    const clientObj = clients.find((c: any) => c.id === appt.clientId);
+    const appDate = new Date(appt.start);
+
+    if (appt.status === "COMPLETED") {
+      // For paid appointments: try to find the matching sale in salesHistory by clientId
+      // and open it as the invoice view directly
+      const matchingSale = salesHistory.find((s: any) => {
+        if (s.clientId !== appt.clientId) return false;
+        if (s.paymentMethod === "OTHER") return false;
+        // Check if sale items include this service
+        try {
+          const items = JSON.parse(s.itemsJson || "[]");
+          return items.some((i: any) =>
+            i.name === appt.service?.name ||
+            i.id === `db-app-${appt.id}`
+          );
+        } catch { return false; }
+      });
+
+      if (matchingSale) {
+        handleOpenExistingInvoice(matchingSale);
+        return;
+      }
+    }
+
+    // For unpaid appointments (or paid without a matching sale): open the checkout panel
+    setSelectedItemForPayment({
+      id: `db-app-${appt.id}`,
+      refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
+      nuV: "-",
+      fecha: appDate.toLocaleDateString("es-ES"),
+      fechaRaw: appDate,
+      hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")}`,
+      tipo: "Servicio",
+      detalle: appt.service?.name || "Tratamiento",
+      clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
+      cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
+      clientId: appt.clientId,
+      dni: clientObj?.dniNif || "-",
+      empleado: appt.user?.name || "Especialista",
+      consulta: activeClinic?.name || "",
+      estado: appt.status === "COMPLETED" ? "PAGADO" : "PENDIENTE",
+      metodoPago: appt.status === "COMPLETED" ? "Tarjeta" : "-",
+      fechaPago: appt.status === "COMPLETED" ? appDate.toLocaleDateString("es-ES") : "-",
+      price: appt.service?.price || 0,
+      factura: "",
+      precio: appt.service?.price || 0,
+      iva: 0,
+      irpf: 0,
+      total: appt.service?.price || 0,
+      pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
+    });
+  }, [loading, appointments, clients, salesHistory, activeClinic]);
+
   // Load existing partial payments from database sales history for the selected checkout item
   useEffect(() => {
     if (!selectedItemForPayment) {
@@ -1076,6 +1164,12 @@ export default function SalesPage() {
           metodoPago: "-",
           fechaPago: "-",
           price: matchService.price,
+          factura: "",
+          precio: matchService.price,
+          iva: 0,
+          irpf: 0,
+          total: matchService.price,
+          pagado: 0,
         };
         setSelectedItemForPayment(checkoutItem);
         // Clean URL params without reload
@@ -2796,6 +2890,12 @@ export default function SalesPage() {
           metodoPago: getPaymentMethodText(sale.paymentMethod),
           fechaPago: saleDate.toLocaleDateString("es-ES"),
           price: item.price * item.quantity,
+          factura: sale.invoiceNumber && sale.invoiceNumber !== "-" ? "Si" : "",
+          precio: item.price * item.quantity,
+          iva: 0.00,
+          irpf: 0.00,
+          total: item.price * item.quantity,
+          pagado: item.price * item.quantity,
         });
       });
     });
@@ -2820,7 +2920,7 @@ export default function SalesPage() {
       let resolvedEstado = "PENDIENTE";
       if (servicePrice === 0) {
         resolvedEstado = "GRATUITO";
-      } else if (totalPaid >= servicePrice || app.status === "COMPLETED") {
+      } else if (totalPaid >= servicePrice) {
         resolvedEstado = "PAGADO";
       } else if (totalPaid > 0) {
         resolvedEstado = "PAGO PARCIAL";
@@ -2861,6 +2961,12 @@ export default function SalesPage() {
         metodoPago: resolvedMetodo,
         fechaPago: resolvedFechaPago,
         price: servicePrice,
+        factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+        precio: servicePrice,
+        iva: 0.00,
+        irpf: 0.00,
+        total: servicePrice,
+        pagado: resolvedEstado === "PAGADO" ? servicePrice : totalPaid,
       });
     });
 
@@ -3667,7 +3773,7 @@ export default function SalesPage() {
                   <p style={{ fontWeight: 600 }}>
                     {activeFiscalProfile?.comercialName
                       ? `${activeFiscalProfile.comercialName}${activeFiscalProfile.nif ? " · " + activeFiscalProfile.nif : ""}`
-                      : (activeClinic?.cifNif || "")}
+                      : ""}
                   </p>
                   {/* Dirección del perfil fiscal */}
                   <p>
@@ -4119,6 +4225,21 @@ export default function SalesPage() {
     );
   }
 
+  const hasDeepLink = isHydrated && typeof window !== "undefined" && (
+    window.location.search.includes("appointmentId") ||
+    window.location.search.includes("saleId")
+  );
+
+  if (loading && hasDeepLink) {
+    return (
+      <div className={styles.container} style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+        <div style={{ fontSize: "16px", color: "var(--text-secondary)", fontWeight: 500 }}>
+          Cargando caja...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       {selectedItemForPayment ? (
@@ -4365,6 +4486,12 @@ export default function SalesPage() {
                                         metodoPago: appt.status === "COMPLETED" ? "Tarjeta" : "-",
                                         fechaPago: appt.status === "COMPLETED" ? appDate.toLocaleDateString("es-ES") : "-",
                                         price: appt.service?.price || 0,
+                                        factura: "",
+                                        precio: appt.service?.price || 0,
+                                        iva: 0.00,
+                                        irpf: 0.00,
+                                        total: appt.service?.price || 0,
+                                        pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
                                       });
                                     }}
                                   >
@@ -4423,6 +4550,12 @@ export default function SalesPage() {
                                         metodoPago: appt.status === "COMPLETED" ? "Tarjeta" : "-",
                                         fechaPago: appt.status === "COMPLETED" ? appDate.toLocaleDateString("es-ES") : "-",
                                         price: appt.service?.price || 0,
+                                        factura: "",
+                                        precio: appt.service?.price || 0,
+                                        iva: 0.00,
+                                        irpf: 0.00,
+                                        total: appt.service?.price || 0,
+                                        pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
                                       });
                                     }}
                                   >
@@ -5515,6 +5648,12 @@ export default function SalesPage() {
                           metodoPago: "-",
                           fechaPago: "-",
                           price: srv.price,
+                          factura: "",
+                          precio: srv.price,
+                          iva: 0,
+                          irpf: 0,
+                          total: srv.price,
+                          pagado: 0,
                         };
                         setCheckoutItems([...checkoutItems, newArticleItem]);
                         setSelectedServiceId("");

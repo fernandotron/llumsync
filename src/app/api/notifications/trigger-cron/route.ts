@@ -81,6 +81,7 @@ export async function POST(request: Request) {
           "{{Nombre_Consulta}}": app.clinic?.name || "Clifav Central",
           "{{Dirección_Consulta}}": app.clinic?.address || "Calle Principal 123",
           "{{Fecha_Hora_Cita}}": `${dateFormatted} a las ${timeFormatted}`,
+          "{{Fecha_Cita}}": dateFormatted,
           "{{Fecha_larga}}": longDateFormatted,
           "{{Hora_Cita}}": timeFormatted,
           "{{Nombre_Servicio}}": app.service?.name || "",
@@ -121,41 +122,108 @@ export async function POST(request: Request) {
           let apiError = "";
 
           // Envío real de WhatsApp si la API está configurada
-          if (reminder.channel === "WHATSAPP" && process.env.WHATSAPP_API_URL && process.env.WHATSAPP_INSTANCE_NAME && process.env.WHATSAPP_API_TOKEN) {
-            try {
-              // Asegurar formato internacional (ej: 34600000000)
-              const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
-              const targetUrl = `${process.env.WHATSAPP_API_URL}/message/sendText/${process.env.WHATSAPP_INSTANCE_NAME}`;
-              
-              const res = await fetch(targetUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "apikey": process.env.WHATSAPP_API_TOKEN,
-                },
-                body: JSON.stringify({
-                  number: formattedPhone,
-                  options: {
-                    delay: 1200,
-                    presence: "composing",
-                    linkPreview: false
-                  },
-                  textMessage: {
-                    text: message
-                  }
-                }),
-              });
+          if (reminder.channel === "WHATSAPP") {
+            const metaAccessToken = app.clinic?.metaAccessToken;
+            const metaPhoneNumberId = app.clinic?.metaPhoneNumberId;
+            const metaTemplateName = app.clinic?.metaTemplateName || "recordatorio_cita";
 
-              if (!res.ok) {
-                const errText = await res.text();
+            const clinicApiUrl = app.clinic?.whatsappApiUrl || process.env.WHATSAPP_API_URL;
+            const clinicInstance = app.clinic?.whatsappInstanceName || process.env.WHATSAPP_INSTANCE_NAME;
+            const clinicToken = app.clinic?.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+
+            // Asegurar formato internacional (ej: 34600000000)
+            const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
+
+            if (metaAccessToken && metaPhoneNumberId) {
+              // 1. OPCIÓN RECOMENDADA: Meta WhatsApp Cloud API (Oficial)
+              try {
+                const targetUrl = `https://graph.facebook.com/v18.0/${metaPhoneNumberId}/messages`;
+                
+                const nombrePaciente = app.client?.firstName || "Paciente";
+                const fechaTexto = startD.toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long'
+                }); // Ejemplo: "jueves, 2 de julio"
+                const horaTexto = timeFormatted;
+                const servicioTexto = app.service?.name || "su consulta médica";
+                const nombreConsulta = app.clinic?.name || "nuestro centro";
+
+                const res = await fetch(targetUrl, {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${metaAccessToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    messaging_product: "whatsapp",
+                    to: formattedPhone,
+                    type: "template",
+                    template: {
+                      name: metaTemplateName,
+                      language: { code: "es" },
+                      components: [
+                        {
+                          type: "body",
+                          parameters: [
+                            { type: "text", text: nombrePaciente },   // {{1}} -> Nombre del paciente
+                            { type: "text", text: fechaTexto },       // {{2}} -> Fecha de la cita (ej: "jueves, 2 de julio")
+                            { type: "text", text: horaTexto },        // {{3}} -> Hora de la cita (ej: "12:15")
+                            { type: "text", text: servicioTexto },    // {{4}} -> Nombre del servicio (ej: "Fisioterapia")
+                            { type: "text", text: nombreConsulta }    // {{5}} -> Nombre de la consulta (ej: "Clínica...")
+                          ]
+                        }
+                      ]
+                    }
+                  }),
+                });
+
+                if (!res.ok) {
+                  const errJson = await res.json().catch(() => ({}));
+                  sentStatus = "FAILED";
+                  apiError = `Meta API Error (${res.status}): ${JSON.stringify(errJson)}`;
+                  console.error("Error al enviar WhatsApp a través de Meta API:", errJson);
+                }
+              } catch (err: any) {
                 sentStatus = "FAILED";
-                apiError = `Error API (${res.status}): ${errText}`;
-                console.error("Error al enviar WhatsApp a través de Evolution API:", errText);
+                apiError = err.message || "Error de red";
+                console.error("Error de conexión con Meta API:", err);
               }
-            } catch (err: any) {
-              sentStatus = "FAILED";
-              apiError = err.message || "Error de red";
-              console.error("Error de conexión con Evolution API:", err);
+            } else if (clinicApiUrl && clinicInstance && clinicToken) {
+              // 2. OPCIÓN DE FALLBACK: Evolution API (Código QR)
+              try {
+                const targetUrl = `${clinicApiUrl}/message/sendText/${clinicInstance}`;
+                
+                const res = await fetch(targetUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "apikey": clinicToken,
+                  },
+                  body: JSON.stringify({
+                    number: formattedPhone,
+                    options: {
+                      delay: 1200,
+                      presence: "composing",
+                      linkPreview: false
+                    },
+                    textMessage: {
+                      text: message
+                    }
+                  }),
+                });
+
+                if (!res.ok) {
+                  const errText = await res.text();
+                  sentStatus = "FAILED";
+                  apiError = `Evolution API Error (${res.status}): ${errText}`;
+                  console.error("Error al enviar WhatsApp a través de Evolution API:", errText);
+                }
+              } catch (err: any) {
+                sentStatus = "FAILED";
+                apiError = err.message || "Error de red";
+                console.error("Error de conexión con Evolution API:", err);
+              }
             }
           }
 

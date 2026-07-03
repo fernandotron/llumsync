@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       const sortedKeys = Array.from(daysMap.keys()).sort();
       for (const dateKey of sortedKeys) {
         const appsInDay = daysMap.get(dateKey)!;
-        const totalPvp = appsInDay.reduce((sum, app) => sum + (app.service.price || 0), 0);
+        const totalPvp = appsInDay.reduce((sum: number, app: any) => sum + (app.service.price || 0), 0);
         
         const calculatedAmount = Math.round(defaultValue * 100) / 100;
         totalAmount += calculatedAmount;
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         details.push({
           appointmentId: null,
           clientName: `${appsInDay.length} cita(s) atendida(s)`,
-          serviceName: `Jornada Laboral (${appsInDay.map(a => a.service.name).filter((v, i, self) => self.indexOf(v) === i).join(", ")})`,
+          serviceName: `Jornada Laboral (${appsInDay.map((a: any) => a.service.name).filter((v: any, i: number, self: any[]) => self.indexOf(v) === i).join(", ")})`,
           date: new Date(`${dateKey}T08:00:00.000Z`).toISOString(),
           servicePrice: totalPvp,
           commissionType: "DAILY_FIXED",
