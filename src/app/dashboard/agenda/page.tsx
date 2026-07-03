@@ -431,6 +431,18 @@ export default function AgendaPage() {
     }
   }, [zoomLevel]);
 
+  // Force day view on mobile viewport
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && view !== "day") {
+        setView("day");
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [view]);
+
   // Submenu Zoom state
   const [tempZoomLevel, setTempZoomLevel] = useState<"poco" | "normal" | "grande">("normal");
 

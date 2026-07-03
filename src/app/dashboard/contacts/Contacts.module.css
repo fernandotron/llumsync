@@ -1168,3 +1168,49 @@
   cursor: default;
   opacity: 0.4;
 }
+
+/* ==========================================
+   MOBILE VIEWPORT OPTIMIZATIONS (width < 768px)
+   ========================================== */
+@media (max-width: 768px) {
+  /* Make table wrapper scrollable horizontally on mobile */
+  .tableWrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin-top: 12px !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  /* Force table inside tableWrapper to have a solid minimum width so columns are readable */
+  .tableWrapper table,
+  .tableWrapper :global(.table) {
+    min-width: 800px !important;
+    width: 100% !important;
+  }
+
+  /* Polish toolbar and search components for mobile layouts */
+  .toolbarActions {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .toolbarActions button {
+    flex: 1 1 calc(50% - 8px) !important; /* Stack them side-by-side */
+    justify-content: center !important;
+  }
+
+  .searchContainer {
+    margin-bottom: 8px !important;
+  }
+
+  .searchInput {
+    padding: 12px 14px 12px 42px !important;
+    font-size: 14px !important;
+  }
+
+  .searchIcon {
+    left: 14px !important;
+  }
+}
