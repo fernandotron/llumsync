@@ -32,6 +32,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "portless": "^0.14.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@emnapi/core": "1.11.1",
+    "@emnapi/runtime": "1.11.1",
+    "@emnapi/wasi-threads": "1.2.2"
   }
 }
