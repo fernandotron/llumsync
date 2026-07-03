@@ -7158,7 +7158,7 @@ export default function SettingsPage() {
                             Escaneo de Código QR
                           </h3>
                           <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
-                            Escanea este código QR con tu móvil para simular WhatsApp Web utilizando Evolution API.
+                            Escanea este código QR con tu móvil desde la sección "Dispositivos vinculados" en tu aplicación de WhatsApp para conectar tu cuenta y activar los envíos automáticos.
                           </p>
                         </div>
 
@@ -7334,6 +7334,34 @@ export default function SettingsPage() {
 
                         </div>
                       </div>
+
+                      {/* Caja de información y solución de problemas */}
+                      <div style={{ marginTop: "32px", padding: "20px", background: "var(--bg-panel-solid)", border: "1px dashed var(--border-color)", borderRadius: "12px" }}>
+                        <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span>💡</span> Recomendaciones y Solución de problemas
+                        </h4>
+                        
+                        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                          <div style={{ flex: "1 1 300px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>
+                              ¿Qué hacer si se desconecta?
+                            </span>
+                            <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.5", margin: 0 }}>
+                              A veces, si tu teléfono pasa muchos días apagado, sin cobertura de internet, o si cierras las sesiones activas desde el móvil, la conexión se perderá y los recordatorios dejarán de enviarse. Para solucionarlo, simplemente haz clic en <strong>Desconectar</strong> en esta pantalla y vuelve a generar y escanear el código QR.
+                            </p>
+                          </div>
+
+                          <div style={{ flex: "1 1 300px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: "4px" }}>
+                              Evitar bloqueos por parte de WhatsApp
+                            </span>
+                            <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.5", margin: 0 }}>
+                              Envía mensajes únicamente a clientes que estén esperando tu comunicación (como recordatorios de citas). No utilices este número para campañas de publicidad masivas a personas que no te tengan guardado en sus contactos, ya que si varios usuarios te reportan, WhatsApp podría suspender temporalmente tu número.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
                   )}
 
