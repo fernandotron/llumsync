@@ -202,13 +202,14 @@ export async function POST(request: Request) {
                   },
                   body: JSON.stringify({
                     number: formattedPhone,
+                    text: message, // Nueva versión de Evolution API (v2.x)
+                    textMessage: {
+                      text: message // Compatibilidad con versiones anteriores
+                    },
                     options: {
                       delay: 1200,
                       presence: "composing",
                       linkPreview: false
-                    },
-                    textMessage: {
-                      text: message
                     }
                   }),
                 });
