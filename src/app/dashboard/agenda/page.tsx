@@ -5168,7 +5168,18 @@ export default function AgendaPage() {
                           </div>
                           <div className={styles.clientMeta}>
                             <h3 className={styles.clientName}>
-                              {selectedAppointment.client.firstName} {selectedAppointment.client.lastName}
+                              <a 
+                                href={`/dashboard/contacts/${selectedAppointment.clientId}`}
+                                style={{ 
+                                  color: "inherit", 
+                                  textDecoration: "none" 
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
+                                onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
+                                title="Ver ficha de cliente"
+                              >
+                                {selectedAppointment.client.firstName} {selectedAppointment.client.lastName}
+                              </a>
                             </h3>
                             <span className={styles.clientIdText}>
                               # {selectedAppointment.client.clientNumber || "N/A"}
