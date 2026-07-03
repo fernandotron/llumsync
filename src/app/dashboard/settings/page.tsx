@@ -3738,16 +3738,18 @@ export default function SettingsPage() {
                                   <button
                                     type="button"
                                     className={styles.addShiftBtn}
-                                    onClick={() => {
-                                      setActiveShiftUser(u);
-                                      setActiveShiftDay(day.dayOfWeek);
-                                      setShiftEditMode("single");
-                                      
-                                      const dayStr = day.date.toISOString().split("T")[0];
-                                      setSingleShiftStartDate(dayStr);
-                                      setSingleShiftEndDate(dayStr);
-                                      setSingleShiftStartTime("08:00");
-                                      setSingleShiftEndTime("20:00");
+                                    onClick={(e) => {
+                                      if (menuOpen) {
+                                        setActiveCellMenu(null);
+                                        setCellMenuPosition(null);
+                                      } else {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setActiveCellMenu({ userId: u.id, dayOfWeek: day.dayOfWeek });
+                                        setCellMenuPosition({
+                                          top: rect.bottom + window.scrollY,
+                                          left: rect.left + window.scrollX
+                                        });
+                                      }
                                     }}
                                   >
                                     <Icons.Plus size={16} />
@@ -8521,22 +8523,27 @@ export default function SettingsPage() {
                 type="button"
                 className={styles.cellMenuItem}
                 onClick={() => {
-                  handleDeleteShift(targetUser.id, targetDayOfWeek);
+                  if (shift) {
+                    handleDeleteShift(targetUser.id, targetDayOfWeek);
+                  }
+                  setActiveCellMenu(null);
                   setCellMenuPosition(null);
                 }}
               >
                 Añadir día libre
               </button>
-              <button
-                type="button"
-                className={`${styles.cellMenuItem} ${styles.cellMenuItemDanger}`}
-                onClick={() => {
-                  handleDeleteShift(targetUser.id, targetDayOfWeek);
-                  setCellMenuPosition(null);
-                }}
-              >
-                Eliminar turno
-              </button>
+              {shift && (
+                <button
+                  type="button"
+                  className={`${styles.cellMenuItem} ${styles.cellMenuItemDanger}`}
+                  onClick={() => {
+                    handleDeleteShift(targetUser.id, targetDayOfWeek);
+                    setCellMenuPosition(null);
+                  }}
+                >
+                  Eliminar turno
+                </button>
+              )}
             </div>
           </>,
           document.body

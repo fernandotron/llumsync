@@ -27,6 +27,7 @@ interface Client {
   tags?: string;
   province?: string;
   landline?: string;
+  dniNif?: string;
 }
 
 interface User {
@@ -36,6 +37,7 @@ interface User {
   email: string;
   role: string;
   shifts: Shift[];
+  color?: string;
 }
 
 interface Shift {
@@ -103,9 +105,298 @@ const COUNTRIES = [
   { flag: "🇦🇺", code: "AU", name: "Australia", dial: "+61" },
 ];
 
+interface AppointmentLayout {
+  left: string;
+  width: string;
+}
+
+function getAppointmentLayouts(apps: Appointment[]): Record<string, AppointmentLayout> {
+  const layouts: Record<string, AppointmentLayout> = {};
+  if (apps.length === 0) return layouts;
+
+  // 1. Sort appointments by start time, then end time (longer duration first)
+  const sorted = [...apps].sort((a, b) => {
+    const startA = new Date(a.start).getTime();
+    const startB = new Date(b.start).getTime();
+    if (startA !== startB) return startA - startB;
+    const endA = new Date(a.end).getTime();
+    const endB = new Date(b.end).getTime();
+    return endB - endA;
+  });
+
+  // 2. Group into overlapping clusters
+  const clusters: typeof sorted[] = [];
+  let currentCluster: typeof sorted = [];
+  let clusterMaxEnd = 0;
+
+  for (const app of sorted) {
+    const appStart = new Date(app.start).getTime();
+    const appEnd = new Date(app.end).getTime();
+
+    if (currentCluster.length === 0) {
+      currentCluster.push(app);
+      clusterMaxEnd = appEnd;
+    } else if (appStart < clusterMaxEnd) {
+      currentCluster.push(app);
+      clusterMaxEnd = Math.max(clusterMaxEnd, appEnd);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [app];
+      clusterMaxEnd = appEnd;
+    }
+  }
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
+  }
+
+  // 3. For each cluster, assign columns
+  for (const cluster of clusters) {
+    const columns: typeof sorted[] = [];
+
+    for (const app of cluster) {
+      const appStart = new Date(app.start).getTime();
+      let placed = false;
+
+      for (let i = 0; i < columns.length; i++) {
+        const lastAppInCol = columns[i][columns[i].length - 1];
+        const colLastEnd = new Date(lastAppInCol.end).getTime();
+        
+        if (appStart >= colLastEnd) {
+          columns[i].push(app);
+          placed = true;
+          break;
+        }
+      }
+
+      if (!placed) {
+        columns.push([app]);
+      }
+    }
+
+    // 4. Calculate left and width for each appointment in the cluster
+    const totalColumns = columns.length;
+    for (let colIndex = 0; colIndex < totalColumns; colIndex++) {
+      for (const app of columns[colIndex]) {
+        const leftPercent = (colIndex * 100) / totalColumns;
+        const widthPercent = 100 / totalColumns;
+        layouts[app.id] = {
+          left: `calc(${leftPercent}% + 6px)`,
+          width: `calc(${widthPercent}% - 12px)`,
+        };
+      }
+    }
+  }
+
+  return layouts;
+}
+
 export default function AgendaPage() {
   const { activeClinic, user: currentUser } = useApp();
   const showPrices = currentUser?.role === "ADMIN" || hasPermission(currentUser, "otros", "Mostrar precio servicios");
+
+  const isSlotOutsideShift = (staff: User, date: Date, hour: number, minutes: number): boolean => {
+    const dayOfWeek = date.getDay();
+    const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
+    
+    if (!shift) {
+      return true; // No shift = outside schedule (day off)
+    }
+
+    // Parse shift times
+    const [startH, startM] = shift.startTime.split(":").map(Number);
+    const [endH, endM] = shift.endTime.split(":").map(Number);
+
+    const shiftStartMins = startH * 60 + startM;
+    const shiftEndMins = endH * 60 + endM;
+    const slotStartMins = hour * 60 + minutes;
+
+    return slotStartMins < shiftStartMins || slotStartMins >= shiftEndMins;
+  };
+
+  const checkIfOutsideShift = (userId: string, dateStr: string, timeStr: string, duration: number): boolean => {
+    const staff = staffList.find(s => s.id === userId);
+    if (!staff) return false;
+
+    // Use midday to avoid timezone shift when checking date
+    const dateObj = new Date(`${dateStr}T12:00:00`);
+    const dayOfWeek = dateObj.getDay();
+    const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
+
+    if (!shift) {
+      return true; // No shift = outside schedule (day off)
+    }
+
+    // Parse shift start and end times
+    const [startH, startM] = shift.startTime.split(":").map(Number);
+    const [endH, endM] = shift.endTime.split(":").map(Number);
+    const shiftStartMins = startH * 60 + startM;
+    const shiftEndMins = endH * 60 + endM;
+
+    // Parse appointment start and end times
+    const [appH, appM] = timeStr.split(":").map(Number);
+    const appStartMins = appH * 60 + appM;
+    const appEndMins = appStartMins + duration;
+
+    return appStartMins < shiftStartMins || appEndMins > shiftEndMins;
+  };
+
+  const handlePrintAgenda = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Por favor, permite las ventanas emergentes para poder imprimir la agenda.");
+      return;
+    }
+
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+
+    const filteredStaff = staffList.filter((s) => printCheckedStaffIds.includes(s.id));
+
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Agenda de Citas</title>
+        <meta charset="utf-8" />
+        <style>
+          @media print {
+            body { margin: 0; padding: 20px; font-family: sans-serif; font-size: 11px; color: #000; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+          }
+          body { font-family: sans-serif; font-size: 11px; padding: 20px; color: #333; }
+          .header-container { display: flex; justify-content: flex-end; margin-bottom: 20px; text-align: right; line-height: 1.4; }
+          .employee-section { margin-bottom: 30px; }
+          .employee-header { background: #f3f4f6; padding: 8px 12px; font-size: 14px; font-weight: bold; margin-bottom: 10px; border-radius: 4px; border-left: 4px solid #4f46e5; }
+          .print-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .print-table th { border-bottom: 2px solid #ddd; padding: 8px 6px; text-align: left; font-size: 10px; font-weight: bold; color: #555; text-transform: uppercase; }
+          .print-table td { border-bottom: 1px solid #eee; padding: 8px 6px; font-size: 11px; vertical-align: top; }
+          .btn-container { text-align: right; margin-bottom: 20px; }
+          .print-btn { background: #4f46e5; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: bold; }
+          .tag-pill { display: inline-block; padding: 2px 6px; font-size: 9px; font-weight: bold; border-radius: 4px; background: #e5e7eb; color: #374151; margin-right: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="btn-container no-print">
+          <button class="print-btn" onclick="window.print()">Imprimir PDF</button>
+        </div>
+        
+        <div class="header-container">
+          <div>
+            <strong>${activeClinic?.name?.toUpperCase() || 'MEDESMED INTERNATIONAL SL'}</strong><br />
+            ${activeClinic?.address || 'AV. PAIS VALENCIA Nº5'}<br />
+            VILLAJOYOSA
+          </div>
+        </div>
+    `;
+
+    filteredStaff.forEach((staff, staffIdx) => {
+      // Get appointments for this staff
+      let staffApps = appointments.filter((app) => app.userId === staff.id);
+
+      // Filter by printCitasAnteriores (only if view is week or month)
+      if (!printCitasAnteriores && (view === "week" || view === "month")) {
+        staffApps = staffApps.filter((app) => {
+          const appDate = new Date(app.start);
+          return appDate.getTime() >= todayMidnight.getTime();
+        });
+      }
+
+      // Sort chronologically
+      staffApps.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+      if (staffApps.length === 0) {
+        return; // skip if no appointments
+      }
+
+      const isFirst = staffIdx === 0;
+
+      htmlContent += `
+        <div class="employee-section ${!isFirst ? 'page-break' : ''}">
+          <div class="employee-header">Empleado: ${(staff.name + " " + (staff.lastName || "")).toUpperCase()}</div>
+          
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th style="width: 15%">Cliente</th>
+                <th style="width: 10%">Fecha</th>
+                <th style="width: 8%">Hora Inicio</th>
+                <th style="width: 8%">Hora Fin</th>
+                <th style="width: 15%">Servicio</th>
+                <th style="width: 10%">Etiquetas Cliente</th>
+                <th style="width: 10%">DNI/NIF</th>
+                <th style="width: 10%">Teléfono</th>
+                <th style="width: 10%">Etiquetas Cita</th>
+                <th style="width: 14%">Notas</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      staffApps.forEach((app) => {
+        const startD = new Date(app.start);
+        const endD = new Date(app.end);
+
+        // Format Date: e.g. 03 jul 2026
+        const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+        const dayStr = String(startD.getDate()).padStart(2, "0");
+        const monthStr = months[startD.getMonth()];
+        const yearStr = startD.getFullYear();
+        const formattedDate = `${dayStr} ${monthStr} ${yearStr}`;
+
+        // Format times
+        const startH = String(startD.getHours()).padStart(2, "0") + ":" + String(startD.getMinutes()).padStart(2, "0");
+        const endH = String(endD.getHours()).padStart(2, "0") + ":" + String(endD.getMinutes()).padStart(2, "0");
+
+        // Prepend status if pending
+        let clientLabel = `${app.client.firstName} ${app.client.lastName || ""}`;
+        if (app.status === "PENDING") {
+          clientLabel = `(sin confirmar) ${clientLabel}`;
+        }
+
+        // Format tags
+        const clientTagsHtml = app.client.tags
+          ? app.client.tags.split(",").filter(Boolean).map((t: string) => `<span class="tag-pill">${t}</span>`).join("")
+          : "";
+
+        const appTagsHtml = app.tags
+          ? app.tags.split(",").filter(Boolean).map((t: string) => {
+              const name = t.split(":")[0];
+              return `<span class="tag-pill">${name}</span>`;
+            }).join("")
+          : "";
+
+        htmlContent += `
+          <tr>
+            <td style="font-weight: bold;">${clientLabel}</td>
+            <td>${formattedDate}</td>
+            <td>${startH}</td>
+            <td>${endH}</td>
+            <td>${app.service.name}</td>
+            <td>${clientTagsHtml}</td>
+            <td>${app.client.dniNif || ""}</td>
+            <td>${app.client.phone || ""}</td>
+            <td>${appTagsHtml}</td>
+            <td style="font-size: 10px; white-space: pre-wrap;">${app.notes || ""}</td>
+          </tr>
+        `;
+      });
+
+      htmlContent += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
+
+    htmlContent += `
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
   
   // State
   const [view, setView] = useState<"day" | "week" | "month">(() => {
@@ -142,6 +433,57 @@ export default function AgendaPage() {
 
   // Submenu Zoom state
   const [tempZoomLevel, setTempZoomLevel] = useState<"poco" | "normal" | "grande">("normal");
+
+  // Vista Settings State
+  const [quitarNombreSemanal, setQuitarNombreSemanal] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("agenda_quitar_nombre") === "true";
+    }
+    return false;
+  });
+  const [mostrar24Horas, setMostrar24Horas] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("agenda_mostrar_24h") === "true";
+    }
+    return false;
+  });
+
+  const [tempQuitarNombreSemanal, setTempQuitarNombreSemanal] = useState<boolean>(false);
+  const [tempMostrar24Horas, setTempMostrar24Horas] = useState<boolean>(false);
+
+  // Printing Agenda Settings
+  const [printCheckedStaffIds, setPrintCheckedStaffIds] = useState<string[]>([]);
+  const [printCitasAnteriores, setPrintCitasAnteriores] = useState<boolean>(true);
+
+  // Service Warning Modal Settings
+  const [showServiceWarningModal, setShowServiceWarningModal] = useState(false);
+  const [warningModalConfirmCallback, setWarningModalConfirmCallback] = useState<(() => void) | null>(null);
+
+  // Global Tags Panel Settings
+  const [globalTagsSubView, setGlobalTagsSubView] = useState<"list" | "create">("list");
+  const [searchGlobalTagQuery, setSearchGlobalTagQuery] = useState("");
+  const [newGlobalTagName, setNewGlobalTagName] = useState("");
+  const [newGlobalTagColor, setNewGlobalTagColor] = useState("#add8e6");
+
+  // Creation Tags Selector Dropdown Settings
+  const [showCreateTagsDropdown, setShowCreateTagsDropdown] = useState(false);
+  const [createTagsSubView, setCreateTagsSubView] = useState<"list" | "create">("list");
+  const [searchCreateTagQuery, setSearchCreateTagQuery] = useState("");
+  const [newCreateTagName, setNewCreateTagName] = useState("");
+  const [newCreateTagColor, setNewCreateTagColor] = useState("#add8e6");
+  const createTagsDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("agenda_quitar_nombre", String(quitarNombreSemanal));
+    }
+  }, [quitarNombreSemanal]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("agenda_mostrar_24h", String(mostrar24Horas));
+    }
+  }, [mostrar24Horas]);
 
   // Convert TimeBlock to Appointment states
   const [showConvertModal, setShowConvertModal] = useState(false);
@@ -553,7 +895,7 @@ export default function AgendaPage() {
   // Settings & options sidebar states
   const [showSettingsPopover, setShowSettingsPopover] = useState(false);
   const [showOpcionesSidebar, setShowOpcionesSidebar] = useState(false);
-  const [sidebarSubView, setSidebarSubView] = useState<"menu" | "weekends" | "zoom">("menu");
+  const [sidebarSubView, setSidebarSubView] = useState<"menu" | "weekends" | "zoom" | "vista" | "imprimir" | "etiquetas">("menu");
   // Read from localStorage synchronously so the initial render already knows the saved preference
   const [hideWeekends, setHideWeekends] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -602,6 +944,9 @@ export default function AgendaPage() {
       if (tagsDropdownRef.current && !tagsDropdownRef.current.contains(event.target as Node)) {
         setShowTagsDropdown(false);
       }
+      if (createTagsDropdownRef.current && !createTagsDropdownRef.current.contains(event.target as Node)) {
+        setShowCreateTagsDropdown(false);
+      }
       if (moreOptionsRef.current && !moreOptionsRef.current.contains(event.target as Node)) {
         setShowMoreOptions(false);
       }
@@ -615,6 +960,31 @@ export default function AgendaPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Listen to Escape key to close all cancellable modals/drawers
+  useEffect(() => {
+    const handleEscapeKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowCreateModal(false);
+        setShowEditModal(false);
+        setShowConvertModal(false);
+        setShowOpcionesSidebar(false);
+        setShowFiltersSidebar(false);
+        setShowWaitlistSidebar(false);
+        setShowCreateContactModal(false);
+        setShowBlockModal(false);
+        setShowBlockDetailModal(false);
+        setShowServiceWarningModal(false);
+        setShowTagsDropdown(false);
+        setShowCreateTagsDropdown(false);
+        setShowStatusDropdown(false);
+      }
+    };
+    window.addEventListener("keydown", handleEscapeKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleEscapeKeyDown);
     };
   }, []);
 
@@ -1491,11 +1861,23 @@ export default function AgendaPage() {
   };
 
   // Submit appointment creation
-  const handleCreateAppointment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateAppointment = async (e: React.FormEvent, forceProceed = false, andCheckout = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!canCreateOrEditAppointment(currentUser)) {
       alert("No tienes permisos para crear citas (Sólo lectura).");
-      return;
+      return null;
+    }
+
+    const selectedService = servicesList.find((s) => s.id === formServiceId);
+    if (!forceProceed && selectedService?.allowedUserIds) {
+      const allowed = selectedService.allowedUserIds.split(",");
+      if (!allowed.includes(formUserId)) {
+        setWarningModalConfirmCallback(() => () => {
+          handleCreateAppointment(e, true, andCheckout);
+        });
+        setShowServiceWarningModal(true);
+        return null;
+      }
     }
 
     let clientIdToUse = formClientId;
@@ -1570,8 +1952,17 @@ export default function AgendaPage() {
     }
 
     const startDateTime = new Date(`${formDate}T${formTime}`);
-    const selectedService = servicesList.find((s) => s.id === formServiceId);
     const duration = selectedService ? selectedService.duration : 45;
+
+    if (checkIfOutsideShift(formUserId, formDate, formTime, duration)) {
+      const confirmSave = window.confirm(
+        "Estás asignando una cita fuera del horario laboral establecido para este profesional. ¿Deseas guardarla igualmente?"
+      );
+      if (!confirmSave) {
+        return null;
+      }
+    }
+
     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
 
     const payload = {
@@ -1622,6 +2013,9 @@ export default function AgendaPage() {
       setShowCreateModal(false);
       fetchAppointments();
       triggerAutoSync();
+      if (andCheckout) {
+        window.location.href = `/dashboard/sales?clientId=${createdApp.clientId}&serviceId=${createdApp.serviceId}&appointmentId=${createdApp.id}`;
+      }
       return createdApp;
     } else {
       alert("Error al reservar la cita");
@@ -1630,17 +2024,38 @@ export default function AgendaPage() {
   };
 
   // Submit appointment edit
-  const handleUpdateAppointment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdateAppointment = async (e: React.FormEvent, forceProceed = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!canCreateOrEditAppointment(currentUser)) {
       alert("No tienes permisos para modificar citas (Sólo lectura).");
       return;
     }
     if (!selectedAppointment || !formUserId || !formServiceId || !formDate || !formTime) return;
 
-    const startDateTime = new Date(`${formDate}T${formTime}`);
     const selectedService = servicesList.find((s) => s.id === formServiceId);
+    if (!forceProceed && selectedService?.allowedUserIds) {
+      const allowed = selectedService.allowedUserIds.split(",");
+      if (!allowed.includes(formUserId)) {
+        setWarningModalConfirmCallback(() => () => {
+          handleUpdateAppointment(e, true);
+        });
+        setShowServiceWarningModal(true);
+        return;
+      }
+    }
+
+    const startDateTime = new Date(`${formDate}T${formTime}`);
     const duration = selectedService ? selectedService.duration : 45;
+
+    if (checkIfOutsideShift(formUserId, formDate, formTime, duration)) {
+      const confirmSave = window.confirm(
+        "Estás asignando una cita fuera del horario laboral establecido para este profesional. ¿Deseas guardarla igualmente?"
+      );
+      if (!confirmSave) {
+        return;
+      }
+    }
+
     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
 
     const payload = {
@@ -1995,7 +2410,9 @@ export default function AgendaPage() {
 
   // Render Day View
   const renderDayView = () => {
-    const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8:00 to 19:00
+    const hours = mostrar24Horas
+      ? Array.from({ length: 24 }, (_, i) => i) // 0:00 to 23:00
+      : Array.from({ length: 13 }, (_, i) => i + 8); // 8:00 to 20:00 (ends at 21:00)
     const visibleStaff = staffList.filter((s) => checkedStaffIds.includes(s.id));
 
     if (visibleStaff.length === 0) {
@@ -2041,13 +2458,28 @@ export default function AgendaPage() {
                 new Date(block.start).toDateString() === currentDate.toDateString()
             );
 
+            const dayLayouts = getAppointmentLayouts(staffApps);
+
             return (
               <div key={staff.id} className={styles.staffColumn}>
-                <div className={styles.staffColumnHeader}>
-                  <span className={styles.staffName}>{staff.name} {staff.lastName || ""}</span>
-                  <span className={styles.staffRole}>
-                    {staff.role === "ADMIN" ? "Directora" : staff.role === "DOCTOR" ? "Médico/Fisio" : "Terapeuta"}
-                  </span>
+                <div className={styles.staffColumnHeader} style={quitarNombreSemanal ? { justifyContent: "center", gap: 0 } : { display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div className={styles.staffMiniAvatar} style={{ width: "30px", height: "30px", fontSize: "12px", flexShrink: 0, backgroundColor: staff.color || "#3b82f6" }}>
+                    {`${staff.name} ${staff.lastName || ""}`
+                      .trim()
+                      .split(/\s+/)
+                      .map((n) => n[0])
+                      .join("")
+                      .substring(0, 2)
+                      .toUpperCase()}
+                  </div>
+                  {!quitarNombreSemanal && (
+                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                      <span className={styles.staffName} style={{ display: "block" }}>{staff.name} {staff.lastName || ""}</span>
+                      <span className={styles.staffRole} style={{ display: "block" }}>
+                        {staff.role === "ADMIN" ? "Directora" : staff.role === "DOCTOR" ? "Médico/Fisio" : "Terapeuta"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Column Body Grid */}
@@ -2056,16 +2488,16 @@ export default function AgendaPage() {
                     <div key={hour} className={styles.hourRow}>
                       {/* 15-minute sub-intervals shown on hover */}
                       <div className={styles.quarterIntervals}>
-                        <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 0)}>
+                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 0) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 0)}>
                           <span>+ {String(hour).padStart(2, "0")}:00</span>
                         </div>
-                        <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 15)}>
+                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 15) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 15)}>
                           <span>+ {String(hour).padStart(2, "0")}:15</span>
                         </div>
-                        <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 30)}>
+                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 30) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 30)}>
                           <span>+ {String(hour).padStart(2, "0")}:30</span>
                         </div>
-                        <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 45)}>
+                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 45) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 45)}>
                           <span>+ {String(hour).padStart(2, "0")}:45</span>
                         </div>
                       </div>
@@ -2082,17 +2514,19 @@ export default function AgendaPage() {
                     const endHours = endD.getHours();
                     const endMins = endD.getMinutes();
 
-                    // Calculate positioning: starts at 8:00 (480 minutes).
+                    // Calculate positioning relative to dynamic startHour.
+                    const startHour = mostrar24Horas ? 0 : 8;
                     const startTotalMins = startHours * 60 + startMins;
-                    const offsetMins = startTotalMins - 8 * 60; // relative to 8:00
+                    const offsetMins = startTotalMins - startHour * 60;
                     const durationMins = (endD.getTime() - startD.getTime()) / 60000;
 
                     // Compute styles: scale according to zoomLevel.
                     const top = offsetMins * zoomScale;
                     const height = durationMins * zoomScale;
 
-                    // If it overflows the calendar view boundary (e.g. before 8am or after 8pm), clamp it.
-                    if (top < 0) return null;
+                    // Clamp to visible hours boundary
+                    const maxMins = (startHour + hours.length) * 60;
+                    if (startTotalMins < startHour * 60 || startTotalMins >= maxMins) return null;
 
                     let statusClass = styles.statusPending;
                     if (app.status === "CONFIRMED") statusClass = styles.statusConfirmed;
@@ -2109,6 +2543,8 @@ export default function AgendaPage() {
                       cardSizeClass = styles.miniCard;
                     }
 
+                    const appLayout = dayLayouts[app.id] || { left: "6px", width: "calc(100% - 12px)" };
+
                     return (
                       <div
                         key={app.id}
@@ -2116,6 +2552,9 @@ export default function AgendaPage() {
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
+                          left: appLayout.left,
+                          width: appLayout.width,
+                          right: "auto",
                           borderLeftColor: app.service.color || "var(--primary)",
                           padding: height < 25 ? "2px 6px" : height < 45 ? "4px 6px" : undefined,
                         }}
@@ -2227,14 +2666,16 @@ export default function AgendaPage() {
                     const endHours = endD.getHours();
                     const endMins = endD.getMinutes();
 
+                    const startHour = mostrar24Horas ? 0 : 8;
                     const startTotalMins = startHours * 60 + startMins;
-                    const offsetMins = startTotalMins - 8 * 60; // relative to 8:00
+                    const offsetMins = startTotalMins - startHour * 60; // relative to startHour
                     const durationMins = (endD.getTime() - startD.getTime()) / 60000;
 
                     const top = offsetMins * zoomScale;
                     const height = durationMins * zoomScale;
 
-                    if (top < 0) return null;
+                    const maxMins = (startHour + hours.length) * 60;
+                    if (startTotalMins < startHour * 60 || startTotalMins >= maxMins) return null;
 
                     const staffIdx = visibleStaff.findIndex(s => s.id === staff.id);
                     const isRightHalf = visibleStaff.length > 1 && staffIdx >= visibleStaff.length / 2;
@@ -2337,7 +2778,9 @@ export default function AgendaPage() {
   // Render Week View
   const renderWeekView = () => {
     const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-    const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8:00 to 19:00
+    const hours = mostrar24Horas
+      ? Array.from({ length: 24 }, (_, i) => i) // 0:00 to 23:00
+      : Array.from({ length: 13 }, (_, i) => i + 8); // 8:00 to 20:00 (ends at 21:00)
     const visibleStaff = staffList.filter((s) => checkedStaffIds.includes(s.id));
 
     if (visibleStaff.length === 0) {
@@ -2414,11 +2857,13 @@ export default function AgendaPage() {
                       );
                     });
 
+                    const dayLayouts = getAppointmentLayouts(staffDayApps);
+
                     return (
                       <div key={staff.id} className={styles.weekDayStaffColumn}>
                         {/* Staff Subheader: [Avatar] Name */}
-                        <div className={styles.weekDayStaffSubheader}>
-                          <div className={styles.staffMiniAvatar}>
+                        <div className={styles.weekDayStaffSubheader} style={quitarNombreSemanal ? { justifyContent: "center", padding: 0 } : undefined}>
+                          <div className={styles.staffMiniAvatar} style={{ backgroundColor: staff.color || "#3b82f6" }}>
                             {`${staff.name} ${staff.lastName || ""}`
                               .trim()
                               .split(/\s+/)
@@ -2427,7 +2872,9 @@ export default function AgendaPage() {
                               .substring(0, 2)
                               .toUpperCase()}
                           </div>
-                          <span className={styles.staffMiniName}>{staff.name} {staff.lastName || ""}</span>
+                          {!quitarNombreSemanal && (
+                            <span className={styles.staffMiniName}>{staff.name} {staff.lastName || ""}</span>
+                          )}
                         </div>
 
                         {/* Column body with hour grids and absolute appointments */}
@@ -2435,16 +2882,16 @@ export default function AgendaPage() {
                           {hours.map((hour) => (
                             <div key={hour} className={styles.hourRow}>
                               <div className={styles.quarterIntervals}>
-                                <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 0, dateObj)}>
+                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 0) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 0, dateObj)}>
                                   <span>+ {String(hour).padStart(2, "0")}:00</span>
                                 </div>
-                                <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 15, dateObj)}>
+                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 15) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 15, dateObj)}>
                                   <span>+ {String(hour).padStart(2, "0")}:15</span>
                                 </div>
-                                <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 30, dateObj)}>
+                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 30) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 30, dateObj)}>
                                   <span>+ {String(hour).padStart(2, "0")}:30</span>
                                 </div>
-                                <div className={styles.quarter} onClick={() => handleSlotClick(staff.id, hour, 45, dateObj)}>
+                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 45) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 45, dateObj)}>
                                   <span>+ {String(hour).padStart(2, "0")}:45</span>
                                 </div>
                               </div>
@@ -2461,14 +2908,16 @@ export default function AgendaPage() {
                             const endHours = endD.getHours();
                             const endMins = endD.getMinutes();
 
+                            const startHour = mostrar24Horas ? 0 : 8;
                             const startTotalMins = startHours * 60 + startMins;
-                            const offsetMins = startTotalMins - 8 * 60;
+                            const offsetMins = startTotalMins - startHour * 60;
                             const durationMins = (endD.getTime() - startD.getTime()) / 60000;
 
                             const top = offsetMins * zoomScale;
                             const height = durationMins * zoomScale;
 
-                            if (top < 0) return null;
+                            const maxMins = (startHour + hours.length) * 60;
+                            if (startTotalMins < startHour * 60 || startTotalMins >= maxMins) return null;
 
                             let statusClass = styles.statusPending;
                             if (app.status === "CONFIRMED") statusClass = styles.statusConfirmed;
@@ -2484,6 +2933,8 @@ export default function AgendaPage() {
                               cardSizeClass = styles.miniCard;
                             }
 
+                            const appLayout = dayLayouts[app.id] || { left: "6px", width: "calc(100% - 12px)" };
+
                             return (
                               <div
                                 key={app.id}
@@ -2491,6 +2942,9 @@ export default function AgendaPage() {
                                 style={{
                                   top: `${top}px`,
                                   height: `${height}px`,
+                                  left: appLayout.left,
+                                  width: appLayout.width,
+                                  right: "auto",
                                   borderLeftColor: app.service.color || "var(--primary)",
                                   padding: height < 25 ? "2px 4px" : height < 45 ? "3px 4px" : "4px 6px",
                                 }}
@@ -2601,14 +3055,16 @@ export default function AgendaPage() {
                             const endHours = endD.getHours();
                             const endMins = endD.getMinutes();
 
+                            const startHour = mostrar24Horas ? 0 : 8;
                             const startTotalMins = startHours * 60 + startMins;
-                            const offsetMins = startTotalMins - 8 * 60;
+                            const offsetMins = startTotalMins - startHour * 60;
                             const durationMins = (endD.getTime() - startD.getTime()) / 60000;
 
                             const top = offsetMins * zoomScale;
                             const height = durationMins * zoomScale;
 
-                            if (top < 0) return null;
+                            const maxMins = (startHour + hours.length) * 60;
+                            if (startTotalMins < startHour * 60 || startTotalMins >= maxMins) return null;
 
                             const isRightHalf = idx >= (hideWeekends ? 2 : 3);
 
@@ -3375,7 +3831,7 @@ export default function AgendaPage() {
                 </div>
 
                 {/* Tags row */}
-                <div className={styles.tagsRow}>
+                <div className={styles.tagsRow} style={{ position: "relative" }} ref={createTagsDropdownRef}>
                   {appointmentTags.map((tag, idx) => (
                     <span key={idx} className={styles.tagBadge}>
                       {tag}
@@ -3388,50 +3844,147 @@ export default function AgendaPage() {
                       </button>
                     </span>
                   ))}
-                  {showTagInput ? (
-                    <div className={styles.tagInputWrapper}>
-                      <input
-                        type="text"
-                        className={styles.addTagInput}
-                        placeholder="Nueva etiqueta"
-                        value={newTagName}
-                        onChange={(e) => setNewTagName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            if (newTagName.trim()) {
-                              setAppointmentTags(prev => [...prev, newTagName.trim()]);
-                              setNewTagName("");
-                              setShowTagInput(false);
-                            }
-                          }
-                        }}
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        className={styles.addTagBtnConfirm}
-                        onClick={() => {
-                          if (newTagName.trim()) {
-                            setAppointmentTags(prev => [...prev, newTagName.trim()]);
-                            setNewTagName("");
-                            setShowTagInput(false);
-                          }
-                        }}
-                      >
-                        OK
-                      </button>
+                  
+                  <button
+                    type="button"
+                    className={styles.plusSmallBtn}
+                    onClick={() => {
+                      setShowCreateTagsDropdown(!showCreateTagsDropdown);
+                      setCreateTagsSubView("list");
+                      setSearchCreateTagQuery("");
+                    }}
+                    title="Agregar etiqueta"
+                    style={{ width: "24px", height: "24px", fontSize: "14px" }}
+                  >
+                    +
+                  </button>
+
+                  {showCreateTagsDropdown && (
+                    <div className={styles.tagsDropdownMenu} style={{ top: "30px", left: "0", zIndex: 1000 }}>
+                      {createTagsSubView === "list" ? (
+                        <>
+                          <h3 className={styles.tagsDropdownTitle}>Etiquetas</h3>
+                          <div className={styles.tagsSearchWrapper}>
+                            <svg className={styles.tagsSearchIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input 
+                              type="text"
+                              className={styles.tagsSearchInput}
+                              placeholder="Buscar etiqueta"
+                              value={searchCreateTagQuery}
+                              onChange={(e) => setSearchCreateTagQuery(e.target.value)}
+                            />
+                          </div>
+                          <div className={styles.tagsList}>
+                            {availableTags
+                              .filter(tag => {
+                                if (appointmentTags.includes(tag.name)) return false;
+                                return tag.name.toLowerCase().includes(searchCreateTagQuery.toLowerCase());
+                              })
+                              .map(tag => (
+                                <div
+                                  key={tag.name}
+                                  className={styles.tagsListItem}
+                                  style={{ backgroundColor: tag.color, display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                                >
+                                  <span 
+                                    style={{ flex: 1, cursor: "pointer", display: "block" }} 
+                                    onClick={() => {
+                                      setAppointmentTags(prev => [...prev, tag.name]);
+                                      setShowCreateTagsDropdown(false);
+                                    }}
+                                  >
+                                    {tag.name}
+                                  </span>
+                                  <span 
+                                    className={styles.editTagIcon}
+                                    title="Eliminar etiqueta"
+                                    onClick={() => handleDeleteTagGlobal(tag.name)}
+                                    style={{ cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "8px" }}
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                  </span>
+                                </div>
+                              ))}
+                            {availableTags.filter(tag => {
+                              if (appointmentTags.includes(tag.name)) return false;
+                              return tag.name.toLowerCase().includes(searchCreateTagQuery.toLowerCase());
+                            }).length === 0 && (
+                              <div style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "center", padding: "8px" }}>Sin etiquetas disponibles</div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className={styles.newTagBtn}
+                            onClick={() => {
+                              setCreateTagsSubView("create");
+                              setNewCreateTagName("");
+                              setNewCreateTagColor("#add8e6");
+                            }}
+                          >
+                            Nueva etiqueta
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className={styles.tagsDropdownTitle}>Nueva etiqueta</h3>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div>
+                              <label className={styles.newTagLabel}>Nombre</label>
+                              <input 
+                                type="text"
+                                className="input"
+                                style={{ width: "100%", fontSize: "12px", padding: "6px 10px", outline: "none", border: "1px solid var(--border-color)", borderRadius: "4px" }}
+                                placeholder="Nombre de la etiqueta"
+                                value={newCreateTagName}
+                                onChange={(e) => setNewCreateTagName(e.target.value)}
+                                autoFocus
+                              />
+                            </div>
+                            <div>
+                              <label className={styles.newTagLabel}>ASIGNAR COLOR</label>
+                              <div className={styles.colorPickerGrid}>
+                                {TAG_COLORS.map(color => (
+                                  <div
+                                    key={color}
+                                    className={`${styles.colorCircle} ${newCreateTagColor === color ? styles.colorCircleSelected : ""}`}
+                                    style={{ backgroundColor: color }}
+                                    onClick={() => setNewCreateTagColor(color)}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div className={styles.newTagActions}>
+                              <button 
+                                type="button"
+                                className={styles.newTagCancelBtn}
+                                onClick={() => setCreateTagsSubView("list")}
+                              >
+                                Cancelar
+                              </button>
+                              <button 
+                                type="button"
+                                className={styles.newTagSaveBtn}
+                                disabled={!newCreateTagName.trim()}
+                                onClick={() => {
+                                  const name = newCreateTagName.trim().toUpperCase();
+                                  if (availableTags.some(t => t.name === name)) {
+                                    alert("Esta etiqueta ya existe.");
+                                    return;
+                                  }
+                                  const updated = [...availableTags, { name, color: newCreateTagColor }];
+                                  setAvailableTags(updated);
+                                  localStorage.setItem("clifav_available_tags", JSON.stringify(updated));
+                                  setAppointmentTags(prev => [...prev, name]);
+                                  setShowCreateTagsDropdown(false);
+                                }}
+                              >
+                                Guardar
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.plusSmallBtn}
-                      onClick={() => setShowTagInput(true)}
-                      title="Agregar etiqueta"
-                      style={{ width: "24px", height: "24px", fontSize: "14px" }}
-                    >
-                      +
-                    </button>
                   )}
                 </div>
               </div>
@@ -3725,10 +4278,7 @@ export default function AgendaPage() {
                     type="button"
                     className={styles.chargeBtn}
                     onClick={async (e) => {
-                      const created = await handleCreateAppointment(e);
-                      if (created) {
-                        window.location.href = `/dashboard/sales?clientId=${created.clientId}&serviceId=${created.serviceId}&appointmentId=${created.id}`;
-                      }
+                      await handleCreateAppointment(e, false, true);
                     }}
                   >
                     Crear cita y cobrar
@@ -4721,7 +5271,7 @@ export default function AgendaPage() {
 
                             if (servicePrice === 0) {
                               return <span className={styles.paymentTagGreen}>GRATUITO</span>;
-                            } else if (totalPaid >= servicePrice || selectedAppointment.status === "COMPLETED") {
+                            } else if (totalPaid >= servicePrice) {
                               const methods = [...new Set(matchingSales.map(s => getPaymentMethodTextLocal(s.paymentMethod)))];
                               return (
                                 <>
@@ -4957,9 +5507,31 @@ export default function AgendaPage() {
                                   ? styles.citasBadgeYellow
                                   : styles.citasBadgeGray;
 
-                                const isPaid = a.status === "COMPLETED";
-                                const paymentLabel = isPaid ? "PAGADO" : "SIN PAGAR";
-                                const paymentColorClass = isPaid ? styles.citasBadgeGreen : styles.citasBadgeRed;
+                                const aMatchingSales = agendaSales.filter((sale) => {
+                                  try {
+                                    const itemsArr = JSON.parse(sale.itemsJson || "[]");
+                                    return itemsArr.some((i: any) => i.id === `db-app-${a.id}` || i.id === a.id);
+                                  } catch (e) {
+                                    return false;
+                                  }
+                                });
+
+                                const aTotalPaid = aMatchingSales.reduce((sum, s) => sum + s.total, 0);
+                                const aPrice = a.service?.price || 0;
+
+                                let paymentLabel = "SIN PAGAR";
+                                let paymentColorClass = styles.citasBadgeRed;
+
+                                if (aPrice === 0) {
+                                  paymentLabel = "GRATUITO";
+                                  paymentColorClass = styles.citasBadgeGreen;
+                                } else if (aTotalPaid >= aPrice) {
+                                  paymentLabel = "PAGADO";
+                                  paymentColorClass = styles.citasBadgeGreen;
+                                } else if (aTotalPaid > 0) {
+                                  paymentLabel = "PAGO PARCIAL";
+                                  paymentColorClass = styles.citasBadgeYellow;
+                                }
 
                                 return (
                                   <div key={a.id} className={styles.citasItemBlock}>
@@ -5706,7 +6278,15 @@ export default function AgendaPage() {
                     <Icons.ChevronRight size={16} className={styles.optionChevron} />
                   </button>
 
-                  <div className={styles.optionItem}>
+                  <button
+                    type="button"
+                    className={`${styles.optionItem} ${sidebarSubView === "etiquetas" ? styles.optionItemActive : ""}`}
+                    onClick={() => {
+                      setGlobalTagsSubView("list");
+                      setSearchGlobalTagQuery("");
+                      setSidebarSubView("etiquetas");
+                    }}
+                  >
                     <div className={styles.optionItemLeft}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.optionIcon}>
                         <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
@@ -5715,33 +6295,17 @@ export default function AgendaPage() {
                       <span>Etiquetas</span>
                     </div>
                     <Icons.ChevronRight size={16} className={styles.optionChevron} />
-                  </div>
+                  </button>
 
-                  <div className={styles.optionItem}>
-                    <div className={styles.optionItemLeft}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.optionIcon}>
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                      </svg>
-                      <span>Grupos</span>
-                    </div>
-                    <Icons.ChevronRight size={16} className={styles.optionChevron} />
-                  </div>
-
-                  <div className={styles.optionItem}>
-                    <div className={styles.optionItemLeft}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.optionIcon}>
-                        <path d="M12 5V22M5 12H19" />
-                        <path d="M12 22A7 7 0 0 1 5 15h2a5 5 0 0 0 10 0h2a7 7 0 0 1-7 7z" />
-                      </svg>
-                      <span>Anclar</span>
-                    </div>
-                    <Icons.ChevronRight size={16} className={styles.optionChevron} />
-                  </div>
-
-                  <div className={styles.optionItem}>
+                  <button
+                    type="button"
+                    className={`${styles.optionItem} ${sidebarSubView === "imprimir" ? styles.optionItemActive : ""}`}
+                    onClick={() => {
+                      setPrintCheckedStaffIds(staffList.map((s) => s.id));
+                      setPrintCitasAnteriores(true);
+                      setSidebarSubView("imprimir");
+                    }}
+                  >
                     <div className={styles.optionItemLeft}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.optionIcon}>
                         <polyline points="6 9 6 2 18 2 18 9" />
@@ -5751,9 +6315,17 @@ export default function AgendaPage() {
                       <span>Imprimir agenda</span>
                     </div>
                     <Icons.ChevronRight size={16} className={styles.optionChevron} />
-                  </div>
+                  </button>
 
-                  <div className={styles.optionItem}>
+                  <button
+                    type="button"
+                    className={`${styles.optionItem} ${sidebarSubView === "vista" ? styles.optionItemActive : ""}`}
+                    onClick={() => {
+                      setTempQuitarNombreSemanal(quitarNombreSemanal);
+                      setTempMostrar24Horas(mostrar24Horas);
+                      setSidebarSubView("vista");
+                    }}
+                  >
                     <div className={styles.optionItemLeft}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.optionIcon}>
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -5762,7 +6334,7 @@ export default function AgendaPage() {
                       <span>Vista</span>
                     </div>
                     <Icons.ChevronRight size={16} className={styles.optionChevron} />
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -5889,6 +6461,293 @@ export default function AgendaPage() {
                     Aplicar
                   </button>
                 </div>
+              </div>
+            )}
+
+            {sidebarSubView === "vista" && (
+              <div className={styles.drawerContent} style={{ borderLeft: "1px solid var(--border-color)" }}>
+                <div className={styles.submenuHeader}>
+                  <h3>Vista</h3>
+                </div>
+
+                <div className={styles.submenuBody} style={{ padding: "20px" }}>
+                  <div className={styles.toggleRow} style={{ marginBottom: "20px" }}>
+                    <label className={styles.switchLabel}>
+                      <input
+                        type="checkbox"
+                        className={styles.switchInput}
+                        checked={tempQuitarNombreSemanal}
+                        onChange={(e) => setTempQuitarNombreSemanal(e.target.checked)}
+                      />
+                      <span className={styles.switchSlider} />
+                      <span className={styles.switchText} style={{ whiteSpace: "normal", display: "inline-block", maxWidth: "200px" }}>
+                        Quitar Nombre De Los Usuarios/Recursos En La Agenda
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className={styles.toggleRow}>
+                    <label className={styles.switchLabel}>
+                      <input
+                        type="checkbox"
+                        className={styles.switchInput}
+                        checked={tempMostrar24Horas}
+                        onChange={(e) => setTempMostrar24Horas(e.target.checked)}
+                      />
+                      <span className={styles.switchSlider} />
+                      <span className={styles.switchText}>
+                        Mostrar Las 24 Horas En La Agenda
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className={styles.submenuFooter}>
+                  <button
+                    type="button"
+                    className={styles.submenuCancelBtn}
+                    onClick={() => setShowOpcionesSidebar(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.submenuApplyBtn}
+                    onClick={() => {
+                      setQuitarNombreSemanal(tempQuitarNombreSemanal);
+                      setMostrar24Horas(tempMostrar24Horas);
+                      setShowOpcionesSidebar(false);
+                    }}
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {sidebarSubView === "imprimir" && (
+              <div className={styles.drawerContent} style={{ borderLeft: "1px solid var(--border-color)" }}>
+                <div className={styles.submenuHeader}>
+                  <h3>Imprimir agenda</h3>
+                </div>
+
+                <div className={styles.submenuBody} style={{ padding: "20px" }}>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: "1.4" }}>
+                    Seleccionar los empleados para imprimir sus respectivas citas:
+                  </p>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px", maxHeight: "300px", overflowY: "auto" }}>
+                    {staffList.map((staff) => {
+                      const isChecked = printCheckedStaffIds.includes(staff.id);
+                      return (
+                        <button
+                          key={staff.id}
+                          type="button"
+                          onClick={() => {
+                            if (isChecked) {
+                              setPrintCheckedStaffIds(prev => prev.filter(id => id !== staff.id));
+                            } else {
+                              setPrintCheckedStaffIds(prev => [...prev, staff.id]);
+                            }
+                          }}
+                          style={{ border: "none", background: "none", width: "100%", textAlign: "left", display: "flex", alignItems: "center", padding: "6px 0", cursor: "pointer" }}
+                        >
+                          <div
+                            className={styles.checkboxCustomDropdown}
+                            style={{
+                              backgroundColor: isChecked ? "var(--primary)" : "var(--bg-input)",
+                              borderColor: isChecked ? "var(--primary)" : "var(--border-color)",
+                              marginRight: "10px",
+                              flexShrink: 0
+                            }}
+                          >
+                            {isChecked && <Icons.Check size={10} style={{ color: "white" }} />}
+                          </div>
+                          <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: isChecked ? "600" : "normal" }}>
+                            {staff.name} {staff.lastName || ""}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className={styles.toggleRow} style={{ borderTop: "1px solid var(--border-color)", paddingTop: "15px" }}>
+                    <label className={styles.switchLabel}>
+                      <input
+                        type="checkbox"
+                        className={styles.switchInput}
+                        checked={printCitasAnteriores}
+                        onChange={(e) => setPrintCitasAnteriores(e.target.checked)}
+                      />
+                      <span className={styles.switchSlider} />
+                      <span className={styles.switchText}>
+                        Imprimir Citas Anteriores A Hoy
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className={styles.submenuFooter}>
+                  <button
+                    type="button"
+                    className={styles.submenuCancelBtn}
+                    onClick={() => setShowOpcionesSidebar(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.submenuApplyBtn}
+                    onClick={() => {
+                      handlePrintAgenda();
+                      setShowOpcionesSidebar(false);
+                    }}
+                  >
+                    Imprimir
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {sidebarSubView === "etiquetas" && (
+              <div className={styles.drawerContent} style={{ borderLeft: "1px solid var(--border-color)" }}>
+                <div className={styles.submenuHeader}>
+                  <h3>Etiquetas</h3>
+                </div>
+
+                {globalTagsSubView === "list" ? (
+                  <>
+                    <div className={styles.submenuBody} style={{ padding: "20px", display: "flex", flexDirection: "column", height: "calc(100% - 130px)", overflow: "hidden" }}>
+                      <div className={styles.tagsSearchWrapper} style={{ marginBottom: "15px" }}>
+                        <svg className={styles.tagsSearchIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input 
+                          type="text"
+                          className={styles.tagsSearchInput}
+                          placeholder="Buscar etiqueta"
+                          value={searchGlobalTagQuery}
+                          onChange={(e) => setSearchGlobalTagQuery(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {availableTags
+                          .filter(tag => tag.name.toLowerCase().includes(searchGlobalTagQuery.toLowerCase()))
+                          .map(tag => (
+                            <div
+                              key={tag.name}
+                              style={{
+                                backgroundColor: tag.color,
+                                padding: "8px 12px",
+                                borderRadius: "6px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                color: "white",
+                                fontWeight: "bold",
+                                fontSize: "12px",
+                              }}
+                            >
+                              <span>{tag.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTagGlobal(tag.name)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "white",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  padding: 0,
+                                }}
+                                title="Eliminar etiqueta"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                              </button>
+                            </div>
+                          ))}
+                        {availableTags.filter(tag => tag.name.toLowerCase().includes(searchGlobalTagQuery.toLowerCase())).length === 0 && (
+                          <div style={{ fontSize: "12px", color: "var(--text-secondary)", textAlign: "center", padding: "20px" }}>Sin etiquetas disponibles</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className={styles.submenuFooter} style={{ justifyContent: "flex-end", gap: "10px" }}>
+                      <button
+                        type="button"
+                        className={styles.submenuApplyBtn}
+                        onClick={() => {
+                          setGlobalTagsSubView("create");
+                          setNewGlobalTagName("");
+                          setNewGlobalTagColor("#add8e6");
+                        }}
+                        style={{ backgroundColor: "var(--primary)" }}
+                      >
+                        Nueva etiqueta
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.submenuBody} style={{ padding: "20px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Nombre</label>
+                          <input 
+                            type="text"
+                            className="input"
+                            style={{ width: "100%", fontSize: "13px", padding: "8px 12px", outline: "none", border: "1px solid var(--border-color)", borderRadius: "4px" }}
+                            placeholder="Nombre de la etiqueta"
+                            value={newGlobalTagName}
+                            onChange={(e) => setNewGlobalTagName(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "bold", color: "var(--text-secondary)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Asignar color</label>
+                          <div className={styles.colorPickerGrid}>
+                            {TAG_COLORS.map(color => (
+                              <div
+                                key={color}
+                                className={`${styles.colorCircle} ${newGlobalTagColor === color ? styles.colorCircleSelected : ""}`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => setNewGlobalTagColor(color)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.submenuFooter}>
+                      <button
+                        type="button"
+                        className={styles.submenuCancelBtn}
+                        onClick={() => setGlobalTagsSubView("list")}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.submenuApplyBtn}
+                        disabled={!newGlobalTagName.trim()}
+                        onClick={() => {
+                          const tagName = newGlobalTagName.trim().toUpperCase();
+                          if (availableTags.some(t => t.name === tagName)) {
+                            alert("Esta etiqueta ya existe.");
+                            return;
+                          }
+                          const updated = [...availableTags, { name: tagName, color: newGlobalTagColor }];
+                          setAvailableTags(updated);
+                          localStorage.setItem("clifav_available_tags", JSON.stringify(updated));
+                          setGlobalTagsSubView("list");
+                        }}
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -6420,6 +7279,130 @@ export default function AgendaPage() {
               )}
             </div>
 
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showServiceWarningModal && createPortal(
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+          onClick={() => setShowServiceWarningModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: "white",
+              borderRadius: "8px",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+              width: "480px",
+              maxWidth: "90%",
+              overflow: "hidden",
+              position: "relative",
+              borderLeft: "6px solid #d32f2f", // Red bar on the left
+              display: "flex",
+              flexDirection: "column",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button top right */}
+            <button 
+              type="button"
+              onClick={() => setShowServiceWarningModal(false)}
+              style={{
+                position: "absolute",
+                top: "14px",
+                right: "14px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#9ca3af",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            {/* Modal Body */}
+            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                {/* Warning Icon (Red circle with i) */}
+                <div 
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    borderRadius: "50%",
+                    backgroundColor: "#d32f2f",
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                    fontFamily: "serif",
+                  }}
+                >
+                  i
+                </div>
+                <h3 style={{ margin: 0, fontSize: "18px", color: "#111827", fontWeight: 600 }}>Advertencia</h3>
+              </div>
+              <p style={{ margin: 0, fontSize: "15px", color: "#4b5563", lineHeight: "1.5" }}>
+                El personal no ofrece este servicio, ¿estás seguro?
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: "16px 24px", backgroundColor: "#f9fafb", display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid #f3f4f6" }}>
+              <button 
+                type="button"
+                onClick={() => setShowServiceWarningModal(false)}
+                style={{
+                  backgroundColor: "white",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  padding: "8px 16px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#374151",
+                  cursor: "pointer",
+                }}
+              >
+                No
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowServiceWarningModal(false);
+                  if (warningModalConfirmCallback) {
+                    warningModalConfirmCallback();
+                  }
+                }}
+                style={{
+                  backgroundColor: "#d32f2f",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "8px 16px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Sí
+              </button>
+            </div>
           </div>
         </div>,
         document.body

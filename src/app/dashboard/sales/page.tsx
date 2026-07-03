@@ -983,6 +983,47 @@ export default function SalesPage() {
     fetchSalesData();
   }, [activeClinic]);
 
+  // Auto-open specific appointment when navigated from contacts page via ?appointmentId=...
+  useEffect(() => {
+    if (loading || appointments.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const appointmentId = params.get("appointmentId");
+    if (!appointmentId) return;
+
+    const appt = appointments.find((a: any) => a.id === appointmentId);
+    if (!appt) return;
+
+    const clientObj = clients.find((c: any) => c.id === appt.clientId);
+    const appDate = new Date(appt.start);
+
+    setSelectedItemForPayment({
+      id: `db-app-${appt.id}`,
+      refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
+      nuV: "-",
+      fecha: appDate.toLocaleDateString("es-ES"),
+      fechaRaw: appDate,
+      hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")}`,
+      tipo: "Servicio",
+      detalle: appt.service?.name || "Tratamiento",
+      clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
+      cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
+      clientId: appt.clientId,
+      dni: clientObj?.dniNif || "-",
+      empleado: appt.user?.name || "Especialista",
+      consulta: activeClinic?.name || "",
+      estado: appt.status === "COMPLETED" ? "PAGADO" : "PENDIENTE",
+      metodoPago: appt.status === "COMPLETED" ? "Tarjeta" : "-",
+      fechaPago: appt.status === "COMPLETED" ? appDate.toLocaleDateString("es-ES") : "-",
+      price: appt.service?.price || 0,
+      factura: "",
+      precio: appt.service?.price || 0,
+      iva: 0,
+      irpf: 0,
+      total: appt.service?.price || 0,
+      pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
+    });
+  }, [loading, appointments, clients, activeClinic]);
+
   // Load existing partial payments from database sales history for the selected checkout item
   useEffect(() => {
     if (!selectedItemForPayment) {
@@ -2836,7 +2877,7 @@ export default function SalesPage() {
       let resolvedEstado = "PENDIENTE";
       if (servicePrice === 0) {
         resolvedEstado = "GRATUITO";
-      } else if (totalPaid >= servicePrice || app.status === "COMPLETED") {
+      } else if (totalPaid >= servicePrice) {
         resolvedEstado = "PAGADO";
       } else if (totalPaid > 0) {
         resolvedEstado = "PAGO PARCIAL";

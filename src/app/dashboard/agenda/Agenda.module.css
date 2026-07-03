@@ -543,6 +543,21 @@
   background: rgba(79, 70, 229, 0.08);
 }
 
+.outsideShiftSlot {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg-panel-solid),
+    var(--bg-panel-solid) 8px,
+    var(--bg-input) 8px,
+    var(--bg-input) 16px
+  );
+  opacity: 0.8;
+}
+
+.outsideShiftSlot:hover {
+  background: rgba(79, 70, 229, 0.12) !important;
+}
+
 .quarter:hover span {
   display: block;
 }
