@@ -2583,3 +2583,40 @@
   background: var(--bg-input);
 }
 
+/* ==========================================
+   MOBILE VIEWPORT OPTIMIZATIONS (width < 768px)
+   ========================================== */
+@media (max-width: 768px) {
+  .tabsHeader {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    gap: 16px !important;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .tabsHeader::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .tabBtn {
+    flex-shrink: 0 !important;
+    padding: 8px 0 !important;
+    font-size: 13px !important;
+  }
+
+  /* Make invoice/articles tables scrollable horizontally */
+  :global(.table-container) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: var(--radius-md) !important;
+    margin-top: 12px !important;
+  }
+
+  :global(.table) {
+    min-width: 800px !important;
+    width: 100% !important;
+  }
+}
+

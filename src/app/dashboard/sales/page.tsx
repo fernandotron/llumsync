@@ -6006,10 +6006,6 @@ export default function SalesPage() {
           <span className={styles.clinicSubtitle}>{activeClinic?.name || "Clifav"}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <button className="btn btn-primary" onClick={() => setShowPosDrawer(true)}>
-            <Icons.Plus size={16} />
-            <span>Nueva Venta</span>
-          </button>
           <div
             style={{
               width: "36px",

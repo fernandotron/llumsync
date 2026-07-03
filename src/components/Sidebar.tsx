@@ -10,12 +10,17 @@ import LinkComponent from "next/link"; // importing Link directly as next/link i
 import { hasPermission } from "@/lib/permissions";
 
 export default function Sidebar() {
-  const { user, activeClinic, setActiveClinic, sidebarCollapsed, setSidebarCollapsed, logout, theme, toggleTheme } = useApp();
+  const { user, activeClinic, setActiveClinic, sidebarCollapsed, setSidebarCollapsed, logout, theme, toggleTheme, mobileSidebarOpen, setMobileSidebarOpen } = useApp();
   const pathname = usePathname();
   const router = useRouter();
   const [showClinicsDropdown, setShowClinicsDropdown] = useState(false);
   const clinicsDropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname, setMobileSidebarOpen]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -31,10 +36,18 @@ export default function Sidebar() {
       ) {
         setSidebarCollapsed(true);
       }
+      // Also close mobile sidebar if clicking outside
+      if (
+        mobileSidebarOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(e.target as Node)
+      ) {
+        setMobileSidebarOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [sidebarCollapsed, setSidebarCollapsed]);
+  }, [sidebarCollapsed, setSidebarCollapsed, mobileSidebarOpen, setMobileSidebarOpen]);
 
   if (!user) return null;
 
@@ -70,21 +83,41 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside ref={sidebarRef} className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""} glass`}>
-      {/* Brand Header */}
-      <div className={styles.header}>
-        <div className={styles.logoArea}>
-          <div className={styles.logoIcon}>LS</div>
-          {!sidebarCollapsed && <span className={styles.logoText}>LLUMSYNC</span>}
+    <>
+      {/* Mobile background overlay */}
+      {mobileSidebarOpen && (
+        <div 
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            backdropFilter: "blur(4px)",
+            zIndex: 999,
+          }}
+        />
+      )}
+      <aside 
+        ref={sidebarRef} 
+        className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""} ${mobileSidebarOpen ? styles.mobileOpen : ""} glass`}
+        style={{
+          zIndex: mobileSidebarOpen ? 1000 : undefined
+        }}
+      >
+        {/* Brand Header */}
+        <div className={styles.header}>
+          <div className={styles.logoArea}>
+            <div className={styles.logoIcon}>LS</div>
+            {!sidebarCollapsed && <span className={styles.logoText}>LLUMSYNC</span>}
+          </div>
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
+            className={styles.toggleBtn}
+            title={sidebarCollapsed ? "Desplegar menú" : "Colapsar menú"}
+          >
+            <Icons.Menu size={18} />
+          </button>
         </div>
-        <button 
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
-          className={styles.toggleBtn}
-          title={sidebarCollapsed ? "Desplegar menú" : "Colapsar menú"}
-        >
-          <Icons.Menu size={18} />
-        </button>
-      </div>
 
       {/* Clinic Selector */}
       <div className={styles.clinicSelectorArea}>
@@ -195,5 +228,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

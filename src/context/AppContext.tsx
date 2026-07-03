@@ -44,6 +44,8 @@ interface AppContextType {
   logout: () => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  mobileSidebarOpen: boolean;
+  setMobileSidebarOpen: (open: boolean) => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
 }
@@ -54,6 +56,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [activeClinic, setActiveClinicState] = useState<Clinic | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const router = useRouter();
   const pathname = usePathname();
@@ -196,6 +199,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         logout,
         sidebarCollapsed,
         setSidebarCollapsed,
+        mobileSidebarOpen,
+        setMobileSidebarOpen,
         theme,
         toggleTheme,
       }}

@@ -5,9 +5,11 @@ import Sidebar from "@/components/Sidebar";
 import ClinicWizard from "@/components/ClinicWizard";
 import Chatbot from "@/components/Chatbot";
 import { useApp } from "@/context/AppContext";
+import { Icons } from "@/components/Icons";
+import styles from "./Layout.module.css";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { sidebarCollapsed, user } = useApp();
+  const { sidebarCollapsed, user, activeClinic, mobileSidebarOpen, setMobileSidebarOpen } = useApp();
 
   // If no user is logged in, layout is simple (children will redirect or render login)
   if (!user) {
@@ -19,17 +21,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <ClinicWizard />;
   }
 
+  const userInitials = user.name
+    ? user.name
+        .trim()
+        .split(/\s+/)
+        .map((n) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase()
+    : "VL";
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div className={styles.layoutContainer}>
+      {/* Top mobile header bar */}
+      <header className={styles.mobileHeader}>
+        <button 
+          className={styles.menuBtn} 
+          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          aria-label="Abrir menú"
+        >
+          <Icons.Menu size={20} />
+        </button>
+        <div className={styles.logoArea}>
+          <div className={styles.logoIcon}>LS</div>
+          <span style={{ maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {activeClinic?.name || "LLUMSYNC"}
+          </span>
+        </div>
+        <div className={styles.userAvatar}>
+          {userInitials}
+        </div>
+      </header>
+
       <Sidebar />
       <main
+        className={styles.mainContent}
         style={{
-          flexGrow: 1,
           marginLeft: sidebarCollapsed ? "78px" : "260px",
           padding: "32px",
-          transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          backgroundColor: "var(--bg-app)",
-          minWidth: 0, // prevents flex item overflow
         }}
       >
         <div className="fade-in">{children}</div>
