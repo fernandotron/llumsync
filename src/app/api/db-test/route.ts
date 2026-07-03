@@ -22,18 +22,26 @@ export async function GET() {
       where: { id: testUser.id },
     });
 
+    const dbUrl = process.env.DATABASE_URL || "";
+    const maskedDbUrl = dbUrl.replace(/:([^:@]+)@/, ":******@");
+
     return NextResponse.json({
       status: "success",
       count,
       testUserCreated: testUser.email,
+      databaseUrl: maskedDbUrl,
     });
   } catch (error: any) {
     console.error("Db test error:", error);
+    const dbUrl = process.env.DATABASE_URL || "";
+    const maskedDbUrl = dbUrl.replace(/:([^:@]+)@/, ":******@");
+    
     return NextResponse.json({
       status: "error",
       message: error?.message || String(error),
       stack: error?.stack || null,
       code: error?.code || null,
+      databaseUrl: maskedDbUrl,
     }, { status: 500 });
   }
 }
