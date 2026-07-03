@@ -526,6 +526,10 @@ export default function SalesPage() {
   // Navigation Tabs State
   const [activeTab, setActiveTab] = useState<"articulos" | "facturas" | "pagos" | "resumen" | "ingresos_gastos" | "presupuestos">("articulos");
   const [activeSubTab, setActiveSubTab] = useState<"emitidas" | "recibidas">("emitidas");
+  const [isHydrated, setIsHydrated] = useState(false);
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Date Filters (Initialize with dynamic month-to-date)
   const [dateFilterStart, setDateFilterStart] = useState<Date | null>(() => getMonthToDateRange().start);
@@ -983,12 +987,25 @@ export default function SalesPage() {
     fetchSalesData();
   }, [activeClinic]);
 
-  // Auto-open specific appointment when navigated from contacts page via ?appointmentId=...
+  // Auto-open specific appointment or sale when navigated from contacts page via ?appointmentId=... or ?saleId=...
   useEffect(() => {
-    if (loading || appointments.length === 0) return;
+    if (loading) return;
     const params = new URLSearchParams(window.location.search);
+    const saleId = params.get("saleId");
+    
+    // 1. If we have a saleId, look for the sale and open it as the invoice view directly
+    if (saleId && salesHistory.length > 0) {
+      const sale = salesHistory.find((s: any) => s.id === saleId);
+      if (sale) {
+        setShowPosDrawer(false);
+        handleOpenExistingInvoice(sale);
+        return;
+      }
+    }
+
+    // 2. Fallback or check for appointmentId
     const appointmentId = params.get("appointmentId");
-    if (!appointmentId) return;
+    if (!appointmentId || appointments.length === 0) return;
 
     const appt = appointments.find((a: any) => a.id === appointmentId);
     if (!appt) return;
@@ -4204,6 +4221,21 @@ export default function SalesPage() {
       <div className={styles.container}>
         {renderInvoiceEditor()}
         {showEditClientModal && renderEditClientDrawer()}
+      </div>
+    );
+  }
+
+  const hasDeepLink = isHydrated && typeof window !== "undefined" && (
+    window.location.search.includes("appointmentId") ||
+    window.location.search.includes("saleId")
+  );
+
+  if (loading && hasDeepLink) {
+    return (
+      <div className={styles.container} style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+        <div style={{ fontSize: "16px", color: "var(--text-secondary)", fontWeight: 500 }}>
+          Cargando caja...
+        </div>
       </div>
     );
   }

@@ -5626,24 +5626,48 @@ export default function ClientDetailPage() {
                                 </div>
 
                                 {/* Ver venta / Mostrar en Caja */}
-                                {paid ? (
-                                  <a
-                                    href={`/dashboard/sales?clientId=${id}&appointmentId=${app.id}`}
-                                    style={{
-                                      padding: "4px 14px",
-                                      borderRadius: "6px",
-                                      border: "1px solid var(--border-color)",
-                                      background: "var(--bg-panel-solid)",
-                                      fontSize: "12px",
-                                      color: "var(--text-primary)",
-                                      textDecoration: "none",
-                                      fontWeight: 500,
-                                      flexShrink: 0
-                                    }}
-                                  >
-                                    Ver venta
-                                  </a>
-                                ) : (
+                                {paid ? (() => {
+                                  let saleId = null;
+                                  if (client.sales) {
+                                    const match = client.sales.find((s: any) => {
+                                      if (s.paymentMethod === "OTHER") return false;
+                                      try {
+                                        const items = JSON.parse(s.itemsJson || "[]");
+                                        return items.some((i: any) => 
+                                          i.id === `db-app-${app.id}` || 
+                                          i.id === app.id || 
+                                          i.name === app.service?.name
+                                        );
+                                      } catch {
+                                        return false;
+                                      }
+                                    });
+                                    if (match) saleId = match.id;
+                                  }
+
+                                  const hrefVal = saleId 
+                                    ? `/dashboard/sales?clientId=${id}&saleId=${saleId}`
+                                    : `/dashboard/sales?clientId=${id}&appointmentId=${app.id}`;
+
+                                  return (
+                                    <a
+                                      href={hrefVal}
+                                      style={{
+                                        padding: "4px 14px",
+                                        borderRadius: "6px",
+                                        border: "1px solid var(--border-color)",
+                                        background: "var(--bg-panel-solid)",
+                                        fontSize: "12px",
+                                        color: "var(--text-primary)",
+                                        textDecoration: "none",
+                                        fontWeight: 500,
+                                        flexShrink: 0
+                                      }}
+                                    >
+                                      Ver venta
+                                    </a>
+                                  );
+                                })() : (
                                   <a
                                     href={`/dashboard/sales?clientId=${id}&appointmentId=${app.id}`}
                                     style={{
