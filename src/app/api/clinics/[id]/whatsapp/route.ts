@@ -54,6 +54,7 @@ export async function POST(
             instanceName: instanceName,
             token: apiToken,
             qrcode: true,
+            integration: "WHATSAPP-BAILEYS",
           }),
         });
 
