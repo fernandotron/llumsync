@@ -993,13 +993,94 @@ export default function SalesPage() {
     const params = new URLSearchParams(window.location.search);
     const saleId = params.get("saleId");
     
-    // 1. If we have a saleId, look for the sale and open it as the invoice view directly
+    // 1. If we have a saleId, look for the sale and open it inside the Caja panel
     if (saleId && salesHistory.length > 0) {
       const sale = salesHistory.find((s: any) => s.id === saleId);
       if (sale) {
         setShowPosDrawer(false);
-        handleOpenExistingInvoice(sale);
-        return;
+        
+        // Check if there is an associated appointment in our DB list
+        let appt = null;
+        try {
+          const items = JSON.parse(sale.itemsJson || "[]");
+          const apptItem = items.find((i: any) => i.id && i.id.startsWith("db-app-"));
+          if (apptItem) {
+            const appId = apptItem.id.replace("db-app-", "");
+            appt = appointments.find((a: any) => a.id === appId);
+          }
+        } catch {}
+
+        if (appt) {
+          const clientObj = clients.find((c: any) => c.id === appt.clientId);
+          const appDate = new Date(appt.start);
+          setSelectedItemForPayment({
+            id: `db-app-${appt.id}`,
+            refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
+            nuV: sale.invoiceNumber,
+            fecha: appDate.toLocaleDateString("es-ES"),
+            fechaRaw: appDate,
+            hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")}`,
+            tipo: "Servicio",
+            detalle: appt.service?.name || "Tratamiento",
+            clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
+            cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
+            clientId: appt.clientId,
+            dni: clientObj?.dniNif || "-",
+            empleado: appt.user?.name || "Especialista",
+            consulta: activeClinic?.name || "",
+            estado: "PAGADO",
+            metodoPago: getPaymentMethodText(sale.paymentMethod),
+            fechaPago: new Date(sale.createdAt).toLocaleDateString("es-ES"),
+            price: appt.service?.price || 0,
+            factura: "Si",
+            precio: appt.service?.price || 0,
+            iva: 0,
+            irpf: 0,
+            total: appt.service?.price || 0,
+            pagado: appt.service?.price || 0,
+          });
+          return;
+        } else {
+          const clientObj = clients.find((c: any) => c.id === sale.clientId);
+          const saleDate = new Date(sale.createdAt);
+          let firstItemName = "Venta";
+          let firstItemPrice = sale.total;
+          try {
+            const items = JSON.parse(sale.itemsJson || "[]");
+            if (items.length > 0) {
+              firstItemName = items[0].name || items[0].detalle || "Venta";
+              firstItemPrice = items[0].price || sale.total;
+            }
+          } catch {}
+
+          setSelectedItemForPayment({
+            id: `db-sale-${sale.id}`,
+            refMov: `#${sale.id.substring(0, 4).toUpperCase()}`,
+            nuV: sale.invoiceNumber,
+            fecha: saleDate.toLocaleDateString("es-ES"),
+            fechaRaw: saleDate,
+            hora: "-",
+            tipo: "Servicio",
+            detalle: firstItemName,
+            clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
+            cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
+            clientId: sale.clientId,
+            dni: clientObj?.dniNif || "-",
+            empleado: "Recepción",
+            consulta: activeClinic?.name || "",
+            estado: "PAGADO",
+            metodoPago: getPaymentMethodText(sale.paymentMethod),
+            fechaPago: saleDate.toLocaleDateString("es-ES"),
+            price: firstItemPrice,
+            factura: "Si",
+            precio: firstItemPrice,
+            iva: 0,
+            irpf: 0,
+            total: sale.total,
+            pagado: sale.total,
+          });
+          return;
+        }
       }
     }
 
@@ -1018,11 +1099,9 @@ export default function SalesPage() {
 
     if (appt.status === "COMPLETED") {
       // For paid appointments: try to find the matching sale in salesHistory by clientId
-      // and open it as the invoice view directly
       const matchingSale = salesHistory.find((s: any) => {
         if (s.clientId !== appt.clientId) return false;
         if (s.paymentMethod === "OTHER") return false;
-        // Check if sale items include this service
         try {
           const items = JSON.parse(s.itemsJson || "[]");
           return items.some((i: any) =>
@@ -1032,13 +1111,40 @@ export default function SalesPage() {
         } catch { return false; }
       });
 
-      if (matchingSale) {
-        handleOpenExistingInvoice(matchingSale);
-        return;
-      }
+      const resolvedNuV = matchingSale ? matchingSale.invoiceNumber : "-";
+      const resolvedMetodo = matchingSale ? getPaymentMethodText(matchingSale.paymentMethod) : "Tarjeta";
+      const resolvedFechaPago = matchingSale ? new Date(matchingSale.createdAt).toLocaleDateString("es-ES") : appDate.toLocaleDateString("es-ES");
+
+      setSelectedItemForPayment({
+        id: `db-app-${appt.id}`,
+        refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
+        nuV: resolvedNuV,
+        fecha: appDate.toLocaleDateString("es-ES"),
+        fechaRaw: appDate,
+        hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")}`,
+        tipo: "Servicio",
+        detalle: appt.service?.name || "Tratamiento",
+        clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
+        cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
+        clientId: appt.clientId,
+        dni: clientObj?.dniNif || "-",
+        empleado: appt.user?.name || "Especialista",
+        consulta: activeClinic?.name || "",
+        estado: "PAGADO",
+        metodoPago: resolvedMetodo,
+        fechaPago: resolvedFechaPago,
+        price: appt.service?.price || 0,
+        factura: resolvedNuV !== "-" ? "Si" : "",
+        precio: appt.service?.price || 0,
+        iva: 0,
+        irpf: 0,
+        total: appt.service?.price || 0,
+        pagado: appt.service?.price || 0,
+      });
+      return;
     }
 
-    // For unpaid appointments (or paid without a matching sale): open the checkout panel
+    // For unpaid appointments: open the checkout panel
     setSelectedItemForPayment({
       id: `db-app-${appt.id}`,
       refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
@@ -1054,16 +1160,16 @@ export default function SalesPage() {
       dni: clientObj?.dniNif || "-",
       empleado: appt.user?.name || "Especialista",
       consulta: activeClinic?.name || "",
-      estado: appt.status === "COMPLETED" ? "PAGADO" : "PENDIENTE",
-      metodoPago: appt.status === "COMPLETED" ? "Tarjeta" : "-",
-      fechaPago: appt.status === "COMPLETED" ? appDate.toLocaleDateString("es-ES") : "-",
+      estado: "PENDIENTE",
+      metodoPago: "-",
+      fechaPago: "-",
       price: appt.service?.price || 0,
       factura: "",
       precio: appt.service?.price || 0,
       iva: 0,
       irpf: 0,
       total: appt.service?.price || 0,
-      pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
+      pagado: 0,
     });
   }, [loading, appointments, clients, salesHistory, activeClinic]);
 
@@ -4340,8 +4446,20 @@ export default function SalesPage() {
                         selectedItemForPayment.cliente
                       )}
                     </h3>
-                    <span className={styles.clientNumberLabel}>
-                      {selectedItemForPayment.clientNumber}
+                    <span className={styles.clientNumberLabel} style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                      <span>{selectedItemForPayment.clientNumber}</span>
+                      {selectedItemForPayment.nuV && selectedItemForPayment.nuV !== "-" && (
+                        <span style={{ 
+                          backgroundColor: "rgba(16, 185, 129, 0.12)", 
+                          color: "#10b981", 
+                          padding: "2px 8px", 
+                          borderRadius: "12px", 
+                          fontSize: "11px", 
+                          fontWeight: 700 
+                        }}>
+                          NU. V: {selectedItemForPayment.nuV}
+                        </span>
+                      )}
                     </span>
                   </div>
                 </div>
