@@ -201,7 +201,7 @@ export default function SettingsPage() {
   const [configDefaultWhatsappMode, setConfigDefaultWhatsappMode] = useState("Web");
 
   // WhatsApp settings states
-  const [whatsappProvider, setWhatsappProvider] = useState<"meta" | "qr">("meta");
+  const [whatsappProvider, setWhatsappProvider] = useState<"meta" | "qr">("qr");
   const [whatsappApiUrl, setWhatsappApiUrl] = useState("");
   const [whatsappInstanceName, setWhatsappInstanceName] = useState("");
   const [whatsappApiToken, setWhatsappApiToken] = useState("");
@@ -1001,13 +1001,7 @@ export default function SettingsPage() {
     setMetaBusinessAccountId(activeClinic.metaBusinessAccountId || "");
     setMetaTemplateName(activeClinic.metaTemplateName || "recordatorio_cita");
     
-    if (activeClinic.metaAccessToken) {
-      setWhatsappProvider("meta");
-    } else if (activeClinic.whatsappApiToken) {
-      setWhatsappProvider("qr");
-    } else {
-      setWhatsappProvider("meta");
-    }
+    setWhatsappProvider("qr");
 
     fetchReminders();
     fetchNotificationLogs();
@@ -7148,141 +7142,12 @@ export default function SettingsPage() {
               {notificationsSubTab === "whatsapp" && (
                 <div style={{ padding: "8px 0", animation: "fadeIn 0.3s ease" }}>
                   
-                  {/* Selector de Proveedor de WhatsApp */}
-                  <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", marginBottom: "24px", gap: "16px" }}>
-                    <button
-                      type="button"
-                      onClick={() => setWhatsappProvider("meta")}
-                      style={{
-                        padding: "10px 20px",
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        background: "transparent",
-                        border: "none",
-                        borderBottom: whatsappProvider === "meta" ? "2px solid var(--primary)" : "2px solid transparent",
-                        color: whatsappProvider === "meta" ? "var(--primary)" : "var(--text-secondary)",
-                        cursor: "pointer",
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      🟢 Meta API (Oficial - Recomendado)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWhatsappProvider("qr")}
-                      style={{
-                        padding: "10px 20px",
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        background: "transparent",
-                        border: "none",
-                        borderBottom: whatsappProvider === "qr" ? "2px solid var(--primary)" : "2px solid transparent",
-                        color: whatsappProvider === "qr" ? "var(--primary)" : "var(--text-secondary)",
-                        cursor: "pointer",
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      📱 Evolution API (Código QR / WhatsApp Web)
-                    </button>
+                  {/* Título de la sección */}
+                  <div style={{ display: "flex", borderBottom: "1px solid var(--border-color)", marginBottom: "24px", paddingBottom: "10px" }}>
+                    <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--primary)" }}>
+                      📱 Código QR / WhatsApp Web
+                    </span>
                   </div>
-
-                  {/* PROVEEDOR 1: META CLOUD API */}
-                  {whatsappProvider === "meta" && (
-                    <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", flexWrap: "wrap" }}>
-                      
-                      {/* Formulario de Configuración de Meta */}
-                      <div style={{ flex: "1 1 380px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
-                        <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                          🔧 Configuración de Meta WhatsApp
-                        </h3>
-
-                        <div className="form-group" style={{ marginBottom: "16px" }}>
-                          <label className="form-label" style={{ fontWeight: 600 }}>Token de Acceso Permanente (System User Token)</label>
-                          <input
-                            type="password"
-                            className="input"
-                            value={metaAccessToken}
-                            onChange={(e) => setMetaAccessToken(e.target.value)}
-                            placeholder="EAPAA..."
-                          />
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: "16px" }}>
-                          <label className="form-label" style={{ fontWeight: 600 }}>ID del Número de Teléfono (Phone Number ID)</label>
-                          <input
-                            type="text"
-                            className="input"
-                            value={metaPhoneNumberId}
-                            onChange={(e) => setMetaPhoneNumberId(e.target.value)}
-                            placeholder="Ej: 10648215967..."
-                          />
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: "16px" }}>
-                          <label className="form-label" style={{ fontWeight: 600 }}>ID de la Cuenta de WhatsApp Business (Opcional)</label>
-                          <input
-                            type="text"
-                            className="input"
-                            value={metaBusinessAccountId}
-                            onChange={(e) => setMetaBusinessAccountId(e.target.value)}
-                            placeholder="Ej: 1045214876..."
-                          />
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: "20px" }}>
-                          <label className="form-label" style={{ fontWeight: 600 }}>Nombre de la Plantilla (Template Name)</label>
-                          <input
-                            type="text"
-                            className="input"
-                            value={metaTemplateName}
-                            onChange={(e) => setMetaTemplateName(e.target.value)}
-                            placeholder="Ej: recordatorio_cita"
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={handleSaveWhatsappCredentials}
-                          style={{ width: "100%" }}
-                        >
-                          Guardar Configuración Meta
-                        </button>
-                      </div>
-
-                      {/* Guía de Configuración e Información de Variables */}
-                      <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
-                        <h3 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span>💡</span> Guía de Configuración en Meta
-                        </h3>
-                        <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6", margin: "0 0 16px" }}>
-                          Para que funcione de forma autónoma con tu propio número, debes crear una App de tipo <strong>Negocio</strong> en <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary)", textDecoration: "underline" }}>developers.facebook.com</a> y añadir el producto de WhatsApp.
-                        </p>
-
-                        <div style={{ padding: "12px", background: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-color)", marginBottom: "16px" }}>
-                          <h4 style={{ fontSize: "12px", fontWeight: 700, margin: "0 0 8px" }}>Estructura de la Plantilla de WhatsApp:</h4>
-                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.5", margin: 0 }}>
-                            Crea una plantilla en Meta con el nombre configurado (ej: <code>{metaTemplateName}</code>) que contenga las siguientes variables en su contenido:
-                          </p>
-                          <ul style={{ fontSize: "11px", color: "var(--text-primary)", paddingLeft: "16px", marginTop: "8px", marginBottom: 0, lineHeight: "1.6" }}>
-                            <li><code>{"{{1}}"}</code>: Nombre del Paciente (Ej: Fernando)</li>
-                            <li><code>{"{{2}}"}</code>: Nombre de tu Clínica (Ej: {activeClinic?.name})</li>
-                            <li><code>{"{{3}}"}</code>: Nombre del Servicio (Ej: Fisioterapia)</li>
-                            <li><code>{"{{4}}"}</code>: Fecha y Hora de la cita (Ej: 24/09/2026 a las 17:30)</li>
-                          </ul>
-                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontStyle: "italic", marginTop: "8px", marginBottom: 0 }}>
-                            Ejemplo: "Hola {"{{1}}"}, te recordamos tu cita en {"{{2}}"} para {"{{3}}"} el {"{{4}}"}."
-                          </p>
-                        </div>
-
-                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", display: "flex", gap: "8px", alignItems: "flex-start" }}>
-                          <span>ℹ️</span>
-                          <span>Meta regala <strong>1.000 conversaciones gratuitas</strong> al mes para tu número de WhatsApp. Solo pagarás a Meta si excedes esa cantidad.</span>
-                        </div>
-                      </div>
-
-                    </div>
-                  )}
 
                   {/* PROVEEDOR 2: EVOLUTION API (CÓDIGO QR / WHATSAPP WEB) */}
                   {whatsappProvider === "qr" && (
@@ -7325,61 +7190,60 @@ export default function SettingsPage() {
                       </div>
 
                       <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", flexWrap: "wrap" }}>
-                        {/* Panel Izquierdo: Configuración de Credenciales */}
-                        <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
-                          <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                            ⚙️ Ajustes de la Instancia QR
-                          </h3>
+                        {/* Panel Izquierdo: Ocultado porque se gestiona internamente */}
+                        {false && (
+                          <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
+                            <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                              ⚙️ Ajustes de la Instancia QR
+                            </h3>
 
-                          <div className="form-group" style={{ marginBottom: "16px" }}>
-                            <label className="form-label" style={{ fontWeight: 600 }}>URL de la API de WhatsApp</label>
-                            <input
-                              type="text"
-                              className="input"
-                              value={whatsappApiUrl}
-                              onChange={(e) => setWhatsappApiUrl(e.target.value)}
-                              placeholder="Ej: https://mi-evolution-api.up.railway.app"
-                            />
-                            <p style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
-                              Deja vacío para usar el servidor central por defecto.
-                            </p>
+                            <div className="form-group" style={{ marginBottom: "16px" }}>
+                              <label className="form-label" style={{ fontWeight: 600 }}>URL de la API de WhatsApp</label>
+                              <input
+                                type="text"
+                                className="input"
+                                value={whatsappApiUrl}
+                                onChange={(e) => setWhatsappApiUrl(e.target.value)}
+                                placeholder="Ej: https://mi-evolution-api.up.railway.app"
+                              />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: "16px" }}>
+                              <label className="form-label" style={{ fontWeight: 600 }}>Nombre de la Instancia (Instance Name)</label>
+                              <input
+                                type="text"
+                                className="input"
+                                value={whatsappInstanceName}
+                                onChange={(e) => setWhatsappInstanceName(e.target.value)}
+                                placeholder={`Ej: clinic-${activeClinic?.id.slice(0, 8)}`}
+                              />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: "20px" }}>
+                              <label className="form-label" style={{ fontWeight: 600 }}>Token de Acceso (API Key / apikey)</label>
+                              <input
+                                type="password"
+                                className="input"
+                                value={whatsappApiToken}
+                                onChange={(e) => setWhatsappApiToken(e.target.value)}
+                                placeholder="Introduce el API Token de tu pasarela"
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={handleSaveWhatsappCredentials}
+                              disabled={checkingWhatsappStatus}
+                              style={{ width: "100%" }}
+                            >
+                              Guardar Ajustes QR
+                            </button>
                           </div>
-
-                          <div className="form-group" style={{ marginBottom: "16px" }}>
-                            <label className="form-label" style={{ fontWeight: 600 }}>Nombre de la Instancia (Instance Name)</label>
-                            <input
-                              type="text"
-                              className="input"
-                              value={whatsappInstanceName}
-                              onChange={(e) => setWhatsappInstanceName(e.target.value)}
-                              placeholder={`Ej: clinic-${activeClinic?.id.slice(0, 8)}`}
-                            />
-                          </div>
-
-                          <div className="form-group" style={{ marginBottom: "20px" }}>
-                            <label className="form-label" style={{ fontWeight: 600 }}>Token de Acceso (API Key / apikey)</label>
-                            <input
-                              type="password"
-                              className="input"
-                              value={whatsappApiToken}
-                              onChange={(e) => setWhatsappApiToken(e.target.value)}
-                              placeholder="Introduce el API Token de tu pasarela"
-                            />
-                          </div>
-
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={handleSaveWhatsappCredentials}
-                            disabled={checkingWhatsappStatus}
-                            style={{ width: "100%" }}
-                          >
-                            Guardar Ajustes QR
-                          </button>
-                        </div>
+                        )}
 
                         {/* Panel Derecho: Escanear QR / Estado Conexión */}
-                        <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "330px" }}>
+                        <div style={{ flex: "1 1 350px", maxWidth: "480px", margin: "0 auto", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "330px" }}>
                           
                           {whatsappConnected ? (
                             <div style={{ textAlign: "center", padding: "24px" }}>
