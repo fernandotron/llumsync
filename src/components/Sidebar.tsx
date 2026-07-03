@@ -17,6 +17,19 @@ export default function Sidebar() {
   const clinicsDropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
 
+  // Detect mobile viewport
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isCollapsed = sidebarCollapsed && !isMobile;
+
   // Close mobile sidebar on navigation
   useEffect(() => {
     setMobileSidebarOpen(false);
@@ -99,7 +112,7 @@ export default function Sidebar() {
       )}
       <aside 
         ref={sidebarRef} 
-        className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""} ${mobileSidebarOpen ? styles.mobileOpen : ""} glass`}
+        className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ""} ${mobileSidebarOpen ? styles.mobileOpen : ""} glass`}
         style={{
           zIndex: mobileSidebarOpen ? 1000 : undefined
         }}
@@ -108,12 +121,12 @@ export default function Sidebar() {
         <div className={styles.header}>
           <div className={styles.logoArea}>
             <div className={styles.logoIcon}>LS</div>
-            {!sidebarCollapsed && <span className={styles.logoText}>LLUMSYNC</span>}
+            {!isCollapsed && <span className={styles.logoText}>LLUMSYNC</span>}
           </div>
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
             className={styles.toggleBtn}
-            title={sidebarCollapsed ? "Desplegar menú" : "Colapsar menú"}
+            title={isCollapsed ? "Desplegar menú" : "Colapsar menú"}
           >
             <Icons.Menu size={18} />
           </button>
@@ -121,7 +134,7 @@ export default function Sidebar() {
 
       {/* Clinic Selector */}
       <div className={styles.clinicSelectorArea}>
-        {sidebarCollapsed ? (
+        {isCollapsed ? (
           <div 
             className={styles.clinicIndicator} 
             title={activeClinic?.name || "Seleccionar Clínica"}
@@ -176,7 +189,7 @@ export default function Sidebar() {
               key={item.path}
               href={item.path}
               className={`${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
-              title={sidebarCollapsed ? item.name : undefined}
+              title={isCollapsed ? item.name : undefined}
               onClick={(e) => {
                 if (isActive) {
                   e.preventDefault();
@@ -185,8 +198,8 @@ export default function Sidebar() {
               }}
             >
               <span className={styles.navIcon}>{item.icon}</span>
-              {!sidebarCollapsed && <span className={styles.navName}>{item.name}</span>}
-              {isActive && !sidebarCollapsed && <div className={styles.activeIndicator} />}
+              {!isCollapsed && <span className={styles.navName}>{item.name}</span>}
+              {isActive && !isCollapsed && <div className={styles.activeIndicator} />}
             </LinkComponent>
           );
         })}
@@ -198,7 +211,7 @@ export default function Sidebar() {
           <div className={styles.avatar}>
             {user.name.charAt(0)}
           </div>
-          {!sidebarCollapsed && (
+          {!isCollapsed && (
             <div className={styles.userDetails}>
               <span className={styles.userName}>{user.name}</span>
               <span className={styles.userRole}>
@@ -215,16 +228,16 @@ export default function Sidebar() {
           title={theme === "light" ? "Activar modo noche" : "Activar modo claro"}
         >
           {theme === "light" ? <Icons.Moon size={18} /> : <Icons.Sun size={18} />}
-          {!sidebarCollapsed && <span>{theme === "light" ? "Modo Noche" : "Modo Claro"}</span>}
+          {!isCollapsed && <span>{theme === "light" ? "Modo Noche" : "Modo Claro"}</span>}
         </button>
-
+ 
         <button 
           onClick={logout} 
           className={styles.logoutBtn} 
           title="Cerrar sesión"
         >
           <Icons.LogOut size={18} />
-          {!sidebarCollapsed && <span>Salir</span>}
+          {!isCollapsed && <span>Salir</span>}
         </button>
       </div>
     </aside>

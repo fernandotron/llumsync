@@ -88,7 +88,7 @@ function SettingsTabNavigator({ setActiveTab }: { setActiveTab: (tab: any) => vo
 export default function SettingsPage() {
   const { activeClinic, user: currentUser, setActiveClinic } = useApp();
   const showGanancias = currentUser?.role === "ADMIN" || hasPermission(currentUser, "contabilidad", "Artículos - Ver Ganancias");
-  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales">("clinic");
+  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales" | null>(null);
 
   // Datos Fiscales states
   const [fiscalProfiles, setFiscalProfiles] = useState<any[]>([]);
@@ -1049,6 +1049,20 @@ export default function SettingsPage() {
     fetchData();
   }, [activeClinic]);
 
+  // Default to clinic tab on desktop if none selected
+  useEffect(() => {
+    if (activeTab === null && typeof window !== "undefined") {
+      const handleDefaultTab = () => {
+        if (window.innerWidth >= 768) {
+          setActiveTab("clinic");
+        }
+      };
+      handleDefaultTab();
+      window.addEventListener("resize", handleDefaultTab);
+      return () => window.removeEventListener("resize", handleDefaultTab);
+    }
+  }, [activeTab]);
+
   // Redirect to first allowed tab for non-admins
   useEffect(() => {
     if (!currentUser) return;
@@ -1060,7 +1074,7 @@ export default function SettingsPage() {
     if (hasPermission(currentUser, "configuracion", "Editar su propio horario")) allowedTabs.push("users");
     if (hasPermission(currentUser, "configuracion", "Configurar notificaciones")) allowedTabs.push("notifications");
     
-    if (allowedTabs.length > 0 && !allowedTabs.includes(activeTab)) {
+    if (allowedTabs.length > 0 && activeTab !== null && !allowedTabs.includes(activeTab)) {
       setActiveTab(allowedTabs[0] as any);
     }
     
@@ -2689,7 +2703,7 @@ export default function SettingsPage() {
       </header>
 
       {/* Premium Settings Split Layout */}
-      <div className={styles.settingsLayout}>
+      <div className={styles.settingsLayout} data-active-tab={activeTab || "none"}>
         {/* Left Column: Sidebar Settings Menu */}
         <div className={styles.settingsSidebar}>
           {/* Group 1: Mi Consulta */}
@@ -2888,6 +2902,30 @@ export default function SettingsPage() {
 
         {/* Right Column: Active Tab Content Canvas */}
         <div className={`${styles.contentCanvas} ${styles.settingsContent} glass`}>
+          {activeTab && (
+            <button
+              type="button"
+              onClick={() => setActiveTab(null)}
+              className={styles.mobileBackBtn}
+              style={{
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 12px",
+                background: "var(--bg-input)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "6px",
+                color: "var(--text-primary)",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                marginBottom: "16px",
+                width: "100%"
+              }}
+            >
+              <Icons.ChevronLeft size={16} />
+              <span>Volver a Configuración</span>
+            </button>
+          )}
         {/* TAB 1: Clinic Profile */}
         {activeTab === "clinic" && (
           <form onSubmit={handleUpdateClinic} className={styles.formLayout}>

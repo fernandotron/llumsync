@@ -2008,36 +2008,87 @@
 }
 
 /* Responsiveness */
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
+  /* Toggle Sidebar and Content views based on data-active-tab */
+  .settingsLayout[data-active-tab="none"] .settingsSidebar {
+    display: flex !important;
+    width: 100% !important;
+  }
+  .settingsLayout[data-active-tab="none"] .settingsContent {
+    display: none !important;
+  }
+
+  .settingsLayout:not([data-active-tab="none"]) .settingsSidebar {
+    display: none !important;
+  }
+  .settingsLayout:not([data-active-tab="none"]) .settingsContent {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Show the mobile back button */
+  .mobileBackBtn {
+    display: inline-flex !important;
+  }
+
   .settingsLayout {
-    flex-direction: column;
-    gap: 24px;
+    flex-direction: column !important;
+    gap: 16px !important;
+    margin-top: 8px !important;
   }
+
   .settingsSidebar {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 16px;
-    padding: 16px;
+    width: 100% !important;
+    padding: 16px !important;
+    gap: 16px !important;
   }
+
   .sidebarGroup {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    width: 100%;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 12px;
+    width: 100% !important;
+    gap: 4px !important;
   }
-  .sidebarGroup:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
+
+  /* Services responsive view: show horizontal scroll categories list first, services list below */
+  .servicesTabContainer {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
   }
-  .sidebarGroupTitle {
-    width: 100%;
-    margin-bottom: 4px;
+
+  .categorySidebar {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding: 10px !important;
+    gap: 8px !important;
+    border-radius: var(--radius-sm) !important;
   }
-  .sidebarItem {
-    width: 100%;
+  
+  .categorySidebar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .categorySidebarTitle {
+    display: none !important; /* Hide categories title to save vertical height */
+  }
+
+  .categoryItem {
+    flex-shrink: 0 !important;
+    padding: 8px 16px !important;
+    border-radius: 20px !important;
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    font-size: 12.5px !important;
+  }
+
+  .categoryItemActive {
+    background: var(--primary-light) !important;
+    color: var(--primary) !important;
+    border-color: var(--primary) !important;
+  }
+  
+  .servicesGrid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
   }
 }
 

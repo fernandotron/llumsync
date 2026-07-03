@@ -384,4 +384,8 @@
   .mobileOpen {
     transform: translateX(0) !important;
   }
+
+  .toggleBtn {
+    display: none !important;
+  }
 }
