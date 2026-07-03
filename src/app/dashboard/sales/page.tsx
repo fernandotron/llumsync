@@ -993,9 +993,35 @@ export default function SalesPage() {
     const appt = appointments.find((a: any) => a.id === appointmentId);
     if (!appt) return;
 
+    // Always close the POS drawer when deep-linking to an appointment
+    setShowPosDrawer(false);
+
     const clientObj = clients.find((c: any) => c.id === appt.clientId);
     const appDate = new Date(appt.start);
 
+    if (appt.status === "COMPLETED") {
+      // For paid appointments: try to find the matching sale in salesHistory by clientId
+      // and open it as the invoice view directly
+      const matchingSale = salesHistory.find((s: any) => {
+        if (s.clientId !== appt.clientId) return false;
+        if (s.paymentMethod === "OTHER") return false;
+        // Check if sale items include this service
+        try {
+          const items = JSON.parse(s.itemsJson || "[]");
+          return items.some((i: any) =>
+            i.name === appt.service?.name ||
+            i.id === `db-app-${appt.id}`
+          );
+        } catch { return false; }
+      });
+
+      if (matchingSale) {
+        handleOpenExistingInvoice(matchingSale);
+        return;
+      }
+    }
+
+    // For unpaid appointments (or paid without a matching sale): open the checkout panel
     setSelectedItemForPayment({
       id: `db-app-${appt.id}`,
       refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
@@ -1022,7 +1048,7 @@ export default function SalesPage() {
       total: appt.service?.price || 0,
       pagado: appt.status === "COMPLETED" ? (appt.service?.price || 0) : 0,
     });
-  }, [loading, appointments, clients, activeClinic]);
+  }, [loading, appointments, clients, salesHistory, activeClinic]);
 
   // Load existing partial payments from database sales history for the selected checkout item
   useEffect(() => {
