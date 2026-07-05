@@ -18,6 +18,7 @@ export interface Clinic {
   address: string;
   phone?: string;
   email?: string;
+  country?: string;
   controlHorarioActivo?: boolean;
   notifyAssignedUser?: boolean;
   adminNotificationUserIds?: string;

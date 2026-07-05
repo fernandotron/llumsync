@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "./Icons";
 import styles from "./ClinicWizard.module.css";
+import { COUNTRIES } from "@/lib/countries";
 
 const MOCK_ADDRESSES = [
   { address: "Calle de Luis Moya Blanco, 21", city: "Madrid", postalCode: "28055" },
@@ -33,6 +34,7 @@ const SPECIALTIES = [
 export default function ClinicWizard() {
   const { user, addClinic } = useApp();
   const [step, setStep] = useState<3 | 4>(3); // Starting on step 3 as account creation is already done
+  const [country, setCountry] = useState("ES");
 
   // Step 3 States
   const [clinicType, setClinicType] = useState<"Física" | "Online" | "Domicilio">("Física");
@@ -43,7 +45,7 @@ export default function ClinicWizard() {
   const [termsAccepted, setTermsAccepted] = useState(true);
 
   // Address Autocomplete
-  const [suggestions, setSuggestions] = useState<typeof MOCK_ADDRESSES>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
   // Step 4 States
@@ -61,22 +63,43 @@ export default function ClinicWizard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleAddressChange = (val: string) => {
+  const handleAddressChange = async (val: string) => {
     setAddress(val);
-    if (val.trim().length > 2) {
-      const filtered = MOCK_ADDRESSES.filter((item) =>
-        item.address.toLowerCase().includes(val.toLowerCase())
-      );
-      setSuggestions(filtered);
+    if (val.trim().length > 3) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            val
+          )}&countrycodes=${country.toLowerCase()}&limit=5&addressdetails=1`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const formatted = data.map((item: any) => {
+            const road = item.address.road || item.address.pedestrian || "";
+            const houseNumber = item.address.house_number || "";
+            const cityVal = item.address.city || item.address.town || item.address.village || item.address.suburb || "";
+            const postcode = item.address.postcode || "";
+            return {
+              address: [road, houseNumber].filter(Boolean).join(", "),
+              city: cityVal,
+              postalCode: postcode,
+              displayName: item.display_name,
+            };
+          });
+          setSuggestions(formatted);
+        }
+      } catch (e) {
+        console.error("Error fetching autocompleted address:", e);
+      }
     } else {
       setSuggestions([]);
     }
   };
 
-  const handleSelectSuggestion = (item: typeof MOCK_ADDRESSES[0]) => {
-    setAddress(item.address);
-    setCity(item.city);
-    setPostalCode(item.postalCode);
+  const handleSelectSuggestion = (item: any) => {
+    setAddress(item.address || item.displayName.split(",")[0]);
+    if (item.city) setCity(item.city);
+    if (item.postalCode) setPostalCode(item.postalCode);
     setSuggestions([]);
   };
 
@@ -97,6 +120,7 @@ export default function ClinicWizard() {
           name: clinicName.trim(),
           address: `${address.trim()}, ${city.trim()} (${postalCode.trim()})`,
           userId: user.id,
+          country: country,
         }),
       });
 
@@ -182,6 +206,23 @@ export default function ClinicWizard() {
                 onChange={(e) => setClinicName(e.target.value)}
                 required
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">País de la consulta (*)</label>
+              <select
+                className="input"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                required
+                style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid var(--border-color)", padding: "0 12px", background: "var(--bg-input)", color: "var(--text-primary)" }}
+              >
+                {Object.values(COUNTRIES).map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="form-group autocompleteContainer" ref={autocompleteRef}>

@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Contacts.module.css";
+import { getCountryConfig } from "@/lib/countries";
 
 interface Client {
   id: string;
@@ -56,6 +57,8 @@ interface ColumnConfig {
 
 export default function ContactsPage() {
   const { activeClinic, user: currentUser } = useApp();
+  const cConfig = getCountryConfig(activeClinic?.country || "ES");
+  const identityLabel = cConfig.idName;
   const router = useRouter();
 
   useEffect(() => {
@@ -100,7 +103,7 @@ export default function ContactsPage() {
     { key: "lastName", label: "Apellidos", visible: true },
     { key: "phone", label: "Teléfono", visible: true },
     { key: "email", label: "Email", visible: true },
-    { key: "dniNif", label: "DNI/NIF", visible: true },
+    { key: "dniNif", label: identityLabel, visible: true },
     { key: "birthDate", label: "Fecha Nacimiento", visible: false },
     { key: "gender", label: "Género", visible: false },
     { key: "createdAt", label: "Fecha Creación", visible: true },
@@ -145,6 +148,58 @@ export default function ContactsPage() {
   const [formMunicipality, setFormMunicipality] = useState("");
   const [formPostalCode, setFormPostalCode] = useState("");
   const [formCountry, setFormCountry] = useState("España");
+  
+  // Address autocomplete states
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+  const addressAutocompleteRef = useRef<HTMLDivElement>(null);
+
+  const handleAddressChange = async (val: string) => {
+    setFormAddress(val);
+    if (val.trim().length > 3) {
+      try {
+        const countryCode = activeClinic?.country || "ES";
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            val
+          )}&countrycodes=${countryCode.toLowerCase()}&limit=5&addressdetails=1`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const formatted = data.map((item: any) => {
+            const road = item.address.road || item.address.pedestrian || "";
+            const houseNumber = item.address.house_number || "";
+            const cityVal = item.address.city || item.address.town || item.address.village || item.address.suburb || "";
+            const postcode = item.address.postcode || "";
+            const countryName = item.address.country || "";
+            return {
+              address: [road, houseNumber].filter(Boolean).join(", "),
+              city: cityVal,
+              postalCode: postcode,
+              country: countryName,
+              displayName: item.display_name,
+            };
+          });
+          setAddressSuggestions(formatted);
+          setShowAddressDropdown(true);
+        }
+      } catch (e) {
+        console.error("Error fetching autocompleted address:", e);
+      }
+    } else {
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+    }
+  };
+
+  const handleSelectAddressSuggestion = (item: any) => {
+    setFormAddress(item.address || item.displayName.split(",")[0]);
+    if (item.city) setFormMunicipality(item.city);
+    if (item.postalCode) setFormPostalCode(item.postalCode);
+    if (item.country) setFormCountry(item.country);
+    setAddressSuggestions([]);
+    setShowAddressDropdown(false);
+  };
   const [formIban, setFormIban] = useState("");
   const [formBic, setFormBic] = useState("");
   const [formTags, setFormTags] = useState("");
@@ -275,6 +330,20 @@ export default function ContactsPage() {
   };
 
   useEffect(() => {
+    if (activeClinic) {
+      const code = activeClinic.country || "ES";
+      const config = getCountryConfig(code);
+      setFormCountry(config.name);
+      const matched = COUNTRIES.find((c) => c.code === config.code);
+      if (matched) {
+        setPhoneCountry(matched);
+        setDniCountry(matched);
+        setCountryDropdownCountry(matched);
+      }
+    }
+  }, [activeClinic]);
+
+  useEffect(() => {
     fetchClients();
     if (activeClinic) {
       fetch(`/api/users?clinicId=${activeClinic.id}`)
@@ -297,6 +366,9 @@ export default function ContactsPage() {
       }
       if (bulkOptionsRef.current && !bulkOptionsRef.current.contains(e.target as Node)) {
         setShowBulkOptions(false);
+      }
+      if (addressAutocompleteRef.current && !addressAutocompleteRef.current.contains(e.target as Node)) {
+        setShowAddressDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -518,7 +590,7 @@ export default function ContactsPage() {
       setFormAddress("");
       setFormMunicipality("");
       setFormPostalCode("");
-      setFormCountry("España");
+      setFormCountry(cConfig.name);
       setFormIban("");
       setFormBic("");
       setFormTags("");
@@ -1150,7 +1222,7 @@ export default function ContactsPage() {
 
                       {/* DNI/NIF */}
                       <div className={styles.drawerField} style={{ position: "relative" }}>
-                        <label className={styles.drawerLabel}>DNI/NIF</label>
+                        <label className={styles.drawerLabel}>{identityLabel}</label>
                         <div className={styles.drawerInputFlag}>
                           <button type="button" className={styles.flagPickerBtn}
                             onClick={() => { setShowDniDropdown(v => !v); setShowPhoneDropdown(false); setShowCountryDropdown(false); setShowBirthCalendar(false); }}>
@@ -1159,7 +1231,7 @@ export default function ContactsPage() {
                               <polyline points="6 9 12 15 18 9"/>
                             </svg>
                           </button>
-                          <input type="text" className={styles.drawerInputFlagInput} placeholder="Añadir DNI / Pasaporte"
+                          <input type="text" className={styles.drawerInputFlagInput} placeholder={`Añadir ${identityLabel} / Pasaporte`}
                             value={formDniNif} onChange={(e) => setFormDniNif(e.target.value)} />
                         </div>
 
@@ -1290,10 +1362,46 @@ export default function ContactsPage() {
                         )}
                       </div>
 
-                      <div className={styles.drawerField}>
+                      <div className={styles.drawerField} style={{ position: "relative" }} ref={addressAutocompleteRef}>
                         <label className={styles.drawerLabel}>Dirección</label>
                         <input type="text" className={styles.drawerInput} placeholder="Añadir dirección"
-                          value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
+                          value={formAddress} onChange={(e) => handleAddressChange(e.target.value)} />
+                        
+                        {showAddressDropdown && addressSuggestions.length > 0 && (
+                          <div style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                            border: "1px solid var(--border-color, #e2e8f0)",
+                            borderRadius: "8px",
+                            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                            zIndex: 100,
+                            maxHeight: "200px",
+                            overflowY: "auto",
+                            marginTop: "4px"
+                          }}>
+                            {addressSuggestions.map((item, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => handleSelectAddressSuggestion(item)}
+                                style={{
+                                  padding: "10px 12px",
+                                  cursor: "pointer",
+                                  fontSize: "13px",
+                                  borderBottom: idx === addressSuggestions.length - 1 ? "none" : "1px solid var(--border-color)",
+                                  color: "var(--text-primary)",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input, #f7fafc)"}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                              >
+                                {item.displayName}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 

@@ -16,6 +16,7 @@ model Clinic {
   phone               String?
   email               String?
   logo                String?
+  country             String               @default("ES")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   users               User[]

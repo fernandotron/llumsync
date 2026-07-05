@@ -22,6 +22,7 @@ export async function PUT(
         email: body.email,
         logo: body.logo,
         controlHorarioActivo: body.controlHorarioActivo !== undefined ? body.controlHorarioActivo : undefined,
+        country: body.country,
       },
     });
 

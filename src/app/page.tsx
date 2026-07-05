@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import styles from "./page.module.css";
+import { COUNTRIES } from "@/lib/countries";
 
 // Alphabetized and correctly spelled specialties list (43 items)
 const SPECIALTIES = [
@@ -79,6 +80,7 @@ export default function LoginPage() {
   // Step 3: Clinic details
   const [clinicType, setClinicType] = useState<"Física" | "Online" | "Domicilio">("Física");
   const [clinicName, setClinicName] = useState("");
+  const [registerCountry, setRegisterCountry] = useState("ES");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [postalCode, setPostalCode] = useState("");
@@ -316,6 +318,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           name: clinicName.trim(),
           address: clinicAddress,
+          country: registerCountry,
           userId: userId,
         }),
       });
@@ -669,6 +672,23 @@ export default function LoginPage() {
                     onChange={(e) => setClinicName(e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">País de la consulta (*)</label>
+                  <select
+                    className="input"
+                    value={registerCountry}
+                    onChange={(e) => setRegisterCountry(e.target.value)}
+                    required
+                    style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid var(--border-color)", padding: "0 12px", background: "var(--bg-input)", color: "var(--text-primary)" }}
+                  >
+                    {Object.values(COUNTRIES).map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group autocompleteContainer" ref={autocompleteRef}>

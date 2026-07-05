@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./ClientDetail.module.css";
+import { getCountryConfig } from "@/lib/countries";
 
 interface Client {
   id: string;
@@ -131,6 +132,8 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
 export default function ClientDetailPage() {
   const { id } = useParams() as { id: string };
   const { activeClinic, user: currentUser } = useApp();
+  const cConfig = getCountryConfig(activeClinic?.country || "ES");
+  const identityLabel = cConfig.idName;
   const router = useRouter();
 
   useEffect(() => {
@@ -227,6 +230,58 @@ export default function ClientDetailPage() {
   const [formMunicipality, setFormMunicipality] = useState("");
   const [formPostalCode, setFormPostalCode] = useState("");
   const [formCountry, setFormCountry] = useState("España");
+  
+  // Address autocomplete states
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+  const addressAutocompleteRef = useRef<HTMLDivElement>(null);
+
+  const handleAddressChange = async (val: string) => {
+    setFormAddress(val);
+    if (val.trim().length > 3) {
+      try {
+        const countryCode = activeClinic?.country || "ES";
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            val
+          )}&countrycodes=${countryCode.toLowerCase()}&limit=5&addressdetails=1`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const formatted = data.map((item: any) => {
+            const road = item.address.road || item.address.pedestrian || "";
+            const houseNumber = item.address.house_number || "";
+            const cityVal = item.address.city || item.address.town || item.address.village || item.address.suburb || "";
+            const postcode = item.address.postcode || "";
+            const countryName = item.address.country || "";
+            return {
+              address: [road, houseNumber].filter(Boolean).join(", "),
+              city: cityVal,
+              postalCode: postcode,
+              country: countryName,
+              displayName: item.display_name,
+            };
+          });
+          setAddressSuggestions(formatted);
+          setShowAddressDropdown(true);
+        }
+      } catch (e) {
+        console.error("Error fetching autocompleted address:", e);
+      }
+    } else {
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+    }
+  };
+
+  const handleSelectAddressSuggestion = (item: any) => {
+    setFormAddress(item.address || item.displayName.split(",")[0]);
+    if (item.city) setFormMunicipality(item.city);
+    if (item.postalCode) setFormPostalCode(item.postalCode);
+    if (item.country) setFormCountry(item.country);
+    setAddressSuggestions([]);
+    setShowAddressDropdown(false);
+  };
   const [formIban, setFormIban] = useState("");
   const [formBic, setFormBic] = useState("");
   const [formTags, setFormTags] = useState("");
@@ -1051,6 +1106,9 @@ export default function ClientDetailPage() {
       if (optionsRef.current && !optionsRef.current.contains(event.target as Node)) {
         setShowOptionsDropdown(false);
       }
+      if (addressAutocompleteRef.current && !addressAutocompleteRef.current.contains(event.target as Node)) {
+        setShowAddressDropdown(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -1630,7 +1688,7 @@ export default function ClientDetailPage() {
               <div><strong>Nombre:</strong> ${clientName}</div>
               <div><strong>Teléfono:</strong> ${client?.phone || "-"}</div>
               <div><strong>Email:</strong> ${client?.email || "-"}</div>
-              <div><strong>DNI/NIF:</strong> ${client?.dniNif || "-"}</div>
+              <div><strong>${identityLabel}:</strong> ${client?.dniNif || "-"}</div>
             </div>
             <div class="party-box">
               <h3>Concepto General</h3>
@@ -2569,7 +2627,7 @@ export default function ClientDetailPage() {
               {client.dniNif && (
                 <span className={styles.chip}>
                   <Icons.Award size={14} />
-                  NIF: {showPersonalData ? client.dniNif : "******"}
+                  {identityLabel}: {showPersonalData ? client.dniNif : "******"}
                 </span>
               )}
             </div>
@@ -2941,7 +2999,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: DNI / NIF */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>DNI/NIF</span>
+                  <span className={styles.fieldLabel}>{identityLabel}</span>
                   {editingField === "dniNif" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -2965,9 +3023,9 @@ export default function ClientDetailPage() {
                       <span className={styles.fieldValue}>{showPersonalData ? (client.dniNif || "-") : "******"}</span>
                       {showPersonalData && (
                         <button 
-                          className={styles.inlineEditTriggerBtn}
+                           className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("dniNif", client.dniNif || "")}
-                          title="Editar DNI/NIF"
+                          title={`Editar ${identityLabel}`}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -6167,7 +6225,7 @@ export default function ClientDetailPage() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">DNI / NIF</label>
+                    <label className="form-label">{identityLabel}</label>
                     <input
                       type="text"
                       className="input"
@@ -6191,14 +6249,50 @@ export default function ClientDetailPage() {
                 <div className={styles.detailsGroup}>
                   <h3>Localización y Representante</h3>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ position: "relative" }} ref={addressAutocompleteRef}>
                     <label className="form-label">Dirección</label>
                     <input
                       type="text"
                       className="input"
                       value={formAddress}
-                      onChange={(e) => setFormAddress(e.target.value)}
+                      onChange={(e) => handleAddressChange(e.target.value)}
                     />
+                    
+                    {showAddressDropdown && addressSuggestions.length > 0 && (
+                      <div style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                        border: "1px solid var(--border-color, #e2e8f0)",
+                        borderRadius: "8px",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                        zIndex: 100,
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        marginTop: "4px"
+                      }}>
+                        {addressSuggestions.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => handleSelectAddressSuggestion(item)}
+                            style={{
+                              padding: "10px 12px",
+                              cursor: "pointer",
+                              fontSize: "13px",
+                              borderBottom: idx === addressSuggestions.length - 1 ? "none" : "1px solid var(--border-color)",
+                              color: "var(--text-primary)",
+                              textAlign: "left"
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input, #f7fafc)"}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                          >
+                            {item.displayName}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">

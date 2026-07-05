@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Settings.module.css";
+import { COUNTRIES, getCountryConfig } from "@/lib/countries";
 
 interface Clinic {
   id: string;
@@ -14,6 +15,7 @@ interface Clinic {
   address: string;
   phone?: string;
   email?: string;
+  country?: string;
   controlHorarioActivo?: boolean;
   notifyAssignedUser?: boolean;
   adminNotificationUserIds?: string;
@@ -87,7 +89,18 @@ function SettingsTabNavigator({ setActiveTab }: { setActiveTab: (tab: any) => vo
 
 export default function SettingsPage() {
   const { activeClinic, user: currentUser, setActiveClinic } = useApp();
+  const cConfig = getCountryConfig(activeClinic?.country || "ES");
+  const currencySymbol = cConfig.currency;
+  const taxLabel = cConfig.taxName;
   const showGanancias = currentUser?.role === "ADMIN" || hasPermission(currentUser, "contabilidad", "Artículos - Ver Ganancias");
+  
+  const formatPrice = (val: number | null | undefined) => {
+    const amount = val ?? 0;
+    if (currencySymbol === "€") {
+      return `${amount.toFixed(2)} €`;
+    }
+    return `${currencySymbol}${amount.toFixed(2)}`;
+  };
   const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales" | null>(null);
 
   // Datos Fiscales states
@@ -258,6 +271,7 @@ export default function SettingsPage() {
   const [clinicPhone, setClinicPhone] = useState("");
   const [clinicEmail, setClinicEmail] = useState("");
   const [clinicLogo, setClinicLogo] = useState("");
+  const [clinicCountry, setClinicCountry] = useState("ES");
   const [clinicControlHorarioActivo, setClinicControlHorarioActivo] = useState(false);
 
   
@@ -981,6 +995,7 @@ export default function SettingsPage() {
     setClinicAddress(activeClinic.address);
     setClinicPhone(activeClinic.phone || "");
     setClinicEmail(activeClinic.email || "");
+    setClinicCountry(activeClinic.country || "ES");
     setClinicControlHorarioActivo(activeClinic.controlHorarioActivo || false);
     
     // Populate notification config data
@@ -2044,6 +2059,7 @@ export default function SettingsPage() {
       email: clinicEmail,
       logo: clinicLogo,
       controlHorarioActivo: clinicControlHorarioActivo,
+      country: clinicCountry,
     };
 
 
@@ -2985,6 +3001,23 @@ export default function SettingsPage() {
               />
             </div>
 
+            <div className="form-group">
+              <label className="form-label">País de la consulta *</label>
+              <select
+                className="input"
+                value={clinicCountry}
+                onChange={(e) => setClinicCountry(e.target.value)}
+                required
+                style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid var(--border-color)", padding: "0 12px", background: "var(--bg-input)", color: "var(--text-primary)" }}
+              >
+                {Object.values(COUNTRIES).map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div style={{ marginTop: "24px", padding: "16px", background: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-color)", marginBottom: "24px" }}>
               <h4 style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700 }}>Opciones Avanzadas de la Consulta</h4>
               <p style={{ margin: "0 0 16px", color: "var(--text-secondary)", fontSize: "12px" }}>Habilita o deshabilita funcionalidades avanzadas del sistema.</p>
@@ -3087,10 +3120,10 @@ export default function SettingsPage() {
                           </div>
                           <div className={styles.serviceMath}>
                             <span>{s.duration} min</span>
-                            <strong>{s.price.toFixed(2)}€</strong>
+                            <strong>{formatPrice(s.price)}</strong>
                             {s.tax !== undefined && s.tax > 0 && (
                               <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                                (Total con {s.tax}% IVA: {s.total ? s.total.toFixed(2) : s.price}€)
+                                (Total con {s.tax}% {taxLabel}: {formatPrice(s.total || s.price)})
                               </span>
                             )}
                           </div>
@@ -3270,23 +3303,23 @@ export default function SettingsPage() {
                         <div className="form-group" style={{ gridColumn: "span 2" }}>
                           <div className={styles.priceTaxTotalRow}>
                             <div>
-                              <label className="form-label">Precio (€) *</label>
+                              <label className="form-label">Precio ({currencySymbol}) *</label>
                               <div style={{ position: "relative" }}>
                                 <input
                                   type="number"
                                   step="0.01"
                                   className="input"
-                                  placeholder="Precio €"
+                                  placeholder={`Precio ${currencySymbol}`}
                                   value={serviceFormPrice}
                                   onChange={(e) => setServiceFormPrice(e.target.value)}
                                   required
                                   style={{ paddingRight: "30px" }}
                                 />
-                                <span style={{ position: "absolute", right: "12px", top: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>€</span>
+                                <span style={{ position: "absolute", right: "12px", top: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>{currencySymbol}</span>
                               </div>
                             </div>
                             <div>
-                              <label className="form-label">IVA (%)</label>
+                              <label className="form-label">{taxLabel} (%)</label>
                               <div style={{ position: "relative" }}>
                                 <input
                                   type="number"
@@ -3301,7 +3334,7 @@ export default function SettingsPage() {
                               </div>
                             </div>
                             <div>
-                              <label className="form-label">Total (€)</label>
+                              <label className="form-label">Total ({currencySymbol})</label>
                               <div style={{ position: "relative" }}>
                                 <input
                                   type="text"
@@ -3310,7 +3343,7 @@ export default function SettingsPage() {
                                   readOnly
                                   style={{ paddingRight: "30px" }}
                                 />
-                                <span style={{ position: "absolute", right: "12px", top: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>€</span>
+                                <span style={{ position: "absolute", right: "12px", top: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>{currencySymbol}</span>
                               </div>
                             </div>
                           </div>

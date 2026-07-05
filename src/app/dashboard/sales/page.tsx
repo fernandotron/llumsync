@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Sales.module.css";
+import { getCountryConfig } from "@/lib/countries";
 
 interface Client {
   id: string;
@@ -494,6 +495,19 @@ const formatDateToInputHelper = (d: Date | null) => {
 export default function SalesPage() {
   const router = useRouter();
   const { activeClinic, user: currentUser } = useApp();
+  const cConfig = getCountryConfig(activeClinic?.country || "ES");
+  const currencySymbol = cConfig.currency;
+  const taxLabel = cConfig.taxName;
+  const identityLabel = cConfig.idName;
+
+  const formatPrice = (val: number | null | undefined) => {
+    const amount = val ?? 0;
+    if (currencySymbol === "€") {
+      return `${amount.toFixed(2)} €`;
+    }
+    return `${currencySymbol}${amount.toFixed(2)}`;
+  };
+
   const cName = activeClinic?.name || "";
 
   const showArticulosTab = currentUser?.role === "ADMIN" || 
@@ -1440,7 +1454,7 @@ export default function SalesPage() {
 
           <div style={{ display: "flex", gap: "12px" }}>
             <div className="form-group" style={{ flex: 1 }}>
-              <label className="form-label">Precio (€)</label>
+              <label className="form-label">Precio ({currencySymbol})</label>
               <input
                 type="number"
                 step="0.01"
@@ -1488,9 +1502,9 @@ export default function SalesPage() {
                   </span>
                 </div>
                 <span className={styles.cartItemMath}>
-                  {item.quantity} × {item.price.toFixed(2)} €
+                  {item.quantity} × {formatPrice(item.price)}
                 </span>
-                <span className={styles.cartItemTotal}>{(item.price * item.quantity).toFixed(2)} €</span>
+                <span className={styles.cartItemTotal}>{formatPrice(item.price * item.quantity)}</span>
                 <button type="button" className={styles.cartItemRemove} onClick={() => handleRemoveFromCart(index)}>
                   <Icons.Plus size={16} style={{ transform: "rotate(45deg)" }} />
                 </button>
@@ -1505,7 +1519,7 @@ export default function SalesPage() {
         <div className={styles.totalsColumn} style={{ width: "100%" }}>
           <div className={styles.totalsRow}>
             <span>Subtotal:</span>
-            <span>{subtotal.toFixed(2)} €</span>
+            <span>{formatPrice(subtotal)}</span>
           </div>
           <div className={styles.totalsRow}>
             <span>Descuento (%):</span>
@@ -1521,7 +1535,7 @@ export default function SalesPage() {
           </div>
           <div className={`${styles.totalsRow} ${styles.grandTotal}`}>
             <span>Total Neto:</span>
-            <span>{totalPOS.toFixed(2)} €</span>
+            <span>{formatPrice(totalPOS)}</span>
           </div>
         </div>
 
@@ -1663,6 +1677,15 @@ export default function SalesPage() {
       return;
     }
 
+    const receiptCountryConfig = getCountryConfig(clinic?.country || "ES");
+    const receiptCurrencySymbol = receiptCountryConfig.currency;
+    const formatReceiptPrice = (val: number) => {
+      if (receiptCurrencySymbol === "€") {
+        return `${val.toFixed(2)} €`;
+      }
+      return `${receiptCurrencySymbol}${val.toFixed(2)}`;
+    };
+
     const dateStr = new Date(sale.createdAt).toLocaleString("es-ES", {
       year: "numeric",
       month: "2-digit",
@@ -1728,7 +1751,7 @@ export default function SalesPage() {
           </tr>
           <tr>
             <td class="label">Monto</td>
-            <td class="value" style="font-weight: bold;">${sale.total.toFixed(2)} €</td>
+            <td class="value" style="font-weight: bold;">${formatReceiptPrice(sale.total)}</td>
           </tr>
           <tr>
             <td class="label">Método de pago</td>
@@ -4706,12 +4729,12 @@ export default function SalesPage() {
                   const paidSum = checkoutPaidSum;
                   const restante = checkoutRestante;
                   // Tax calculations
-                  let taxLabel = "IVA";
+                  let currentTaxLabel = taxLabel;
                   let taxAmt = 0;
                   let calculatedSubtotal = totalAfterDiscount;
 
                   if (isSelfEmployed) {
-                    taxLabel = "IRPF";
+                    currentTaxLabel = "IRPF";
                     taxAmt = 0;
                     calculatedSubtotal = totalAfterDiscount;
                   } else {
@@ -4723,14 +4746,14 @@ export default function SalesPage() {
                     <>
                       <div className={styles.totalItemRow}>
                         <span>Subtotal</span>
-                        <span>{calculatedSubtotal.toFixed(2)} €</span>
+                        <span>{formatPrice(calculatedSubtotal)}</span>
                       </div>
 
                       {checkoutDiscount && (
                         <div className={styles.totalItemRow}>
                           <span>Descuento</span>
                           <span style={{ color: "var(--danger)", display: "flex", alignItems: "center", gap: "8px" }}>
-                            - {discountAmt.toFixed(2)} €
+                            - {formatPrice(discountAmt)}
                             <button
                               type="button"
                               className={styles.iconMiniBtn}
@@ -4745,7 +4768,7 @@ export default function SalesPage() {
                       )}
 
                       <div className={styles.totalItemRow}>
-                        <span>{taxLabel}</span>
+                        <span>{currentTaxLabel}</span>
                         {isEditingTaxInline && !isSelfEmployed ? (
                           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                             <input
@@ -4779,7 +4802,7 @@ export default function SalesPage() {
                           </div>
                         ) : (
                           <span className={styles.taxValueRow}>
-                            {isSelfEmployed ? "0% / 0,00 €" : `${checkoutIva}% / ${taxAmt.toFixed(2)} €`}
+                            {isSelfEmployed ? `0% / ${formatPrice(0)}` : `${checkoutIva}% / ${formatPrice(taxAmt)}`}
                             {!isSelfEmployed && (
                               <Icons.Edit
                                 size={12}
@@ -4796,7 +4819,7 @@ export default function SalesPage() {
 
                       <div className={styles.totalItemRow} style={{ borderTop: "1.5px solid var(--border-color)", paddingTop: "12px", marginTop: "8px" }}>
                         <strong style={{ fontSize: "15px", color: "var(--text-primary)" }}>Total</strong>
-                        <strong style={{ fontSize: "15px", color: "var(--text-primary)" }}>{totalAfterDiscount.toFixed(2)} €</strong>
+                        <strong style={{ fontSize: "15px", color: "var(--text-primary)" }}>{formatPrice(totalAfterDiscount)}</strong>
                       </div>
 
                       {/* Partial payment entries */}
@@ -4804,7 +4827,7 @@ export default function SalesPage() {
                         <div key={pp.id} style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "6px 0", borderBottom: "1px dashed var(--border-color)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "var(--text-primary)" }}>
                             <span>{pp.voucherName ? `Bono: "${pp.voucherName}"` : pp.method} ({pp.date})</span>
-                            <span style={{ fontWeight: 600 }}>{pp.amount.toFixed(2)} €</span>
+                            <span style={{ fontWeight: 600 }}>{formatPrice(pp.amount)}</span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                             <button

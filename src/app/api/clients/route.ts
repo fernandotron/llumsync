@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCountryConfig } from "@/lib/countries";
 
 export async function GET(request: Request) {
   try {
@@ -91,6 +92,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nombre, apellidos y clínica son obligatorios" }, { status: 400 });
     }
 
+    const clinic = await prisma.clinic.findUnique({
+      where: { id: clinicId }
+    });
+    const cConfig = getCountryConfig(clinic?.country || "ES");
+    const resolvedCountry = country || cConfig.name;
+
     // Generate unique clientNumber (find max client number and add 1)
     const maxClient = await prisma.client.findFirst({
       orderBy: { clientNumber: "desc" },
@@ -110,7 +117,7 @@ export async function POST(request: Request) {
         address,
         municipality,
         postalCode,
-        country,
+        country: resolvedCountry,
         province,
         landline,
         iban,

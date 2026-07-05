@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCountryConfig } from "@/lib/countries";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, address, phone, email, userId } = body;
+    const { name, address, phone, email, country, userId } = body;
 
     if (!name || !address || !userId) {
       return NextResponse.json(
@@ -12,6 +13,8 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const cConfig = getCountryConfig(country || "ES");
 
     // 1. Create the clinic
     // 2. Connect the clinic to the requesting user
@@ -21,6 +24,7 @@ export async function POST(request: Request) {
         address,
         phone: phone || null,
         email: email || null,
+        country: cConfig.code,
         users: {
           connect: { id: userId },
         },
@@ -40,6 +44,8 @@ export async function POST(request: Request) {
           color: "#3b82f6",
           category: "Demo",
           description: "Servicio creado por defecto para demostración.",
+          tax: cConfig.taxDefault,
+          total: 0,
         },
       });
     }
@@ -56,8 +62,9 @@ export async function POST(request: Request) {
         firstName: "Cliente",
         lastName: "de paso",
         clinicId: clinic.id,
-        phone: "+34 600 000 000",
+        phone: `${cConfig.phonePrefix} 600 000 000`,
         email: "cliente.depaso@clifav.com",
+        country: cConfig.name,
       },
     });
 

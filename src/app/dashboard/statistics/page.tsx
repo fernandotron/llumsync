@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Statistics.module.css";
+import { getCountryConfig } from "@/lib/countries";
 
 interface KPIState {
   totalRevenue: number;
@@ -33,6 +34,15 @@ interface ServiceStat {
 export default function StatisticsPage() {
   const router = useRouter();
   const { activeClinic, user: currentUser } = useApp();
+  const cConfig = getCountryConfig(activeClinic?.country || "ES");
+  const currencySymbol = cConfig.currency;
+
+  const formatPrice = (val: number) => {
+    if (currencySymbol === "€") {
+      return `${val.toFixed(2)} €`;
+    }
+    return `${currencySymbol}${val.toFixed(2)}`;
+  };
 
   useEffect(() => {
     if (currentUser && currentUser.role !== "ADMIN" && !hasPermission(currentUser, "estadisticas", "Ver Estadisticas")) {
@@ -89,9 +99,9 @@ export default function StatisticsPage() {
         <div className={`${styles.kpiCard} glass`}>
           <div className={styles.kpiHeader}>
             <span>Facturación Total</span>
-            <div className={`${styles.kpiIcon} ${styles.blue}`}>€</div>
+            <div className={`${styles.kpiIcon} ${styles.blue}`}>{currencySymbol}</div>
           </div>
-          <div className={styles.kpiValue}>{kpis.totalRevenue.toFixed(2)}€</div>
+          <div className={styles.kpiValue}>{formatPrice(kpis.totalRevenue)}</div>
           <div className={styles.kpiFooter}>Facturas cobradas en el centro</div>
         </div>
 
@@ -120,9 +130,9 @@ export default function StatisticsPage() {
         <div className={`${styles.kpiCard} glass`}>
           <div className={styles.kpiHeader}>
             <span>Ticket Medio</span>
-            <div className={`${styles.kpiIcon} ${styles.pink}`}>TM</div>
+            <div className={`${styles.kpiIcon} ${styles.pink}`}>{currencySymbol === "€" ? "TM" : "AT"}</div>
           </div>
-          <div className={styles.kpiValue}>{kpis.avgTicket.toFixed(2)}€</div>
+          <div className={styles.kpiValue}>{formatPrice(kpis.avgTicket)}</div>
           <div className={styles.kpiFooter}>Media facturada por transacción</div>
         </div>
       </div>
@@ -178,7 +188,7 @@ export default function StatisticsPage() {
                           <circle cx={p.x} cy={p.y} r="5" fill="var(--bg-panel-solid)" stroke="var(--primary)" strokeWidth="2" />
                           {/* Label values above dots */}
                           <text x={p.x} y={p.y - 10} className={styles.pointLabel} textAnchor="middle">
-                            {Math.round(monthlyRevenue[idx].value)}€
+                            {currencySymbol === "€" ? `${Math.round(monthlyRevenue[idx].value)}€` : `${currencySymbol}${Math.round(monthlyRevenue[idx].value)}`}
                           </text>
                         </g>
                       ))}
