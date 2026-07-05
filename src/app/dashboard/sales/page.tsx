@@ -954,7 +954,7 @@ export default function SalesPage() {
         fetch(`/api/clients?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/services?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/sales?clinicId=${activeClinic.id}`, { cache: "no-store" }),
-        fetch(`/api/appointments?clinicId=${activeClinic.id}&start=2025-09-01T00:00:00.000Z&end=2026-07-01T00:00:00.000Z`, { cache: "no-store" }),
+        fetch(`/api/appointments?clinicId=${activeClinic.id}&start=${dateFilterStart ? dateFilterStart.toISOString() : "2025-01-01T00:00:00.000Z"}&end=${dateFilterEnd ? dateFilterEnd.toISOString() : "2030-12-31T23:59:59.000Z"}`, { cache: "no-store" }),
         fetch(`/api/movements?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/budgets?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/fiscal-profiles?clinicId=${activeClinic.id}`, { cache: "no-store" }),
@@ -999,7 +999,7 @@ export default function SalesPage() {
 
   useEffect(() => {
     fetchSalesData();
-  }, [activeClinic]);
+  }, [activeClinic, dateFilterStart, dateFilterEnd]);
 
   // Auto-open specific appointment or sale when navigated from contacts page via ?appointmentId=... or ?saleId=...
   useEffect(() => {
@@ -4032,7 +4032,7 @@ export default function SalesPage() {
                         />
                       </td>
                       <td className={styles.conceptSubtotalVal}>
-                        {(c.price * c.quantity).toFixed(2)} €
+                        {formatPrice(c.price * c.quantity)}
                       </td>
                     </tr>
                   ))}
@@ -4044,11 +4044,11 @@ export default function SalesPage() {
             <div className={styles.invoiceTotalsArea}>
               <div className={styles.invoiceTotalsRow}>
                 <span>Subtotal:</span>
-                <span>{totalSum.toFixed(2)} €</span>
+                <span>{formatPrice(totalSum)}</span>
               </div>
               <div className={styles.invoiceTotalsRow + " " + styles.grand}>
                 <span>TOTAL:</span>
-                <span>{totalSum.toFixed(2)} €</span>
+                <span>{formatPrice(totalSum)}</span>
               </div>
             </div>
 
@@ -4496,7 +4496,7 @@ export default function SalesPage() {
                       <div className={styles.articleActiveContent}>
                         <div className={styles.articleActiveHeaderRow}>
                           <strong className={styles.articleActiveName}>{item.detalle}</strong>
-                          <span className={styles.articleActivePrice}>{item.price.toFixed(2)} €</span>
+                          <span className={styles.articleActivePrice}>{formatPrice(item.price)}</span>
                         </div>
                         <span className={styles.articleActiveMeta}>
                           {item.hora !== "-" ? item.hora.split(" - ")[0] : "1 hora"} - {item.empleado}
@@ -4597,7 +4597,7 @@ export default function SalesPage() {
                                     {appt.service?.name || "Tratamiento"}
                                   </span>
                                   <span className={styles.apptHistoryPrice}>
-                                    {(appt.service?.price || 0).toFixed(2)} €
+                                    {formatPrice(appt.service?.price)}
                                   </span>
                                 </div>
                                 <div className={styles.apptHistoryBottom}>
@@ -4661,7 +4661,7 @@ export default function SalesPage() {
                                     {appt.service?.name || "Tratamiento"}
                                   </span>
                                   <span className={styles.apptHistoryPrice}>
-                                    {(appt.service?.price || 0).toFixed(2)} €
+                                    {formatPrice(appt.service?.price)}
                                   </span>
                                 </div>
                                 <div className={styles.apptHistoryBottom}>
@@ -4971,14 +4971,14 @@ export default function SalesPage() {
                         <div key="legacy-paid" style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "6px 0", borderBottom: "1px dashed var(--border-color)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "var(--text-primary)" }}>
                             <span>{selectedItemForPayment.metodoPago} ({selectedItemForPayment.fechaPago})</span>
-                            <span style={{ fontWeight: 600 }}>{totalAfterDiscount.toFixed(2)} €</span>
+                            <span style={{ fontWeight: 600 }}>{formatPrice(totalAfterDiscount)}</span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                             <button
                               type="button"
                               className={styles.iconMiniBtn}
                               title="Ver detalles"
-                              onClick={() => alert(`Detalles del pago:\nMétodo: ${selectedItemForPayment.metodoPago}\nMonto: ${totalAfterDiscount.toFixed(2)} €\nFecha: ${selectedItemForPayment.fechaPago}`)}
+                              onClick={() => alert(`Detalles del pago:\nMétodo: ${selectedItemForPayment.metodoPago}\nMonto: ${formatPrice(totalAfterDiscount)}\nFecha: ${selectedItemForPayment.fechaPago}`)}
                             >
                               <Icons.Eye size={11} />
                             </button>
@@ -5026,7 +5026,7 @@ export default function SalesPage() {
                       <div className={styles.totalItemRow} style={{ marginTop: "12px" }}>
                         <span>Restante</span>
                         <span style={{ color: restante > 0 ? "var(--danger)" : "var(--text-muted)", fontWeight: 700 }}>
-                          {restante.toFixed(2)} €
+                          {formatPrice(restante)}
                         </span>
                       </div>
 
@@ -5256,7 +5256,7 @@ export default function SalesPage() {
                           placeholder={restante.toFixed(2)}
                           style={{ fontWeight: 700, fontSize: "16px", paddingRight: "30px" }}
                         />
-                        <span className={styles.currencySymbol}>€</span>
+                        <span className={styles.currencySymbol}>{currencySymbol}</span>
                       </div>
                     </div>
 
@@ -5669,7 +5669,7 @@ export default function SalesPage() {
                         <option value="">Seleccionar presupuesto...</option>
                         {clientBudgetsWithBalance.map((b) => (
                           <option key={b.id} value={b.id}>
-                            PRE-{b.budgetNumber}: {b.title} (Saldo: {b.remainingAmount.toFixed(2)}€)
+                            PRE-{b.budgetNumber}: {b.title} (Saldo: {formatPrice(b.remainingAmount)})
                           </option>
                         ))}
                       </select>
@@ -5744,7 +5744,7 @@ export default function SalesPage() {
                         <option value="">Seleccionar un servicio...</option>
                         {services.map((srv) => (
                           <option key={srv.id} value={srv.id}>
-                            {srv.name} ({srv.price.toFixed(2)} €)
+                            {srv.name} ({formatPrice(srv.price)})
                           </option>
                         ))}
                       </select>
@@ -6815,13 +6815,13 @@ export default function SalesPage() {
                           <td>{item.direccion}</td>
                           <td>{item.ciudad}</td>
                           <td>{item.codigoPostal}</td>
-                          <td>{item.precioBruto.toFixed(2)} €</td>
-                          <td>{item.descuento.toFixed(2)} €</td>
-                          <td>{item.baseImponible.toFixed(2)} €</td>
-                          <td>{item.iva.toFixed(2)} €</td>
-                          <td>{item.retencion.toFixed(2)} €</td>
+                          <td>{formatPrice(item.precioBruto)}</td>
+                          <td>{formatPrice(item.descuento)}</td>
+                          <td>{formatPrice(item.baseImponible)}</td>
+                          <td>{formatPrice(item.iva)}</td>
+                          <td>{formatPrice(item.retencion)}</td>
                           <td>
-                            <strong>{item.total.toFixed(2)} €</strong>
+                            <strong>{formatPrice(item.total)}</strong>
                           </td>
                           <td>{item.metodoPago}</td>
                           <td>{item.tipo}</td>
@@ -7036,7 +7036,7 @@ export default function SalesPage() {
                   getMovementsList().map((item) => (
                     <tr key={item.id}>
                       <td>{item.concepto}</td>
-                      <td>{item.cantidad.toFixed(2)} €</td>
+                      <td>{formatPrice(item.cantidad)}</td>
                       <td>{item.metodo}</td>
                       <td>
                         <span className={item.movimiento === "INGRESO" ? styles.badgeIngreso : styles.badgeGasto}>
@@ -7162,13 +7162,13 @@ export default function SalesPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
                 <div style={{ background: "var(--bg-input)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
                   <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase", fontWeight: 700 }}>Total Emitido</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)", marginTop: "4px" }}>{totalPresupuestado.toFixed(2)}€</div>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)", marginTop: "4px" }}>{formatPrice(totalPresupuestado)}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>{filteredBudgets.length} presupuestos</div>
                 </div>
 
                 <div style={{ background: "rgba(16,185,129,0.06)", padding: "16px", borderRadius: "8px", border: "1px solid rgba(16,185,129,0.2)" }}>
                   <div style={{ fontSize: "11px", color: "#10b981", textTransform: "uppercase", fontWeight: 700 }}>Aceptados</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>{totalAceptado.toFixed(2)}€</div>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>{formatPrice(totalAceptado)}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
                     {totalPresupuestado > 0 ? ((totalAceptado / totalPresupuestado) * 100).toFixed(0) : 0}% del total
                   </div>
@@ -7176,7 +7176,7 @@ export default function SalesPage() {
 
                 <div style={{ background: "rgba(245,158,11,0.06)", padding: "16px", borderRadius: "8px", border: "1px solid rgba(245,158,11,0.2)" }}>
                   <div style={{ fontSize: "11px", color: "#f59e0b", textTransform: "uppercase", fontWeight: 700 }}>Pendientes</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#f59e0b", marginTop: "4px" }}>{totalPendiente.toFixed(2)}€</div>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#f59e0b", marginTop: "4px" }}>{formatPrice(totalPendiente)}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
                     {totalPresupuestado > 0 ? ((totalPendiente / totalPresupuestado) * 100).toFixed(0) : 0}% del total
                   </div>
@@ -7184,7 +7184,7 @@ export default function SalesPage() {
 
                 <div style={{ background: "rgba(239,68,68,0.06)", padding: "16px", borderRadius: "8px", border: "1px solid rgba(239,68,68,0.2)" }}>
                   <div style={{ fontSize: "11px", color: "#ef4444", textTransform: "uppercase", fontWeight: 700 }}>Rechazados</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#ef4444", marginTop: "4px" }}>{totalRechazado.toFixed(2)}€</div>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#ef4444", marginTop: "4px" }}>{formatPrice(totalRechazado)}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
                     {totalPresupuestado > 0 ? ((totalRechazado / totalPresupuestado) * 100).toFixed(0) : 0}% del total
                   </div>
@@ -7222,9 +7222,9 @@ export default function SalesPage() {
                             <td style={{ padding: "12px" }}>{patientName}</td>
                             <td style={{ padding: "12px" }}>{b.title}</td>
                             <td style={{ padding: "12px" }}>{new Date(b.createdAt).toLocaleDateString("es-ES")}</td>
-                            <td style={{ padding: "12px", fontWeight: "bold" }}>{b.total.toFixed(2)}€</td>
+                            <td style={{ padding: "12px", fontWeight: "bold" }}>{formatPrice(b.total)}</td>
                             <td style={{ padding: "12px", color: b.remainingAmount > 0 ? "#10b981" : "var(--text-secondary)" }}>
-                              {b.status === "ACCEPTED" ? `${b.remainingAmount.toFixed(2)}€` : "-"}
+                              {b.status === "ACCEPTED" ? formatPrice(b.remainingAmount) : "-"}
                             </td>
                             <td style={{ padding: "12px" }}>
                               <span style={{

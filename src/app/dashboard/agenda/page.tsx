@@ -5335,7 +5335,7 @@ export default function AgendaPage() {
                         </div>
 
                         <div className={styles.detailPrice}>
-                          {showPrices ? `${selectedAppointment.service.price.toFixed(2).replace(".", ",")} €` : "—"}
+                          {showPrices ? (currencySymbol === "€" ? `${selectedAppointment.service.price.toFixed(2).replace(".", ",")} €` : `${currencySymbol}${selectedAppointment.service.price.toFixed(2)}`) : "—"}
                         </div>
 
                         <div style={{ marginTop: "4px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
@@ -5650,7 +5650,7 @@ export default function AgendaPage() {
                                         {statusLabel}
                                       </span>
                                       <span className={styles.citasItemServiceText}>
-                                        {a.service.name}{showPrices ? ` - ${a.service.price.toFixed(2).replace(".", ",")} €` : ""}
+                                        {a.service.name}{showPrices ? ` - ${currencySymbol === "€" ? `${a.service.price.toFixed(2).replace(".", ",")} €` : `${currencySymbol}${a.service.price.toFixed(2)}`}` : ""}
                                       </span>
                                     </div>
 
