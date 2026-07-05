@@ -931,6 +931,14 @@ export default function AgendaPage() {
 
   // Load available tags from localStorage or set default initial tags
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (localStorage.getItem("agenda_view") === null) {
+        localStorage.setItem("agenda_view", "day");
+      }
+      if (localStorage.getItem("hideWeekends") === null) {
+        localStorage.setItem("hideWeekends", "false");
+      }
+    }
     const saved = localStorage.getItem("clifav_available_tags");
     if (saved) {
       try {
