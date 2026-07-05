@@ -6459,22 +6459,22 @@ export default function SalesPage() {
               return (
                 <div className={styles.metricsRow}>
                   <div className={styles.metricItem}>
-                    Volumen de negocio: <span>{stats.volumenNegocio.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
+                    Volumen de negocio: <span>{formatPrice(stats.volumenNegocio)}</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Citas: <span>{stats.citasSum.toLocaleString("es-ES", { minimumFractionDigits: 2 })} € ({stats.citasCount})</span>
+                    Citas: <span>{formatPrice(stats.citasSum)} ({stats.citasCount})</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Bonos: <span>0,00 € (0)</span>
+                    Bonos: <span>{formatPrice(0)} (0)</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Productos: <span>{stats.productosSum.toLocaleString("es-ES", { minimumFractionDigits: 2 })} € ({stats.productosCount})</span>
+                    Productos: <span>{formatPrice(stats.productosSum)} ({stats.productosCount})</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Suscripciones: <span>0,00 € (0)</span>
+                    Suscripciones: <span>{formatPrice(0)} (0)</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Presupuestos: <span>0,00 € (0)</span>
+                    Presupuestos: <span>{formatPrice(0)} (0)</span>
                   </div>
                 </div>
               );
@@ -6736,16 +6736,16 @@ export default function SalesPage() {
               return (
                 <div className={styles.metricsRow} style={{ color: "#475569" }}>
                   <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    Base imponible: <strong style={{ color: "black" }}>{fStats.base.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</strong>
+                    Base imponible: <strong style={{ color: "black" }}>{formatPrice(fStats.base)}</strong>
                   </div>
                   <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    IVA: <strong style={{ color: "black" }}>{fStats.iva.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</strong>
+                    IVA: <strong style={{ color: "black" }}>{formatPrice(fStats.iva)}</strong>
                   </div>
                   <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    IRPF: <strong style={{ color: "black" }}>0,00 €</strong>
+                    IRPF: <strong style={{ color: "black" }}>{formatPrice(0)}</strong>
                   </div>
                   <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    Total: <strong style={{ color: "black" }}>{fStats.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</strong>
+                    Total: <strong style={{ color: "black" }}>{formatPrice(fStats.total)}</strong>
                   </div>
                 </div>
               );
@@ -6892,8 +6892,8 @@ export default function SalesPage() {
                             <strong style={{ color: "#0284c7" }}>{item.nuV}</strong>
                           </td>
                           <td>{item.metodoPago}</td>
-                          <td>{item.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</td>
-                          <td>{item.reembolsado.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</td>
+                          <td>{formatPrice(item.total)}</td>
+                          <td>{formatPrice(item.reembolsado)}</td>
                         </tr>
                       ))
                   )}
