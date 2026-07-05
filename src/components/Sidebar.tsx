@@ -157,7 +157,7 @@ export default function Sidebar() {
             </button>
 
             {showClinicsDropdown && user.clinics && (
-              <div className={`${styles.dropdownMenu} glass`}>
+              <div className={styles.dropdownMenu}>
                 <div className={styles.dropdownHeader}>Cambiar de clínica</div>
                 {user.clinics.map((clinic) => (
                   <button
