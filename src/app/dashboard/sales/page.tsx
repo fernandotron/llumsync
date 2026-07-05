@@ -2102,15 +2102,15 @@ export default function SalesPage() {
         <div class="totals-area">
           <div class="totals-row">
             <span>Subtotal:</span>
-            <span>${totalAmount.toFixed(2)} EUR</span>
+            <span>${totalAmount.toFixed(2)} \${currencySymbol}</span>
           </div>
           <div class="totals-row">
-            <span>IVA 0% (${totalAmount.toFixed(2)}):</span>
-            <span>0,00 EUR</span>
+            <span>IVA 0% (\${totalAmount.toFixed(2)}):</span>
+            <span>0,00 \${currencySymbol}</span>
           </div>
           <div class="totals-row grand-total">
             <span>Total:</span>
-            <span>${totalAmount.toFixed(2)} EUR</span>
+            <span>\${totalAmount.toFixed(2)} \${currencySymbol}</span>
           </div>
         </div>
 
@@ -2389,7 +2389,7 @@ export default function SalesPage() {
         <div class="divider"></div>
         <div class="totals">
           <span>TOTAL:</span>
-          <span>${totalAmount.toFixed(2)} EUR</span>
+          <span>\${totalAmount.toFixed(2)} \${currencySymbol}</span>
         </div>
         <div class="divider"></div>
         <div class="center" style="font-size: 10px; margin-top: 15px;">
@@ -2500,8 +2500,8 @@ export default function SalesPage() {
         const splitText = doc.splitTextToSize(c.text, 100);
         doc.text(splitText, 15, y);
         doc.text(String(c.quantity), 130, y);
-        doc.text(`${c.price.toFixed(2)} EUR`, 155, y, { align: "right" });
-        doc.text(`${(c.price * c.quantity).toFixed(2)} EUR`, 195, y, { align: "right" });
+        doc.text(`${c.price.toFixed(2)} ${currencySymbol}`, 155, y, { align: "right" });
+        doc.text(`${(c.price * c.quantity).toFixed(2)} ${currencySymbol}`, 195, y, { align: "right" });
         
         y += (splitText.length * 5) + 3;
       });
@@ -2512,7 +2512,7 @@ export default function SalesPage() {
       y += 10;
       doc.setFont("helvetica", "bold");
       doc.text("TOTAL FACTURA:", 140, y);
-      doc.text(`${totalAmount.toFixed(2)} EUR`, 195, y, { align: "right" });
+      doc.text(`${totalAmount.toFixed(2)} ${currencySymbol}`, 195, y, { align: "right" });
 
       if (activeInvoiceEdit.observations) {
         y += 20;
@@ -2556,7 +2556,7 @@ export default function SalesPage() {
     const invoiceLabel = `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
     const totalAmount = activeInvoiceEdit.concepts.reduce((sum: number, c: any) => sum + (c.price * c.quantity), 0);
 
-    const bodyMsg = `Estimado/a ${activeInvoiceEdit.clientName},\n\nLe adjuntamos los detalles de su factura ${invoiceLabel}.\n\nConceptos:\n${activeInvoiceEdit.concepts.map((c: any) => `- ${c.text} x${c.quantity} (${(c.price * c.quantity).toFixed(2)} €)`).join("\n")}\n\nTotal: ${totalAmount.toFixed(2)} €\n\nGracias por su confianza.\n\n${activeClinic?.name || "Clifav"}`;
+    const bodyMsg = `Estimado/a ${activeInvoiceEdit.clientName},\n\nLe adjuntamos los detalles de su factura ${invoiceLabel}.\n\nConceptos:\n${activeInvoiceEdit.concepts.map((c: any) => `- ${c.text} x${c.quantity} (${(c.price * c.quantity).toFixed(2)} ${currencySymbol})`).join("\n")}\n\nTotal: ${totalAmount.toFixed(2)} ${currencySymbol}\n\nGracias por su confianza.\n\n${activeClinic?.name || "Clifav"}`;
 
     try {
       const res = await fetch("/api/notifications/send-email", {
@@ -2595,7 +2595,7 @@ export default function SalesPage() {
     const invoiceLabel = `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
     const totalAmount = activeInvoiceEdit.concepts.reduce((sum: number, c: any) => sum + (c.price * c.quantity), 0);
 
-    const message = `Hola ${activeInvoiceEdit.clientName}, adjunto los detalles de su factura ${invoiceLabel}. Total: ${totalAmount.toFixed(2)} €. Gracias por confiar en nosotros.`;
+    const message = `Hola ${activeInvoiceEdit.clientName}, adjunto los detalles de su factura ${invoiceLabel}. Total: ${totalAmount.toFixed(2)} ${currencySymbol}. Gracias por confiar en nosotros.`;
     const encodedMsg = encodeURIComponent(message);
 
     const mode = activeClinic?.defaultWhatsappMode || "Web";
@@ -6899,21 +6899,21 @@ export default function SalesPage() {
                 <div className={styles.summaryContainer}>
                   <div className={styles.summaryRow}>
                     <span>Efectivo:</span>
-                    <strong>{summary.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</strong>
+                    <strong>{summary.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</strong>
                   </div>
                   <div className={styles.summaryRow}>
                     <span>Tarjeta:</span>
-                    <strong>{summary.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</strong>
+                    <strong>{summary.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</strong>
                   </div>
                   {summary.transferencia > 0 && (
                     <div className={styles.summaryRow}>
                       <span>Transferencia:</span>
-                      <strong>{summary.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</strong>
+                      <strong>{summary.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</strong>
                     </div>
                   )}
                   <div className={styles.summaryRowTotal}>
                     <span>Total:</span>
-                    <strong>{summary.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</strong>
+                    <strong>{summary.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</strong>
                   </div>
                 </div>
               );
@@ -6983,22 +6983,22 @@ export default function SalesPage() {
                             {dailyData.map((day) => (
                               <tr key={day.dateStr}>
                                 <td style={{ textAlign: "left" }}>{day.dateStr}</td>
-                                <td style={{ textAlign: "right" }}>{day.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
-                                <td style={{ textAlign: "right" }}>{day.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                                <td style={{ textAlign: "right" }}>{day.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
+                                <td style={{ textAlign: "right" }}>{day.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
                                 {hasTransfers && (
-                                  <td style={{ textAlign: "right" }}>{day.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                                  <td style={{ textAlign: "right" }}>{day.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
                                 )}
-                                <td style={{ textAlign: "right", fontWeight: 600 }}>{day.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                                <td style={{ textAlign: "right", fontWeight: 600 }}>{day.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
                               </tr>
                             ))}
                             <tr style={{ borderTop: "2px solid var(--border-color)", backgroundColor: "var(--bg-hover)" }}>
                               <td style={{ textAlign: "left", fontWeight: 700 }}>Total periodo</td>
-                              <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
-                              <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                              <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
+                              <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
                               {hasTransfers && (
-                                <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                                <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
                               )}
-                              <td style={{ textAlign: "right", fontWeight: 700, color: "var(--primary)" }}>{summary.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                              <td style={{ textAlign: "right", fontWeight: 700, color: "var(--primary)" }}>{summary.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} {currencySymbol}</td>
                             </tr>
                           </>
                         )}
