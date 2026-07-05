@@ -38,13 +38,28 @@ export async function POST(request: Request) {
     const year = new Date().getFullYear();
     const count = await prisma.sale.count();
     
+    let numberSequence = count + 1;
     let invoiceNumber = "";
-    if (invoiceType === "NORMAL") {
-      invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, "0")}`;
-    } else if (invoiceType === "SIMPLIFIED") {
-      invoiceNumber = `SIMP-${year}-${String(count + 1).padStart(4, "0")}`;
-    } else {
-      invoiceNumber = `TKT-${year}-${String(count + 1).padStart(4, "0")}`;
+    let exists = true;
+    
+    while (exists) {
+      if (invoiceType === "NORMAL") {
+        invoiceNumber = `INV-${year}-${String(numberSequence).padStart(4, "0")}`;
+      } else if (invoiceType === "SIMPLIFIED") {
+        invoiceNumber = `SIMP-${year}-${String(numberSequence).padStart(4, "0")}`;
+      } else {
+        invoiceNumber = `TKT-${year}-${String(numberSequence).padStart(4, "0")}`;
+      }
+      
+      const existing = await prisma.sale.findUnique({
+        where: { invoiceNumber }
+      });
+      
+      if (!existing) {
+        exists = false;
+      } else {
+        numberSequence++;
+      }
     }
 
     const sale = await prisma.sale.create({

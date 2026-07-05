@@ -1823,6 +1823,7 @@ export default function SalesPage() {
     if (unsavedPayments.length === 0) return null;
 
     const createdSales = [];
+    const updatedPayments = [...partialPayments];
 
     for (let idx = 0; idx < unsavedPayments.length; idx++) {
       const p = unsavedPayments[idx];
@@ -1872,6 +1873,16 @@ export default function SalesPage() {
             const createdSale = await saleRes.json();
             createdSales.push(createdSale);
 
+            // Mark this payment as saved and assign database ID
+            const matchIdx = updatedPayments.findIndex((x) => x.id === p.id);
+            if (matchIdx !== -1) {
+              updatedPayments[matchIdx] = {
+                ...updatedPayments[matchIdx],
+                id: createdSale.id,
+                isSaved: true,
+              };
+            }
+
             // Consume vouchers and budgets
             if (p.clientVoucherId) {
               try {
@@ -1901,6 +1912,7 @@ export default function SalesPage() {
         }
       }
     }
+    setPartialPayments(updatedPayments);
     return createdSales;
   };
 
