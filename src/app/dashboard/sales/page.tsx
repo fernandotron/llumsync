@@ -6967,12 +6967,92 @@ export default function SalesPage() {
 
               return (
                 <div style={{ marginTop: "32px" }}>
-                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
-                    Desglose por día
-                  </h3>
-                  <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" }}>
-                    Un movimiento por cada día con cobros dentro del rango filtrado. La fila de totales cuadra con el resumen general de arriba.
-                  </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                    <div>
+                      <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
+                        Desglose por día
+                      </h3>
+                      <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0 }}>
+                        Un movimiento por cada día con cobros dentro del rango filtrado. La fila de totales cuadra con el resumen general de arriba.
+                      </p>
+                    </div>
+                    {dailyData.length > 0 && (
+                      <button
+                        className={styles.filterBtn}
+                        style={{ borderColor: "#10b981", color: "#10b981", display: "flex", alignItems: "center", gap: "6px" }}
+                        onClick={async () => {
+                          const XLSX = await import("xlsx");
+                          const sheetData: any[][] = [];
+                          
+                          // Row 1: Clinic Name
+                          const clinicName = activeClinic?.name || "Clínica";
+                          sheetData.push([clinicName]);
+                          
+                          // Row 2: Headers
+                          const headers = ["FECHA", "EFECTIVO", "TARJETA"];
+                          if (hasTransfers) {
+                            headers.push("TRANSFERENCIA");
+                          }
+                          headers.push("TOTAL");
+                          sheetData.push(headers);
+                          
+                          // Data rows
+                          dailyData.forEach((day) => {
+                            const row = [
+                              day.dateStr,
+                              day.efectivo,
+                              day.tarjeta
+                            ];
+                            if (hasTransfers) {
+                              row.push(day.transferencia);
+                            }
+                            row.push(day.total);
+                            sheetData.push(row);
+                          });
+                          
+                          // Totals row
+                          const totalsRow = [
+                            "TOTAL DEL PERIODO",
+                            summary.efectivo,
+                            summary.tarjeta
+                          ];
+                          if (hasTransfers) {
+                            totalsRow.push(summary.transferencia);
+                          }
+                          totalsRow.push(summary.total);
+                          sheetData.push(totalsRow);
+                          
+                          // Create sheet
+                          const ws = XLSX.utils.aoa_to_sheet(sheetData);
+                          
+                          // Set column spans/merges for A1:D1 or A1:E1
+                          const lastColIndex = hasTransfers ? 4 : 3;
+                          ws["!merges"] = [
+                            { s: { r: 0, c: 0 }, e: { r: 0, c: lastColIndex } }
+                          ];
+                          
+                          // Set column widths
+                          ws["!cols"] = [
+                            { wch: 22 }, // Fecha / Total del Periodo
+                            { wch: 14 }, // Efectivo
+                            { wch: 14 }, // Tarjeta
+                            ...(hasTransfers ? [{ wch: 16 }] : []), // Transferencia
+                            { wch: 14 }  // Total
+                          ];
+                          
+                          const wb = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(wb, ws, "Desglose Diario");
+                          
+                          const fileClinicName = clinicName.replace(/[^a-zA-Z0-9]/g, "_");
+                          const filename = `Desglose_Diario_${fileClinicName}.xlsx`;
+                          XLSX.writeFile(wb, filename);
+                        }}
+                      >
+                        <Icons.Download size={16} />
+                        <span>Descargar Excel</span>
+                      </button>
+                    )}
+                  </div>
 
                   <div className={styles.tableWrapper} style={{ overflowX: "auto" }}>
                     <table className="table" style={{ width: "100%", whiteSpace: "nowrap" }}>
