@@ -1737,9 +1737,11 @@ export default function SalesPage() {
           Ref: ${refNum}
         </div>
         <div class="header">
-          <h2>${clinic?.name || 'Medicina Estética del Mediterráneo'}</h2>
-          <p>${clinic?.cifNif || 'MEDESMED INTERNATIONAL SL · BB56359623'}</p>
-          <p>${clinic?.address || 'AV. PAIS VALENCIA Nº5, 03570 VILLAJOYOSA'}</p>
+          <h2>${clinic?.name || ''}</h2>
+          ${(activeFiscalProfile?.nif || clinic?.cifNif) ? `
+            <p>${activeFiscalProfile?.nif ? `${activeFiscalProfile.comercialName || ''} · ${activeFiscalProfile.nif}` : (clinic?.cifNif || '')}</p>
+          ` : ''}
+          <p>${activeFiscalProfile?.address || clinic?.address || ''} ${activeFiscalProfile?.postalCode || ''} ${activeFiscalProfile?.municipality || ''}</p>
         </div>
         
         <div class="title">Comprobante de Pago</div>
