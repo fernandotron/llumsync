@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission, canDeleteAppointment, canCreateOrEditAppointment } from "@/lib/permissions";
 import styles from "./Agenda.module.css";
+import { getCountryConfig } from "@/lib/countries";
 
 interface Service {
   id: string;
@@ -192,6 +193,8 @@ function getAppointmentLayouts(apps: Appointment[]): Record<string, AppointmentL
 
 export default function AgendaPage() {
   const { activeClinic, user: currentUser } = useApp();
+  const cConfig = getCountryConfig(activeClinic?.country || "ES");
+  const currencySymbol = cConfig.currency;
   const showPrices = currentUser?.role === "ADMIN" || hasPermission(currentUser, "otros", "Mostrar precio servicios");
 
   const isSlotOutsideShift = (staff: User, date: Date, hour: number, minutes: number): boolean => {
@@ -954,6 +957,20 @@ export default function AgendaPage() {
   }, []);
 
   useEffect(() => {
+    if (activeClinic) {
+      const code = activeClinic.country || "ES";
+      const config = getCountryConfig(code);
+      setFormPatCountry(config.name);
+      const matched = COUNTRIES.find((c) => c.code === config.code);
+      if (matched) {
+        setDniCountry(matched);
+        setPhoneCountry(matched);
+        setCountryPickerSelected(matched);
+      }
+    }
+  }, [activeClinic]);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
@@ -1449,7 +1466,15 @@ export default function AgendaPage() {
     setFormPatAddress("");
     setFormPatMunicipality("");
     setFormPatPostalCode("");
-    setFormPatCountry("España");
+    const resetCode = activeClinic?.country || "ES";
+    const resetConfig = getCountryConfig(resetCode);
+    setFormPatCountry(resetConfig.name);
+    const resetMatched = COUNTRIES.find((c) => c.code === resetConfig.code);
+    if (resetMatched) {
+      setDniCountry(resetMatched);
+      setPhoneCountry(resetMatched);
+      setCountryPickerSelected(resetMatched);
+    }
     setFormPatIsSelfEmployed(false);
     setFormPatIsCompany(false);
     setFormPatReceivesReminders(true);
@@ -1865,7 +1890,15 @@ export default function AgendaPage() {
       setFormPatLandline("");
       setFormPatMunicipality("");
       setFormPatPostalCode("");
-      setFormPatCountry("España");
+      const resetCode = activeClinic?.country || "ES";
+      const resetConfig = getCountryConfig(resetCode);
+      setFormPatCountry(resetConfig.name);
+      const resetMatched = COUNTRIES.find((c) => c.code === resetConfig.code);
+      if (resetMatched) {
+        setDniCountry(resetMatched);
+        setPhoneCountry(resetMatched);
+        setCountryPickerSelected(resetMatched);
+      }
       setFormPatIsSelfEmployed(false);
       setFormPatIsCompany(false);
       setFormPatReceivesReminders(true);
@@ -4161,7 +4194,7 @@ export default function AgendaPage() {
                             )}
                             <span>
                               {selectedService
-                                ? `${selectedService.name} (${selectedService.duration} min${showPrices ? ` - ${selectedService.price}€` : ""})`
+                                ? `${selectedService.name} (${selectedService.duration} min${showPrices ? (currencySymbol === "€" ? ` - ${selectedService.price}€` : ` - ${currencySymbol}${selectedService.price}`) : ""})`
                                 : "Seleccionar servicio"}
                             </span>
                           </div>
@@ -4185,10 +4218,31 @@ export default function AgendaPage() {
                               style={{ backgroundColor: s.color }}
                             />
                             <span>
-                              {s.name} ({s.duration} min${showPrices ? ` - ${s.price}€` : ""})
+                              {s.name} ({s.duration} min{showPrices ? (currencySymbol === "€" ? ` - ${s.price}€` : ` - ${currencySymbol}${s.price}`) : ""})
                             </span>
                           </div>
                         ))}
+                        
+                        {/* Option to create a new service */}
+                        <div
+                          className={styles.serviceItem}
+                          onClick={() => {
+                            window.location.href = "/dashboard/settings?tab=services";
+                          }}
+                          style={{
+                            borderTop: filteredServicesForDropdown.length > 0 ? "1px dashed var(--border-color)" : "none",
+                            color: "var(--primary)",
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "10px 12px",
+                            cursor: "pointer"
+                          }}
+                        >
+                          <span style={{ fontSize: "16px", fontWeight: "bold" }}>+</span>
+                          <span>Añadir Servicio</span>
+                        </div>
                       </div>
                     )}
                   </div>
