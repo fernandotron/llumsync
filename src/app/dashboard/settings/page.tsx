@@ -3773,12 +3773,14 @@ export default function SettingsPage() {
 
                           {/* Days cells */}
                           {getWeekDays().map((day, dIdx) => {
-                            const shift = getUserShiftForDay(u, day.dayOfWeek);
+                            const dayShifts = u.shifts?.filter(
+                              (s) => s.dayOfWeek === day.dayOfWeek && (!s.clinicId || s.clinicId === activeClinic?.id)
+                            ) || [];
                             const menuOpen = activeCellMenu?.userId === u.id && activeCellMenu?.dayOfWeek === day.dayOfWeek;
                             
                             return (
                               <td key={dIdx} className={styles.horarioTd} style={{ position: "relative" }}>
-                                {shift ? (
+                                {dayShifts.length > 0 ? (
                                   <button
                                     type="button"
                                     className={styles.shiftDropdownBtn}
@@ -3796,7 +3798,11 @@ export default function SettingsPage() {
                                       }
                                     }}
                                   >
-                                    <span>{shift.startTime} a {shift.endTime}</span>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "2px", fontSize: "11px", lineHeight: "1.2" }}>
+                                      {dayShifts.map((s, sIdx) => (
+                                        <span key={sIdx}>{s.startTime} a {s.endTime}</span>
+                                      ))}
+                                    </div>
                                     <Icons.ChevronDown size={12} />
                                   </button>
                                 ) : (
@@ -8309,33 +8315,43 @@ export default function SettingsPage() {
 
                 <div style={{ marginTop: "24px", border: "1px solid var(--border-color)", borderRadius: "8px", padding: "8px 16px" }}>
                   {[1, 2, 3, 4, 5, 6, 0].map((dow) => {
-                    const dayConfig = bulkDaysConfig.find((d) => d.dayOfWeek === dow) || {
-                      dayOfWeek: dow,
-                      active: false,
-                      startTime: "08:00",
-                      endTime: "20:00"
-                    };
+                    const dayShifts = bulkDaysConfig.filter((d) => d.dayOfWeek === dow && d.active);
+                    const isDayActive = dayShifts.length > 0;
                     const dayLabel = getDayNameSpanish(dow);
 
                     return (
-                      <div key={dow} className={styles.dayRowConfig}>
-                        <div className={styles.dayRowLeft}>
+                      <div key={dow} className={styles.dayRowConfig} style={{ display: "flex", alignItems: "flex-start", padding: "12px 0", borderBottom: dow === 0 ? "none" : "1px solid var(--border-color)" }}>
+                        <div className={styles.dayRowLeft} style={{ display: "flex", alignItems: "center", gap: "12px", width: "120px", flexShrink: 0, marginTop: "8px" }}>
                           {/* Toggle switch (Image 5 style) */}
                           <div 
                             style={{ 
                               width: "36px", 
                               height: "20px", 
-                              backgroundColor: dayConfig.active ? "var(--primary)" : "var(--border-color)", 
+                              backgroundColor: isDayActive ? "var(--primary)" : "var(--border-color)", 
                               borderRadius: "10px", 
                               position: "relative", 
                               cursor: "pointer",
                               transition: "background 0.2s"
                             }}
                             onClick={() => {
-                              const updated = bulkDaysConfig.map((d) => 
-                                d.dayOfWeek === dow ? { ...d, active: !d.active } : d
-                              );
-                              setBulkDaysConfig(updated);
+                              if (isDayActive) {
+                                // Toggle OFF: set active = false for all shifts of this day
+                                const updated = bulkDaysConfig.map((d) => 
+                                  d.dayOfWeek === dow ? { ...d, active: false } : d
+                                );
+                                setBulkDaysConfig(updated);
+                              } else {
+                                // Toggle ON:
+                                const hasShiftsInConfig = bulkDaysConfig.some(d => d.dayOfWeek === dow);
+                                if (hasShiftsInConfig) {
+                                  const updated = bulkDaysConfig.map((d) =>
+                                    d.dayOfWeek === dow ? { ...d, active: true } : d
+                                  );
+                                  setBulkDaysConfig(updated);
+                                } else {
+                                  setBulkDaysConfig([...bulkDaysConfig, { dayOfWeek: dow, active: true, startTime: "08:00", endTime: "20:00" }]);
+                                }
+                              }
                             }}
                           >
                             <div 
@@ -8346,52 +8362,111 @@ export default function SettingsPage() {
                                 borderRadius: "50%", 
                                 position: "absolute", 
                                 top: "2px", 
-                                left: dayConfig.active ? "18px" : "2px",
+                                left: isDayActive ? "18px" : "2px",
                                 transition: "left 0.2s"
                               }}
                             />
                           </div>
-                          <span>{dayLabel}</span>
+                          <span style={{ fontWeight: 600, fontSize: "14px" }}>{dayLabel}</span>
                         </div>
 
-                        <div className={styles.dayRowRight}>
-                          {dayConfig.active ? (
-                            <div className={styles.timeSelectPair}>
-                              <select
-                                className={styles.miniTimeSelect}
-                                value={dayConfig.startTime}
-                                onChange={(e) => {
-                                  const updated = bulkDaysConfig.map((d) => 
-                                    d.dayOfWeek === dow ? { ...d, startTime: e.target.value } : d
-                                  );
-                                  setBulkDaysConfig(updated);
-                                }}
-                              >
-                                {timeOptionsList.map((t) => (
-                                  <option key={t} value={t}>{t}</option>
-                                ))}
-                              </select>
-                              <span style={{ color: "var(--text-secondary)" }}>a</span>
-                              <select
-                                className={styles.miniTimeSelect}
-                                value={dayConfig.endTime}
-                                onChange={(e) => {
-                                  const updated = bulkDaysConfig.map((d) => 
-                                    d.dayOfWeek === dow ? { ...d, endTime: e.target.value } : d
-                                  );
-                                  setBulkDaysConfig(updated);
-                                }}
-                              >
-                                {timeOptionsList.map((t) => (
-                                  <option key={t} value={t}>{t}</option>
-                                ))}
-                              </select>
-                              <button type="button" className={styles.addShiftBtn} style={{ width: "32px", height: "32px", borderRadius: "50%", padding: 0, display: "inline-flex", borderStyle: "solid", justifyContent: "center", alignItems: "center" }}>
-                                <Icons.Plus size={16} />
-                              </button>
+                        <div className={styles.dayRowRight} style={{ flexGrow: 1 }}>
+                          {isDayActive ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+                              {dayShifts.map((shift, shiftIndex) => (
+                                <div key={shiftIndex} className={styles.timeSelectPair} style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-start" }}>
+                                  <select
+                                    className={styles.miniTimeSelect}
+                                    value={shift.startTime}
+                                    onChange={(e) => {
+                                      const updated = [...bulkDaysConfig];
+                                      const globalIndex = bulkDaysConfig.indexOf(shift);
+                                      if (globalIndex !== -1) {
+                                        updated[globalIndex] = { ...updated[globalIndex], startTime: e.target.value };
+                                        setBulkDaysConfig(updated);
+                                      }
+                                    }}
+                                  >
+                                    {timeOptionsList.map((t) => (
+                                      <option key={t} value={t}>{t}</option>
+                                    ))}
+                                  </select>
+                                  <span style={{ color: "var(--text-secondary)" }}>a</span>
+                                  <select
+                                    className={styles.miniTimeSelect}
+                                    value={shift.endTime}
+                                    onChange={(e) => {
+                                      const updated = [...bulkDaysConfig];
+                                      const globalIndex = bulkDaysConfig.indexOf(shift);
+                                      if (globalIndex !== -1) {
+                                        updated[globalIndex] = { ...updated[globalIndex], endTime: e.target.value };
+                                        setBulkDaysConfig(updated);
+                                      }
+                                    }}
+                                  >
+                                    {timeOptionsList.map((t) => (
+                                      <option key={t} value={t}>{t}</option>
+                                    ))}
+                                  </select>
+
+                                  {dayShifts.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const globalIndex = bulkDaysConfig.indexOf(shift);
+                                        if (globalIndex !== -1) {
+                                          const updated = bulkDaysConfig.filter((_, idx) => idx !== globalIndex);
+                                          setBulkDaysConfig(updated);
+                                        }
+                                      }}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#ef4444",
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        padding: "4px"
+                                      }}
+                                    >
+                                      <Icons.Close size={16} />
+                                    </button>
+                                  )}
+
+                                  {shiftIndex === 0 && (
+                                    <button 
+                                      type="button" 
+                                      className={styles.addShiftBtn} 
+                                      onClick={() => {
+                                        const newShift = {
+                                          dayOfWeek: dow,
+                                          active: true,
+                                          startTime: "16:00",
+                                          endTime: "20:00"
+                                        };
+                                        setBulkDaysConfig([...bulkDaysConfig, newShift]);
+                                      }}
+                                      style={{ 
+                                        width: "32px", 
+                                        height: "32px", 
+                                        borderRadius: "50%", 
+                                        padding: 0, 
+                                        display: "inline-flex", 
+                                        border: "1px solid var(--border-color)", 
+                                        justifyContent: "center", 
+                                        alignItems: "center",
+                                        cursor: "pointer"
+                                      }}
+                                    >
+                                      <Icons.Plus size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           ) : (
-                            <span className={styles.noWorksText}>No trabaja los {dayLabel}</span>
+                            <span className={styles.noWorksText} style={{ display: "inline-block", marginTop: "8px", color: "var(--text-muted)", fontSize: "13px" }}>No trabaja los {dayLabel}</span>
                           )}
                         </div>
                       </div>
@@ -8466,14 +8541,29 @@ export default function SettingsPage() {
                   setBulkShiftEndDate("");
                   
                   // prefill bulk config
-                  const currentConfig = [1, 2, 3, 4, 5, 6, 0].map(dow => {
-                    const existShift = getUserShiftForDay(targetUser, dow);
-                    return {
-                      dayOfWeek: dow,
-                      active: !!existShift,
-                      startTime: existShift?.startTime || "08:00",
-                      endTime: existShift?.endTime || "20:00",
-                    };
+                  const currentConfig: any[] = [];
+                  [1, 2, 3, 4, 5, 6, 0].forEach(dow => {
+                    const existShifts = targetUser.shifts?.filter(
+                      (s) => s.dayOfWeek === dow && (!s.clinicId || s.clinicId === activeClinic?.id)
+                    ) || [];
+                    
+                    if (existShifts.length > 0) {
+                      existShifts.forEach(shift => {
+                        currentConfig.push({
+                          dayOfWeek: dow,
+                          active: true,
+                          startTime: shift.startTime,
+                          endTime: shift.endTime,
+                        });
+                      });
+                    } else {
+                      currentConfig.push({
+                        dayOfWeek: dow,
+                        active: false,
+                        startTime: "08:00",
+                        endTime: "20:00",
+                      });
+                    }
                   });
                   setBulkDaysConfig(currentConfig);
                   setActiveCellMenu(null);

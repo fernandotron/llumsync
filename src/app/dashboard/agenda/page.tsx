@@ -199,21 +199,24 @@ export default function AgendaPage() {
 
   const isSlotOutsideShift = (staff: User, date: Date, hour: number, minutes: number): boolean => {
     const dayOfWeek = date.getDay();
-    const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
+    const dayShifts = staff.shifts?.filter(s => s.dayOfWeek === dayOfWeek) || [];
     
-    if (!shift) {
-      return true; // No shift = outside schedule (day off)
+    if (dayShifts.length === 0) {
+      return true; // No shifts = outside schedule (day off)
     }
 
-    // Parse shift times
-    const [startH, startM] = shift.startTime.split(":").map(Number);
-    const [endH, endM] = shift.endTime.split(":").map(Number);
-
-    const shiftStartMins = startH * 60 + startM;
-    const shiftEndMins = endH * 60 + endM;
     const slotStartMins = hour * 60 + minutes;
 
-    return slotStartMins < shiftStartMins || slotStartMins >= shiftEndMins;
+    // A slot is inside if it falls within AT LEAST ONE shift
+    const isInside = dayShifts.some(shift => {
+      const [startH, startM] = shift.startTime.split(":").map(Number);
+      const [endH, endM] = shift.endTime.split(":").map(Number);
+      const shiftStartMins = startH * 60 + startM;
+      const shiftEndMins = endH * 60 + endM;
+      return slotStartMins >= shiftStartMins && slotStartMins < shiftEndMins;
+    });
+
+    return !isInside;
   };
 
   const checkIfOutsideShift = (userId: string, dateStr: string, timeStr: string, duration: number): boolean => {
@@ -223,24 +226,27 @@ export default function AgendaPage() {
     // Use midday to avoid timezone shift when checking date
     const dateObj = new Date(`${dateStr}T12:00:00`);
     const dayOfWeek = dateObj.getDay();
-    const shift = staff.shifts?.find(s => s.dayOfWeek === dayOfWeek);
+    const dayShifts = staff.shifts?.filter(s => s.dayOfWeek === dayOfWeek) || [];
 
-    if (!shift) {
-      return true; // No shift = outside schedule (day off)
+    if (dayShifts.length === 0) {
+      return true; // No shifts = outside schedule (day off)
     }
-
-    // Parse shift start and end times
-    const [startH, startM] = shift.startTime.split(":").map(Number);
-    const [endH, endM] = shift.endTime.split(":").map(Number);
-    const shiftStartMins = startH * 60 + startM;
-    const shiftEndMins = endH * 60 + endM;
 
     // Parse appointment start and end times
     const [appH, appM] = timeStr.split(":").map(Number);
     const appStartMins = appH * 60 + appM;
     const appEndMins = appStartMins + duration;
 
-    return appStartMins < shiftStartMins || appEndMins > shiftEndMins;
+    // The appointment is inside if it fits completely within AT LEAST ONE shift
+    const isInside = dayShifts.some(shift => {
+      const [startH, startM] = shift.startTime.split(":").map(Number);
+      const [endH, endM] = shift.endTime.split(":").map(Number);
+      const shiftStartMins = startH * 60 + startM;
+      const shiftEndMins = endH * 60 + endM;
+      return appStartMins >= shiftStartMins && appEndMins <= shiftEndMins;
+    });
+
+    return !isInside;
   };
 
   const handlePrintAgenda = () => {
