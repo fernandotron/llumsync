@@ -2986,7 +2986,8 @@ export default function SalesPage() {
   // LIST GENERATORS & AGGREGATIONS
   // ----------------------------------------------------
   const getArticlesList = (): ArticleItem[] => {
-    let items: ArticleItem[] = [...MOCK_ARTICULOS];
+    const isMockClinic = activeClinic && (activeClinic.id === "1941b619-8ead-4388-91f4-aedd9100a7e9" || activeClinic.id === "6fe5ca72-4169-48da-94a2-79196efbe581");
+    let items: ArticleItem[] = isMockClinic ? [...MOCK_ARTICULOS] : [];
 
     // Merge real database sales
     salesHistory.forEach((sale, saleIdx) => {
@@ -6913,6 +6914,96 @@ export default function SalesPage() {
                   <div className={styles.summaryRowTotal}>
                     <span>Total:</span>
                     <strong>{summary.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</strong>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Desglose por día Section */}
+            {(() => {
+              const summary = calculatePaymentSummary();
+              
+              // Group payments list by day
+              const paymentsList = getPaymentsList();
+              const groups: { [dateStr: string]: { efectivo: number; tarjeta: number; transferencia: number; total: number; rawDate: Date } } = {};
+
+              paymentsList.forEach((item) => {
+                const d = item.fechaRaw;
+                const dateStr = d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+                if (!groups[dateStr]) {
+                  groups[dateStr] = { efectivo: 0, tarjeta: 0, transferencia: 0, total: 0, rawDate: d };
+                }
+                
+                const met = item.metodoPago;
+                if (met === "Efectivo") {
+                  groups[dateStr].efectivo += item.total;
+                } else if (met === "Tarjeta") {
+                  groups[dateStr].tarjeta += item.total;
+                } else if (met === "Transferencia") {
+                  groups[dateStr].transferencia += item.total;
+                }
+                groups[dateStr].total += item.total;
+              });
+
+              const dailyData = Object.keys(groups)
+                .map(key => ({ dateStr: key, ...groups[key] }))
+                .sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime());
+
+              const hasTransfers = summary.transferencia > 0;
+
+              return (
+                <div style={{ marginTop: "32px" }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
+                    Desglose por día
+                  </h3>
+                  <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" }}>
+                    Un movimiento por cada día con cobros dentro del rango filtrado. La fila de totales cuadra con el resumen general de arriba.
+                  </p>
+
+                  <div className={styles.tableWrapper} style={{ overflowX: "auto" }}>
+                    <table className="table" style={{ width: "100%", whiteSpace: "nowrap" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left" }}>FECHA</th>
+                          <th style={{ textAlign: "right" }}>EFECTIVO</th>
+                          <th style={{ textAlign: "right" }}>TARJETA</th>
+                          {hasTransfers && <th style={{ textAlign: "right" }}>TRANSFERENCIA</th>}
+                          <th style={{ textAlign: "right" }}>TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dailyData.length === 0 ? (
+                          <tr>
+                            <td colSpan={hasTransfers ? 5 : 4} className={styles.emptyState} style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)" }}>
+                              No hay movimientos en este periodo
+                            </td>
+                          </tr>
+                        ) : (
+                          <>
+                            {dailyData.map((day) => (
+                              <tr key={day.dateStr}>
+                                <td style={{ textAlign: "left" }}>{day.dateStr}</td>
+                                <td style={{ textAlign: "right" }}>{day.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                                <td style={{ textAlign: "right" }}>{day.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                                {hasTransfers && (
+                                  <td style={{ textAlign: "right" }}>{day.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                                )}
+                                <td style={{ textAlign: "right", fontWeight: 600 }}>{day.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                              </tr>
+                            ))}
+                            <tr style={{ borderTop: "2px solid var(--border-color)", backgroundColor: "var(--bg-hover)" }}>
+                              <td style={{ textAlign: "left", fontWeight: 700 }}>Total periodo</td>
+                              <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.efectivo.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                              <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.tarjeta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                              {hasTransfers && (
+                                <td style={{ textAlign: "right", fontWeight: 700 }}>{summary.transferencia.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                              )}
+                              <td style={{ textAlign: "right", fontWeight: 700, color: "var(--primary)" }}>{summary.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} EUR</td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               );
