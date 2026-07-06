@@ -16,6 +16,22 @@ export async function POST(request: Request) {
 
     const cConfig = getCountryConfig(country || "ES");
 
+    // Buscar otra clínica con WhatsApp configurado para copiar credenciales
+    const configuredClinic = await prisma.clinic.findFirst({
+      where: {
+        whatsappApiUrl: { not: null },
+        whatsappApiToken: { not: null },
+        NOT: [
+          { whatsappApiUrl: "" },
+          { whatsappApiToken: "" }
+        ]
+      },
+      select: {
+        whatsappApiUrl: true,
+        whatsappApiToken: true,
+      },
+    });
+
     // 1. Create the clinic
     // 2. Connect the clinic to the requesting user
     const clinic = await prisma.clinic.create({
@@ -25,6 +41,8 @@ export async function POST(request: Request) {
         phone: phone || null,
         email: email || null,
         country: cConfig.code,
+        whatsappApiUrl: configuredClinic?.whatsappApiUrl || null,
+        whatsappApiToken: configuredClinic?.whatsappApiToken || null,
         users: {
           connect: { id: userId },
         },

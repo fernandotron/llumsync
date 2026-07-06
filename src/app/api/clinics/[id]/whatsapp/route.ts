@@ -22,9 +22,31 @@ export async function POST(
     }
 
     // Usar parámetros enviados o los que ya están en la base de datos o fallbacks globales
-    const apiUrl = whatsappApiUrl || clinic.whatsappApiUrl || process.env.WHATSAPP_API_URL;
+    let apiUrl = whatsappApiUrl || clinic.whatsappApiUrl || process.env.WHATSAPP_API_URL;
     const instanceName = whatsappInstanceName || clinic.whatsappInstanceName || `clinic-${id.slice(0, 8)}`;
-    const apiToken = whatsappApiToken || clinic.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+    let apiToken = whatsappApiToken || clinic.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+
+    // Si no están configurados localmente ni en env, buscar de otra clínica en la BD como fallback
+    if (!apiUrl || !apiToken) {
+      const configuredClinic = await prisma.clinic.findFirst({
+        where: {
+          whatsappApiUrl: { not: null },
+          whatsappApiToken: { not: null },
+          NOT: [
+            { whatsappApiUrl: "" },
+            { whatsappApiToken: "" }
+          ]
+        },
+        select: {
+          whatsappApiUrl: true,
+          whatsappApiToken: true,
+        },
+      });
+      if (configuredClinic) {
+        if (!apiUrl) apiUrl = configuredClinic.whatsappApiUrl || undefined;
+        if (!apiToken) apiToken = configuredClinic.whatsappApiToken || undefined;
+      }
+    }
 
     if (!apiUrl || !apiToken) {
       return NextResponse.json(
@@ -85,17 +107,18 @@ export async function POST(
         const connectionState = connectData.instance?.state || connectData.status;
         const isConnected = connectionState === "open" || connectionState === "CONNECTED";
 
-        if (isConnected) {
-          await prisma.clinic.update({
-            where: { id },
-            data: {
-              whatsappConnected: true,
-              whatsappInstanceName: instanceName,
-              whatsappApiUrl: apiUrl,
-              whatsappApiToken: apiToken,
-            },
-          });
+        // Guardar las credenciales en la base de datos de la clínica de todas formas
+        await prisma.clinic.update({
+          where: { id },
+          data: {
+            whatsappInstanceName: instanceName,
+            whatsappApiUrl: apiUrl,
+            whatsappApiToken: apiToken,
+            whatsappConnected: isConnected,
+          },
+        });
 
+        if (isConnected) {
           return NextResponse.json({
             instanceName,
             base64: null,
