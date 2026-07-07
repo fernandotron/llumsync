@@ -3447,11 +3447,29 @@ export default function SalesPage() {
           id: `db-pay-mov-${mov.id}`,
           fecha: movDate.toLocaleString("es-ES", { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }),
           fechaRaw: movDate,
-          transaccion: "PAGO",
+          transaccion: "INGRESO",
           usuario: "admin@clifav.com",
           nuV: `INC-${mov.id.substring(0, 4).toUpperCase()}`,
           metodoPago: getPaymentMethodText(mov.method),
           total: mov.amount,
+          reembolsado: 0,
+        });
+      });
+
+    // Merge manual expense movements
+    movements
+      .filter((m) => m.type === "EXPENSE")
+      .forEach((mov) => {
+        const movDate = new Date(mov.date);
+        items.push({
+          id: `db-pay-mov-exp-${mov.id}`,
+          fecha: movDate.toLocaleString("es-ES", { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+          fechaRaw: movDate,
+          transaccion: "GASTO",
+          usuario: "admin@clifav.com",
+          nuV: `EXP-${mov.id.substring(0, 4).toUpperCase()}`,
+          metodoPago: getPaymentMethodText(mov.method),
+          total: -mov.amount,
           reembolsado: 0,
         });
       });
@@ -6885,7 +6903,13 @@ export default function SalesPage() {
                           <td>#{533 - ((currentPage - 1) * pageSize + idx)}</td>
                           <td>{item.fecha}</td>
                           <td>
-                            <span className={styles.badgePagado}>PAGO</span>
+                            {item.transaccion === "GASTO" ? (
+                              <span className={styles.badgeGasto}>GASTO</span>
+                            ) : item.transaccion === "INGRESO" ? (
+                              <span className={styles.badgeIngreso}>INGRESO</span>
+                            ) : (
+                              <span className={styles.badgePagado}>PAGO</span>
+                            )}
                           </td>
                           <td>{item.usuario}</td>
                           <td>
