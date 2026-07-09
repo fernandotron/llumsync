@@ -8,6 +8,7 @@ import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Settings.module.css";
 import { COUNTRIES, getCountryConfig } from "@/lib/countries";
+import { translate } from "@/lib/translations";
 
 interface Clinic {
   id: string;
@@ -88,7 +89,8 @@ function SettingsTabNavigator({ setActiveTab }: { setActiveTab: (tab: any) => vo
 }
 
 export default function SettingsPage() {
-  const { activeClinic, user: currentUser, setActiveClinic } = useApp();
+  const { activeClinic, user: currentUser, setActiveClinic, language, addClinic } = useApp();
+  const t = (key: string) => translate(key, language);
   const cConfig = getCountryConfig(activeClinic?.country || "ES");
   const currencySymbol = cConfig.currency;
   const taxLabel = cConfig.taxName;
@@ -273,6 +275,17 @@ export default function SettingsPage() {
   const [clinicLogo, setClinicLogo] = useState("");
   const [clinicCountry, setClinicCountry] = useState("ES");
   const [clinicControlHorarioActivo, setClinicControlHorarioActivo] = useState(false);
+  const [isCreatingClinic, setIsCreatingClinic] = useState(false);
+  const [clinicSubTab, setClinicSubTab] = useState<"general" | "cierre" | "empleados" | "opciones">("general");
+  const [cierreStartDate, setCierreStartDate] = useState("");
+  const [cierreEndDate, setCierreEndDate] = useState("");
+  const [cierreDescription, setCierreDescription] = useState("");
+  const [cierreBlocks, setCierreBlocks] = useState<any[]>([]);
+  const [newClinicName, setNewClinicName] = useState("");
+  const [newClinicAddress, setNewClinicAddress] = useState("");
+  const [newClinicPhone, setNewClinicPhone] = useState("");
+  const [newClinicEmail, setNewClinicEmail] = useState("");
+  const [newClinicCountry, setNewClinicCountry] = useState("ES");
 
   
   // Lists
@@ -987,6 +1000,139 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchCierreBlocks = async () => {
+    if (!activeClinic) return;
+    try {
+      const res = await fetch(`/api/time-blocks?clinicId=${activeClinic.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const closures = (data || []).filter((block: any) => block.title?.startsWith("Cierre:"));
+        
+        // Group by start/end/title to avoid duplicates per employee
+        const uniqueClosures: any[] = [];
+        closures.forEach((block: any) => {
+          const isDup = uniqueClosures.some(u => 
+            u.start === block.start && 
+            u.end === block.end && 
+            u.title === block.title
+          );
+          if (!isDup) {
+            uniqueClosures.push(block);
+          }
+        });
+        
+        setCierreBlocks(uniqueClosures);
+      }
+    } catch (err) {
+      console.error("Error fetching closures:", err);
+    }
+  };
+
+  const handleCreateCierre = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeClinic) return;
+    if (!cierreStartDate || !cierreEndDate) {
+      alert("Por favor, introduce las fechas de inicio y fin.");
+      return;
+    }
+
+    const startDt = new Date(cierreStartDate);
+    startDt.setHours(0, 0, 0, 0);
+    const endDt = new Date(cierreEndDate);
+    endDt.setHours(23, 59, 59, 999);
+
+    if (endDt < startDt) {
+      alert("La fecha de fin no puede ser anterior a la fecha de inicio.");
+      return;
+    }
+
+    // Create a time block for each employee (to block their agenda)
+    const employeesToBlock = staff.length > 0 ? staff : (currentUser ? [currentUser] : []);
+    
+    try {
+      const promises = employeesToBlock.map(emp => {
+        return fetch("/api/time-blocks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `Cierre: ${cierreDescription || "Cierre de consulta"}`,
+            userId: emp.id,
+            clinicId: activeClinic.id,
+            start: startDt.toISOString(),
+            end: endDt.toISOString(),
+            notes: cierreDescription || "Cierre de consulta"
+          })
+        });
+      });
+
+      const results = await Promise.all(promises);
+      const allOk = results.every(res => res.ok);
+
+      if (allOk) {
+        alert("Fecha de cierre guardada y agenda bloqueada correctamente.");
+        setCierreStartDate("");
+        setCierreEndDate("");
+        setCierreDescription("");
+        fetchCierreBlocks();
+      } else {
+        alert("Hubo un error al guardar algunos bloqueos en la agenda.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de red al guardar la fecha de cierre.");
+    }
+  };
+
+  const handleDeleteCierre = async (cierre: any) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar este cierre y desbloquear la agenda?`)) return;
+
+    try {
+      const res = await fetch(`/api/time-blocks?clinicId=${activeClinic?.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const matches = (data || []).filter((block: any) => 
+          block.start === cierre.start && 
+          block.end === cierre.end && 
+          block.title === cierre.title
+        );
+
+        const deletePromises = matches.map((block: any) => {
+          return fetch(`/api/time-blocks/${block.id}`, {
+            method: "DELETE"
+          });
+        });
+
+        await Promise.all(deletePromises);
+        alert("Cierre eliminado y agenda desbloqueada.");
+        fetchCierreBlocks();
+      }
+    } catch (err) {
+      console.error("Error deleting closure:", err);
+      alert("Error al eliminar el cierre.");
+    }
+  };
+
+  const handleDeleteClinic = async () => {
+    if (!activeClinic) return;
+    if (!confirm(t("deleteClinicConfirm").replace("{name}", activeClinic.name))) return;
+
+    try {
+      const res = await fetch(`/api/clinics/${activeClinic.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert(t("deleteClinicSuccess"));
+        window.location.href = "/dashboard/agenda";
+      } else {
+        alert("Error al eliminar la consulta.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de red al eliminar la consulta.");
+    }
+  };
+
   const fetchData = () => {
     if (!activeClinic) return;
     
@@ -1058,10 +1204,12 @@ export default function SettingsPage() {
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setEpisodeForms(d); });
     fetch(`/api/client-forms?clinicId=${activeClinic.id}`)
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setClientForms(d); });
+    fetchCierreBlocks();
   };
 
   useEffect(() => {
     fetchData();
+    setClinicSubTab("general");
   }, [activeClinic]);
 
   // Default to clinic tab on desktop if none selected
@@ -2047,6 +2195,42 @@ export default function SettingsPage() {
     }
   };
 
+  // Create new clinic
+  const handleCreateClinic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const payload = {
+      name: newClinicName,
+      address: newClinicAddress,
+      phone: newClinicPhone || null,
+      email: newClinicEmail || null,
+      country: newClinicCountry,
+      userId: currentUser.id
+    };
+
+    try {
+      const res = await fetch("/api/clinics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const createdClinic = await res.json();
+        addClinic(createdClinic);
+        setIsCreatingClinic(false);
+        alert(t("timezone") === "Time Zone" ? "Clinic created successfully." : t("timezone") === "Zona horària" ? "Consulta creada correctament." : t("timezone") === "Ordu-eremua" ? "Kontsulta ondo sortu da." : "Consulta creada con éxito.");
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || "Error al crear la consulta");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de red al crear la consulta");
+    }
+  };
+
   // Update clinic settings
   const handleUpdateClinic = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2209,6 +2393,13 @@ export default function SettingsPage() {
     if (newStaffClinics.length === 0) {
       alert("Debes seleccionar al menos una clínica");
       return;
+    }
+
+    if (staff.length >= 5) {
+      const confirmAdd = window.confirm(translate("confirmExtraUserCost", language));
+      if (!confirmAdd) {
+        return;
+      }
     }
 
     const payload = {
@@ -2713,7 +2904,7 @@ export default function SettingsPage() {
       {/* Header */}
       <header className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <h1 className={styles.title}>Configuración</h1>
+          <h1 className={styles.title}>{translate("settingsTitle", language)}</h1>
           <span className={styles.clinicSubtitle}>{activeClinic?.name}</span>
         </div>
       </header>
@@ -2724,7 +2915,7 @@ export default function SettingsPage() {
         <div className={styles.settingsSidebar}>
           {/* Group 1: Mi Consulta */}
           <div className={styles.sidebarGroup}>
-            <span className={styles.sidebarGroupTitle}>Mi Consulta</span>
+            <span className={styles.sidebarGroupTitle}>{t("myClinic")}</span>
             {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Ver configuración")) && (
               <button 
                 type="button"
@@ -2732,7 +2923,7 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab("clinic")}
               >
                 <Icons.Info size={16} />
-                <span>Información General</span>
+                <span>{t("generalInfo")}</span>
               </button>
             )}
             {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Configurar servicios")) && (
@@ -2742,7 +2933,7 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab("services")}
               >
                 <Icons.CalendarClock size={16} />
-                <span>Servicios Clínicos</span>
+                <span>{t("clinicServices")}</span>
               </button>
             )}
             {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Configurar notificaciones")) && (
@@ -2756,14 +2947,14 @@ export default function SettingsPage() {
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "2px" }}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                <span>Notificaciones</span>
+                <span>{t("notifications")}</span>
               </button>
             )}
           </div>
 
           {/* Group 2: Personal y Gestión */}
           <div className={styles.sidebarGroup}>
-            <span className={styles.sidebarGroupTitle}>Personal y Gestión</span>
+            <span className={styles.sidebarGroupTitle}>{t("staffAndSchedule")}</span>
             {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Editar su propio horario")) && (
               <button 
                 type="button"
@@ -2771,7 +2962,7 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab("users")}
               >
                 <Icons.Users size={16} />
-                <span>Usuarios y Horarios</span>
+                <span>{t("usersAndSchedules")}</span>
               </button>
             )}
             {currentUser?.role === "ADMIN" && (
@@ -2784,7 +2975,7 @@ export default function SettingsPage() {
                 }}
               >
                 <Icons.DollarCircle size={16} />
-                <span>Liquidaciones y Comisiones</span>
+                <span>{t("commissionsAndPayroll")}</span>
               </button>
             )}
             {currentUser?.role === "ADMIN" && (
@@ -2794,14 +2985,14 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab("bonos")}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"></path><path d="M12 5v14"></path></svg>
-                <span>Bonos</span>
+                <span>{t("bonusSection")}</span>
               </button>
             )}
           </div>
 
           {/* Group 3: Facturación */}
           <div className={styles.sidebarGroup}>
-            <span className={styles.sidebarGroupTitle}>Facturación</span>
+            <span className={styles.sidebarGroupTitle}>{t("billingSection")}</span>
             {(currentUser?.role === "ADMIN") && (
               <button
                 type="button"
@@ -2822,14 +3013,14 @@ export default function SettingsPage() {
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                <span>Datos Fiscales</span>
+                <span>{t("fiscalData")}</span>
               </button>
             )}
           </div>
 
           {/* Group 4: Configuración Clínica */}
           <div className={styles.sidebarGroup}>
-            <span className={styles.sidebarGroupTitle}>Configuración Clínica</span>
+            <span className={styles.sidebarGroupTitle}>{t("clinicConfig")}</span>
             {currentUser?.role === "ADMIN" && (
               <button 
                 type="button"
@@ -2837,7 +3028,7 @@ export default function SettingsPage() {
                 onClick={() => { setActiveTab("formularios"); }}
               >
                 <Icons.FileText size={16} />
-                <span>Formularios Personalizados</span>
+                <span>{t("customForms")}</span>
               </button>
             )}
             {currentUser?.role === "ADMIN" && (
@@ -2847,14 +3038,14 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab("documents")}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                <span>Plantillas Documentos</span>
+                <span>{t("documentTemplates")}</span>
               </button>
             )}
           </div>
 
           {/* Group 4: Herramientas y Sistema */}
           <div className={styles.sidebarGroup}>
-            <span className={styles.sidebarGroupTitle}>Herramientas y Sistema</span>
+            <span className={styles.sidebarGroupTitle}>{t("toolsAndSystem")}</span>
             {currentUser?.role === "ADMIN" && (
               <button 
                 type="button"
@@ -2866,7 +3057,7 @@ export default function SettingsPage() {
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                <span>Almacén e Inventario</span>
+                <span>{t("warehouseInventory")}</span>
               </button>
             )}
             {currentUser?.role === "ADMIN" && (
@@ -2876,7 +3067,7 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab("sync")}
               >
                 <Icons.Sync size={16} />
-                <span>Sincronizar Google</span>
+                <span>{t("syncGoogle")}</span>
               </button>
             )}
             {currentUser?.role === "ADMIN" && (
@@ -2886,7 +3077,7 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab("import")}
               >
                 <Icons.Download size={16} />
-                <span>Importar Contactos</span>
+                <span>{t("importContacts")}</span>
               </button>
             )}
             {currentUser?.role === "ADMIN" && (
@@ -2910,7 +3101,7 @@ export default function SettingsPage() {
                 }}
               >
                 <Icons.Trash size={16} />
-                <span>Papelera</span>
+                <span>{t("trash")}</span>
               </button>
             )}
           </div>
@@ -2944,117 +3135,567 @@ export default function SettingsPage() {
           )}
         {/* TAB 1: Clinic Profile */}
         {activeTab === "clinic" && (
-          <form onSubmit={handleUpdateClinic} className={styles.formLayout}>
-            <h3>Editar Datos de Consulta</h3>
-            
-            <div className="form-group">
-              <label className="form-label">Nombre del Centro Clínico *</label>
-              <input
-                type="text"
-                className="input"
-                value={clinicName}
-                onChange={(e) => setClinicName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Dirección Completa *</label>
-              <input
-                type="text"
-                className="input"
-                value={clinicAddress}
-                onChange={(e) => setClinicAddress(e.target.value)}
-                required
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: "16px" }}>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">Teléfono de Atención</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={clinicPhone}
-                  onChange={(e) => setClinicPhone(e.target.value)}
-                />
-              </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">Email Corporativo</label>
-                <input
-                  type="email"
-                  className="input"
-                  value={clinicEmail}
-                  onChange={(e) => setClinicEmail(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Simular Logotipo (Base64 o URL)</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="Introducir ruta de logotipo..."
-                value={clinicLogo}
-                onChange={(e) => setClinicLogo(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">País de la consulta *</label>
-              <select
-                className="input"
-                value={clinicCountry}
-                onChange={(e) => setClinicCountry(e.target.value)}
-                required
-                style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid var(--border-color)", padding: "0 12px", background: "var(--bg-input)", color: "var(--text-primary)" }}
-              >
-                {Object.values(COUNTRIES).map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginTop: "24px", padding: "16px", background: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-color)", marginBottom: "24px" }}>
-              <h4 style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700 }}>Opciones Avanzadas de la Consulta</h4>
-              <p style={{ margin: "0 0 16px", color: "var(--text-secondary)", fontSize: "12px" }}>Habilita o deshabilita funcionalidades avanzadas del sistema.</p>
+          <div className={styles.clinicTabContainer}>
+            {/* Left Column: Selector de Consultas */}
+            <div className={styles.clinicSelectorSidebar}>
+              <h3 style={{ fontSize: "16px", fontWeight: "700", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px", margin: 0 }}>
+                {t("timezone") === "Time Zone" ? "Clinics" : t("timezone") === "Zona horària" ? "Consultes" : t("timezone") === "Ordu-eremua" ? "Kontsultak" : "Consultas"}
+              </h3>
               
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <span style={{ fontSize: "13px", fontWeight: 600, display: "block" }}>⏰ Activar Control Horario</span>
-                  <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Permite a los profesionales fichar su jornada y pausas diarias.</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <label style={{ display: "inline-block", position: "relative", width: "44px", height: "24px", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={clinicControlHorarioActivo}
-                      onChange={(e) => setClinicControlHorarioActivo(e.target.checked)}
-                      style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span style={{
-                      position: "absolute", inset: 0, borderRadius: "24px", transition: "all 0.2s",
-                      backgroundColor: clinicControlHorarioActivo ? "var(--primary)" : "var(--border-color)"
-                    }}>
-                      <span style={{
-                        position: "absolute", height: "18px", width: "18px", left: "3px", bottom: "3px",
-                        backgroundColor: "#fff", borderRadius: "50%", transition: "all 0.2s",
-                        transform: clinicControlHorarioActivo ? "translateX(20px)" : "translateX(0)"
-                      }} />
-                    </span>
-                  </label>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {(currentUser?.clinics || []).map((clinic) => {
+                  const isActive = clinic.id === activeClinic?.id && !isCreatingClinic;
+                  return (
+                    <button
+                      key={clinic.id}
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingClinic(false);
+                        setActiveClinic(clinic);
+                      }}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "12px 16px",
+                        borderRadius: "8px",
+                        border: isActive ? "none" : "1px solid var(--border-color)",
+                        background: isActive ? "#005d7f" : "var(--bg-input)",
+                        color: isActive ? "#ffffff" : "var(--text-primary)",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        cursor: "pointer",
+                        boxShadow: isActive ? "0 4px 6px -1px rgba(0, 93, 127, 0.2)" : "none",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      {clinic.name}
+                    </button>
+                  );
+                })}
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreatingClinic(true);
+                  setNewClinicName("");
+                  setNewClinicAddress("");
+                  setNewClinicPhone("");
+                  setNewClinicEmail("");
+                  setNewClinicCountry(activeClinic?.country || "ES");
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "center",
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  border: isCreatingClinic ? "2px solid #005d7f" : "1px solid #005d7f",
+                  background: isCreatingClinic ? "rgba(0, 93, 127, 0.08)" : "transparent",
+                  color: "#005d7f",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                {t("timezone") === "Time Zone" ? "Add new clinic" : t("timezone") === "Zona horària" ? "Afegir nova consulta" : t("timezone") === "Ordu-eremua" ? "Gehitu kontsulta berria" : "Añadir nueva consulta"}
+              </button>
             </div>
 
+            {/* Right Column: Edit/Create Form */}
+            <div className={styles.clinicFormSection}>
+              {isCreatingClinic ? (
+                <form onSubmit={handleCreateClinic} className={styles.formLayout}>
+                  <h3 style={{ margin: "0 0 20px 0", fontSize: "18px", fontWeight: "700" }}>
+                    {t("timezone") === "Time Zone" ? "Create New Clinic" : t("timezone") === "Zona horària" ? "Crear Nova Consulta" : t("timezone") === "Ordu-eremua" ? "Kontsulta Berria Sortu" : "Añadir Nueva Consulta"}
+                  </h3>
+                  
+                  <div className="form-group">
+                    <label className="form-label">
+                      {t("timezone") === "Time Zone" ? "Clinical Center Name *" : t("timezone") === "Zona horària" ? "Nom del Centre Clínic *" : t("timezone") === "Ordu-eremua" ? "Zentro Klinikoaren Izena *" : "Nombre del Centro Clínico *"}
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={newClinicName}
+                      onChange={(e) => setNewClinicName(e.target.value)}
+                      required
+                    />
+                  </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: "fit-content" }}>
-              Guardar Cambios
-            </button>
-          </form>
+                  <div className="form-group">
+                    <label className="form-label">
+                      {t("timezone") === "Time Zone" ? "Full Address *" : t("timezone") === "Zona horària" ? "Adreça Completa *" : t("timezone") === "Ordu-eremua" ? "Helbide Osoa *" : "Dirección Completa *"}
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={newClinicAddress}
+                      onChange={(e) => setNewClinicAddress(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", gap: "16px" }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">
+                        {t("timezone") === "Time Zone" ? "Support Phone" : t("timezone") === "Zona horària" ? "Telèfon d'Atenció" : t("timezone") === "Ordu-eremua" ? "Arreta Telefonoa" : "Teléfono de Atención"}
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={newClinicPhone}
+                        onChange={(e) => setNewClinicPhone(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">
+                        {t("timezone") === "Time Zone" ? "Corporate Email" : t("timezone") === "Zona horària" ? "Email Corporatiu" : t("timezone") === "Ordu-eremua" ? "Email Korporatiboa" : "Email Corporativo"}
+                      </label>
+                      <input
+                        type="email"
+                        className="input"
+                        value={newClinicEmail}
+                        onChange={(e) => setNewClinicEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">
+                      {t("timezone") === "Time Zone" ? "Clinic Country *" : t("timezone") === "Zona horària" ? "País de la consulta *" : t("timezone") === "Ordu-eremua" ? "Kontsultaren herrialdea *" : "País de la consulta *"}
+                    </label>
+                    <select
+                      className="input"
+                      value={newClinicCountry}
+                      onChange={(e) => setNewClinicCountry(e.target.value)}
+                      required
+                      style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid var(--border-color)", padding: "0 12px", background: "var(--bg-input)", color: "var(--text-primary)" }}
+                    >
+                      {Object.values(COUNTRIES).map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button type="submit" className="btn btn-primary" style={{ width: "fit-content", marginTop: "16px" }}>
+                    {t("timezone") === "Time Zone" ? "Create Clinic" : t("timezone") === "Zona horària" ? "Crear Consulta" : t("timezone") === "Ordu-eremua" ? "Kontsulta Sortu" : "Crear Consulta"}
+                  </button>
+                </form>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                  {/* Sub tabs header */}
+                  <div style={{
+                    display: "flex",
+                    gap: "24px",
+                    borderBottom: "1px solid var(--border-color)",
+                    marginBottom: "24px",
+                    paddingBottom: "2px",
+                    overflowX: "auto"
+                  }}>
+                    {(["general", "cierre", "empleados", "opciones"] as const).map((tab) => {
+                      const label = 
+                        tab === "general" ? t("generalData") :
+                        tab === "cierre" ? t("closingDates") :
+                        tab === "empleados" ? t("employees") :
+                        t("moreOptions");
+                      
+                      const isActive = clinicSubTab === tab;
+                      return (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => {
+                            setClinicSubTab(tab);
+                            if (tab === "cierre") {
+                              fetchCierreBlocks();
+                            }
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            padding: "10px 4px",
+                            fontSize: "14px",
+                            fontWeight: isActive ? "700" : "500",
+                            color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                            cursor: "pointer",
+                            borderBottom: isActive ? "2px solid #005d7f" : "2px solid transparent",
+                            whiteSpace: "nowrap",
+                            transition: "all 0.15s ease"
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Sub Tab contents */}
+                  {clinicSubTab === "general" && (
+                    <form onSubmit={handleUpdateClinic} className={styles.formLayout}>
+                      <div className="form-group">
+                        <label className="form-label">
+                          {t("timezone") === "Time Zone" ? "Clinical Center Name *" : t("timezone") === "Zona horària" ? "Nom del Centre Clínic *" : t("timezone") === "Ordu-eremua" ? "Zentro Klinikoaren Izena *" : "Nombre del Centro Clínico *"}
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={clinicName}
+                          onChange={(e) => setClinicName(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">
+                          {t("timezone") === "Time Zone" ? "Full Address *" : t("timezone") === "Zona horària" ? "Adreça Completa *" : t("timezone") === "Ordu-eremua" ? "Helbide Osoa *" : "Dirección Completa *"}
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          value={clinicAddress}
+                          onChange={(e) => setClinicAddress(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", gap: "16px" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label className="form-label">
+                            {t("timezone") === "Time Zone" ? "Support Phone" : t("timezone") === "Zona horària" ? "Telèfon d'Atenció" : t("timezone") === "Ordu-eremua" ? "Arreta Telefonoa" : "Teléfono de Atención"}
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            value={clinicPhone}
+                            onChange={(e) => setClinicPhone(e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label className="form-label">
+                            {t("timezone") === "Time Zone" ? "Corporate Email" : t("timezone") === "Zona horària" ? "Email Corporatiu" : t("timezone") === "Ordu-eremua" ? "Email Korporatiboa" : "Email Corporativo"}
+                          </label>
+                          <input
+                            type="email"
+                            className="input"
+                            value={clinicEmail}
+                            onChange={(e) => setClinicEmail(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">
+                          {t("timezone") === "Time Zone" ? "Simulate Logo (Base64 or URL)" : t("timezone") === "Zona horària" ? "Simular Logotip (Base64 o URL)" : t("timezone") === "Ordu-eremua" ? "Logotipoa Simulatu (Base64 edo URL)" : "Simular Logotipo (Base64 o URL)"}
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          placeholder="Introducir ruta de logotipo..."
+                          value={clinicLogo}
+                          onChange={(e) => setClinicLogo(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">
+                          {t("timezone") === "Time Zone" ? "Clinic Country *" : t("timezone") === "Zona horària" ? "País de la consulta *" : t("timezone") === "Ordu-eremua" ? "Kontsultaren herrialdea *" : "País de la consulta *"}
+                        </label>
+                        <select
+                          className="input"
+                          value={clinicCountry}
+                          onChange={(e) => setClinicCountry(e.target.value)}
+                          required
+                          style={{ width: "100%", height: "42px", borderRadius: "8px", border: "1px solid var(--border-color)", padding: "0 12px", background: "var(--bg-input)", color: "var(--text-primary)" }}
+                        >
+                          {Object.values(COUNTRIES).map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ marginTop: "24px", padding: "16px", background: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-color)", marginBottom: "24px" }}>
+                        <h4 style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700 }}>
+                          {t("timezone") === "Time Zone" ? "Advanced Clinic Options" : t("timezone") === "Zona horària" ? "Opcions Avançades de la Consulta" : t("timezone") === "Ordu-eremua" ? "Kontsultaren Aukera Aurreratuak" : "Opciones Avanzadas de la Consulta"}
+                        </h4>
+                        <p style={{ margin: "0 0 16px", color: "var(--text-secondary)", fontSize: "12px" }}>
+                          {t("timezone") === "Time Zone" ? "Enable or disable advanced system features." : t("timezone") === "Zona horària" ? "Habilita o deshabilita funcionalitats avançades del sistema." : t("timezone") === "Ordu-eremua" ? "Sistemako aukera aurreratuak gaitu edo desgaitu." : "Habilita o deshabilita funcionalidades avanzadas del sistema."}
+                        </p>
+                        
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <span style={{ fontSize: "13px", fontWeight: 600, display: "block" }}>⏰ {t("timezone") === "Time Zone" ? "Activate Time Tracking" : t("timezone") === "Zona horària" ? "Activar Control Horari" : t("timezone") === "Ordu-eremua" ? "Denbora Kontrola Aktibatu" : "Activar Control Horario"}</span>
+                            <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                              {t("timezone") === "Time Zone" ? "Allows professionals to track their work day and daily breaks." : t("timezone") === "Zona horària" ? "Permet als professionals fitxar la seva jornada i pauses diàries." : t("timezone") === "Ordu-eremua" ? "Profesionalei euren laneguna eta eguneroko atsedenaldiak erregistratzen uzten die." : "Permite a los profesionales fichar su jornada y pausas diarias."}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <label style={{ display: "inline-block", position: "relative", width: "44px", height: "24px", cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={clinicControlHorarioActivo}
+                                onChange={(e) => setClinicControlHorarioActivo(e.target.checked)}
+                                style={{ opacity: 0, width: 0, height: 0 }}
+                              />
+                              <span style={{
+                                position: "absolute", inset: 0, borderRadius: "24px", transition: "all 0.2s",
+                                backgroundColor: clinicControlHorarioActivo ? "var(--primary)" : "var(--border-color)"
+                              }}>
+                                <span style={{
+                                  position: "absolute", height: "18px", width: "18px", left: "3px", bottom: "3px",
+                                  backgroundColor: "#fff", borderRadius: "50%", transition: "all 0.2s",
+                                  transform: clinicControlHorarioActivo ? "translateX(20px)" : "translateX(0)"
+                                }} />
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button type="submit" className="btn btn-primary" style={{ width: "fit-content" }}>
+                        {t("timezone") === "Time Zone" ? "Save Changes" : t("timezone") === "Zona horària" ? "Desar Canvis" : t("timezone") === "Ordu-eremua" ? "Aldaketak Gorde" : "Guardar Cambios"}
+                      </button>
+                    </form>
+                  )}
+
+                  {clinicSubTab === "cierre" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                      <div style={{
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "8px",
+                        padding: "24px",
+                        maxWidth: "500px"
+                      }}>
+                        <h4 style={{ margin: "0 0 8px 0", fontSize: "14px", fontWeight: "700", color: "#005d7f" }}>
+                          {t("addClosingDates")}
+                        </h4>
+                        <p style={{ margin: "0 0 20px 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                          {t("calendarClosedNotice")}
+                        </p>
+
+                        <form onSubmit={handleCreateCierre} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                          <div style={{ display: "flex", gap: "16px" }}>
+                            <div className="form-group" style={{ flex: 1 }}>
+                              <label className="form-label" style={{ fontSize: "12px", fontWeight: 600 }}>
+                                {t("startDate")} *
+                              </label>
+                              <input
+                                type="date"
+                                className="input"
+                                value={cierreStartDate}
+                                onChange={(e) => setCierreStartDate(e.target.value)}
+                                required
+                              />
+                            </div>
+                            
+                            <div className="form-group" style={{ flex: 1 }}>
+                              <label className="form-label" style={{ fontSize: "12px", fontWeight: 600 }}>
+                                {t("descriptionLabel")}
+                              </label>
+                              <input
+                                type="text"
+                                className="input"
+                                placeholder={t("timezone") === "Time Zone" ? "Vacations, holiday..." : "Vacaciones, festivo..."}
+                                value={cierreDescription}
+                                onChange={(e) => setCierreDescription(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: "16px" }}>
+                            <div className="form-group" style={{ flex: 1, maxWidth: "calc(50% - 8px)" }}>
+                              <label className="form-label" style={{ fontSize: "12px", fontWeight: 600 }}>
+                                {t("endDate")} *
+                              </label>
+                              <input
+                                type="date"
+                                className="input"
+                                value={cierreEndDate}
+                                onChange={(e) => cierreEndDate ? setCierreEndDate(e.target.value) : setCierreEndDate(e.target.value)}
+                                required
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "12px" }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => {
+                                setCierreStartDate("");
+                                setCierreEndDate("");
+                                setCierreDescription("");
+                              }}
+                              style={{ fontSize: "13px" }}
+                            >
+                              {t("cancel") || (t("timezone") === "Time Zone" ? "Cancel" : "Cancelar")}
+                            </button>
+                            <button
+                              type="submit"
+                              className="btn btn-primary"
+                              style={{ fontSize: "13px" }}
+                            >
+                              {t("save") || (t("timezone") === "Time Zone" ? "Save" : "Guardar")}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+
+                      {/* List of existing closures */}
+                      {cierreBlocks.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "700" }}>
+                            {t("timezone") === "Time Zone" ? "Configured Closures" : "Cierres Configurados"}
+                          </h4>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {cierreBlocks.map((block) => {
+                              const startStr = new Date(block.start).toLocaleDateString("es-ES");
+                              const endStr = new Date(block.end).toLocaleDateString("es-ES");
+                              return (
+                                <div
+                                  key={block.id}
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    padding: "12px 16px",
+                                    background: "var(--bg-card)",
+                                    border: "1px solid var(--border-color)",
+                                    borderRadius: "8px",
+                                    maxWidth: "500px"
+                                  }}
+                                >
+                                  <div>
+                                    <strong style={{ fontSize: "13px", display: "block" }}>{block.title.replace("Cierre: ", "")}</strong>
+                                    <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{startStr} - {endStr}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteCierre(block)}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: "var(--accent)",
+                                      cursor: "pointer",
+                                      fontSize: "12px",
+                                      fontWeight: 600
+                                    }}
+                                  >
+                                    {t("timezone") === "Time Zone" ? "Delete" : "Eliminar"}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {clinicSubTab === "empleados" && (
+                    <div style={{
+                      background: "var(--bg-card)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                      padding: "24px",
+                      maxWidth: "400px"
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px", marginBottom: "16px" }}>
+                        <Icons.Users size={18} style={{ color: "var(--text-secondary)" }} />
+                        <span style={{ fontSize: "14px", fontWeight: "700" }}>
+                          {t("timezone") === "Time Zone" ? "Employees" : "Empleados"}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        {staff.length === 0 ? (
+                          <p style={{ margin: 0, fontSize: "13px", color: "var(--text-secondary)", fontStyle: "italic" }}>
+                            {t("timezone") === "Time Zone" ? "No employees registered for this clinic." : "No hay empleados registrados para esta consulta."}
+                          </p>
+                        ) : (
+                          staff.map((emp) => (
+                            <div
+                              key={emp.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "12px",
+                                padding: "10px 12px",
+                                background: "var(--bg-input)",
+                                border: "1px solid var(--border-color)",
+                                borderRadius: "6px"
+                              }}
+                            >
+                              <div style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "50%",
+                                background: "#e2e8f0",
+                                color: "var(--text-secondary)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "16px",
+                                fontWeight: "bold"
+                              }}>
+                                {emp.name.charAt(0)}{emp.lastName?.charAt(0) || ""}
+                              </div>
+                              <div>
+                                <strong style={{ fontSize: "13px", display: "block", color: "var(--text-primary)" }}>{emp.name} {emp.lastName || ""}</strong>
+                                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{activeClinic?.name}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {clinicSubTab === "opciones" && (
+                    <div style={{
+                      background: "var(--bg-card)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                      padding: "24px",
+                      maxWidth: "500px"
+                    }}>
+                      <h4 style={{ margin: "0 0 16px 0", fontSize: "14px", fontWeight: "700", color: "#005d7f" }}>
+                        {t("timezone") === "Time Zone" ? `More options for ${activeClinic?.name}` : `Más opciones para ${activeClinic?.name}`}
+                      </h4>
+
+                      <button
+                        type="button"
+                        onClick={handleDeleteClinic}
+                        style={{
+                          width: "100%",
+                          maxWidth: "240px",
+                          padding: "10px 16px",
+                          borderRadius: "6px",
+                          border: "1px solid var(--accent)",
+                          background: "transparent",
+                          color: "var(--accent)",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          textAlign: "center",
+                          transition: "all 0.2s"
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.06)"; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
+                      >
+                        {t("timezone") === "Time Zone" ? "Delete this clinic" : "Eliminar esta consulta"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* TAB 2: Services list and creation */}

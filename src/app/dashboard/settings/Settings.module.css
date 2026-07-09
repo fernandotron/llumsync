@@ -2101,3 +2101,37 @@
     display: flex !important;
   }
 }
+
+.clinicTabContainer {
+  display: flex;
+  gap: 32px;
+  width: 100%;
+}
+
+.clinicSelectorSidebar {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  padding-right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.clinicFormSection {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .clinicTabContainer {
+    flex-direction: column;
+    gap: 24px;
+  }
+  .clinicSelectorSidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding-right: 0;
+    padding-bottom: 20px;
+  }
+}

@@ -245,7 +245,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, status, notes, start, end, userId, serviceId, actorName, actorId, tags } = body;
+    const { id, status, notes, start, end, userId, serviceId, clinicId, actorName, actorId, tags } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Falta ID de cita a actualizar" }, { status: 400 });
@@ -268,6 +268,7 @@ export async function PUT(request: Request) {
     if (end) updateData.end = new Date(end);
     if (userId) updateData.userId = userId;
     if (serviceId) updateData.serviceId = serviceId;
+    if (clinicId) updateData.clinicId = clinicId;
     if (tags !== undefined) updateData.tags = tags;
 
     const appointment = await prisma.appointment.update({

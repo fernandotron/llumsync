@@ -49,6 +49,10 @@ interface AppContextType {
   setMobileSidebarOpen: (open: boolean) => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
+  chatbotOpen: boolean;
+  setChatbotOpen: (open: boolean) => void;
+  language: string;
+  setLanguage: (lang: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -59,11 +63,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [chatbotOpen, setChatbotOpen] = useState<boolean>(false);
+  const [language, setLanguageState] = useState<string>("Español");
   const router = useRouter();
   const pathname = usePathname();
 
-  // Load theme and apply it to document element
+  // Load language, theme and apply it
   useEffect(() => {
+    const savedLang = localStorage.getItem("clifav_lang") || "Español";
+    setLanguageState(savedLang);
+
     const savedTheme = localStorage.getItem("clifav_theme") as "light" | "dark" | null;
     if (savedTheme) {
       setTheme(savedTheme);
@@ -188,6 +197,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setLanguage = (lang: string) => {
+    setLanguageState(lang);
+    localStorage.setItem("clifav_lang", lang);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -204,6 +218,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setMobileSidebarOpen,
         theme,
         toggleTheme,
+        chatbotOpen,
+        setChatbotOpen,
+        language,
+        setLanguage,
       }}
     >
       {children}

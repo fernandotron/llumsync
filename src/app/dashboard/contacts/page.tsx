@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Contacts.module.css";
+import { translate } from "@/lib/translations";
 import { getCountryConfig } from "@/lib/countries";
 
 interface Client {
@@ -56,7 +57,8 @@ interface ColumnConfig {
 }
 
 export default function ContactsPage() {
-  const { activeClinic, user: currentUser } = useApp();
+  const { activeClinic, user: currentUser, language } = useApp();
+  const t = (key: string) => translate(key, language);
   const cConfig = getCountryConfig(activeClinic?.country || "ES");
   const identityLabel = cConfig.idName;
   const router = useRouter();
@@ -98,26 +100,26 @@ export default function ContactsPage() {
 
   // Column Visibility Config
   const [columns, setColumns] = useState<ColumnConfig[]>([
-    { key: "clientNumber", label: "Nº Cliente", visible: true },
-    { key: "firstName", label: "Nombre", visible: true },
-    { key: "lastName", label: "Apellidos", visible: true },
-    { key: "phone", label: "Teléfono", visible: true },
-    { key: "email", label: "Email", visible: true },
+    { key: "clientNumber", label: t("colClientNum"), visible: true },
+    { key: "firstName", label: t("colFirstName"), visible: true },
+    { key: "lastName", label: t("colLastName"), visible: true },
+    { key: "phone", label: t("colPhone"), visible: true },
+    { key: "email", label: t("colEmail"), visible: true },
     { key: "dniNif", label: identityLabel, visible: true },
-    { key: "birthDate", label: "Fecha Nacimiento", visible: false },
-    { key: "gender", label: "Género", visible: false },
-    { key: "createdAt", label: "Fecha Creación", visible: true },
-    { key: "lastAppointment", label: "Última Cita", visible: true },
-    { key: "tags", label: "Etiquetas", visible: true },
-    { key: "address", label: "Dirección", visible: false },
-    { key: "municipality", label: "Municipio", visible: false },
-    { key: "postalCode", label: "Código Postal", visible: false },
-    { key: "country", label: "País", visible: false },
+    { key: "birthDate", label: t("colBirthDate"), visible: false },
+    { key: "gender", label: t("colGender"), visible: false },
+    { key: "createdAt", label: t("colCreationDate"), visible: true },
+    { key: "lastAppointment", label: t("colLastAppt"), visible: true },
+    { key: "tags", label: t("colTags"), visible: true },
+    { key: "address", label: t("colAddress"), visible: false },
+    { key: "municipality", label: t("colMunicipality"), visible: false },
+    { key: "postalCode", label: t("colPostalCode"), visible: false },
+    { key: "country", label: t("country"), visible: false },
     { key: "iban", label: "IBAN", visible: false },
-    { key: "aestheticTreatments", label: "Trat. Estéticos Previos", visible: false },
-    { key: "allergies", label: "Alergias", visible: false },
-    { key: "medication", label: "Medicación", visible: false },
-    { key: "medicalHistory", label: "Antecedentes Médicos", visible: false },
+    { key: "aestheticTreatments", label: t("colAestheticTreatments"), visible: false },
+    { key: "allergies", label: t("colAllergies"), visible: false },
+    { key: "medication", label: t("colMedication"), visible: false },
+    { key: "medicalHistory", label: t("colMedicalHistory"), visible: false },
   ]);
 
   // Dropdown states
@@ -643,7 +645,7 @@ export default function ContactsPage() {
       {/* Header Panel */}
       <header className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <h1 className={styles.title}>Contactos</h1>
+          <h1 className={styles.title}>{translate("contactsTitle", language)}</h1>
           <span className={styles.clinicSubtitle}>{activeClinic?.name}</span>
         </div>
 
@@ -658,12 +660,12 @@ export default function ContactsPage() {
               }}
             >
               <Icons.Settings size={18} />
-              <span>Columnas</span>
+              <span>{t("columns")}</span>
             </button>
             
             {showColumnDropdown && (
               <div className={`${styles.dropdownMenu} glass`}>
-                <div className={styles.dropdownHeader}>Columnas Visibles</div>
+                <div className={styles.dropdownHeader}>{t("visibleColumns")}</div>
                 <div className={styles.dropdownList}>
                   {columns.map((col) => (
                     <label key={col.key} className={styles.dropdownItemLabel}>
@@ -691,43 +693,43 @@ export default function ContactsPage() {
               }}
             >
               <Icons.Filter size={18} />
-              <span>Filtros</span>
+              <span>{t("filters")}</span>
             </button>
 
             {showFilterDropdown && (
               <div className={`${styles.filterDropdownMenu} glass`}>
-                <div className={styles.dropdownHeader}>Filtros Avanzados</div>
+                <div className={styles.dropdownHeader}>{t("advancedFilters")}</div>
                 <div className={styles.filterForm}>
                   <div className="form-group">
-                    <label className="form-label">Género</label>
+                    <label className="form-label">{t("colGender")}</label>
                     <select
                       className="input select"
                       style={{ padding: "8px 12px" }}
                       value={filterGender}
                       onChange={(e) => setFilterGender(e.target.value)}
                     >
-                      <option value="all">Todos</option>
-                      <option value="Femenino">Femenino</option>
-                      <option value="Masculino">Masculino</option>
-                      <option value="Otro">Otro</option>
+                      <option value="all">{t("all")}</option>
+                      <option value="Femenino">{t("female")}</option>
+                      <option value="Masculino">{t("male")}</option>
+                      <option value="Otro">{t("other")}</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Profesional asignado</label>
+                    <label className="form-label">{t("assignedProfessional")}</label>
                     <select
                       className="input select"
                       style={{ padding: "8px 12px" }}
                       value={filterUserId}
                       onChange={(e) => setFilterUserId(e.target.value)}
                     >
-                      <option value="all">Todos</option>
+                      <option value="all">{t("all")}</option>
                       {clinicUsers.map((u) => (
                         <option key={u.id} value={u.id}>{u.name} {u.lastName || ""}</option>
                       ))}
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Etiqueta</label>
+                    <label className="form-label">{t("colTags")}</label>
                     <input
                       type="text"
                       className="input"
@@ -743,7 +745,7 @@ export default function ContactsPage() {
                     style={{ width: "100%", padding: "8px" }}
                     onClick={() => setShowFilterDropdown(false)}
                   >
-                    Aplicar
+                    {t("apply")}
                   </button>
                 </div>
               </div>
@@ -754,7 +756,7 @@ export default function ContactsPage() {
           {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Permitir descargar clientes")) && (
             <button className="btn btn-secondary" onClick={handleExportCSV}>
               <Icons.Download size={18} />
-              <span>Exportar CSV</span>
+              <span>{t("exportCSV")}</span>
             </button>
           )}
 
@@ -766,15 +768,15 @@ export default function ContactsPage() {
                 onClick={() => setShowBulkOptions(!showBulkOptions)}
                 style={{ borderColor: "var(--primary)", color: "var(--primary)", position: "relative" }}
               >
-                <span>Más Opciones</span>
+                <span>{t("moreOptions")}</span>
                 <Icons.ChevronDown size={16} />
               </button>
               
               {showBulkOptions && (
                 <div className={`${styles.dropdownMenu} glass`}>
                   <div className={styles.dropdownList}>
-                    <button className={styles.dropdownItemBtn} onClick={() => alert("Añadir etiquetas en desarrollo...")}>
-                      Añadir Etiquetas
+                    <button className={styles.dropdownItemBtn} onClick={() => alert(t("addTagsInDev"))}>
+                      {t("addTags")}
                     </button>
                     <button className={styles.dropdownItemBtn} onClick={() => {
                       setShowBulkOptions(false);
@@ -790,13 +792,13 @@ export default function ContactsPage() {
                       }
                       setShowPermissionsModal(true);
                     }}>
-                      Modificar Permisos
+                      {t("modifyPermissions")}
                     </button>
                     <button className={styles.dropdownItemBtn} style={{ color: "var(--danger)" }} onClick={() => {
                       setShowBulkOptions(false);
                       handleBulkDelete();
                     }}>
-                      Eliminar Clientes
+                      {t("deleteClients")}
                     </button>
                   </div>
                 </div>
@@ -811,7 +813,7 @@ export default function ContactsPage() {
               setShowCreateModal(true);
             }}>
               <Icons.Plus size={18} />
-              <span>Crear Contacto</span>
+              <span>{t("createContact")}</span>
             </button>
           )}
         </div>
@@ -822,7 +824,7 @@ export default function ContactsPage() {
         <Icons.Search size={18} className={styles.searchIcon} />
         <input
           type="text"
-          placeholder="Buscar por nombre, DNI, Teléfono o email..."
+          placeholder={t("searchPlaceholder")}
           className={styles.searchInput}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -832,9 +834,9 @@ export default function ContactsPage() {
       {/* Contact Table Grid */}
       <div className={`${styles.tableWrapper} glass`}>
         {loading ? (
-          <div className={styles.loadingState}>Cargando pacientes...</div>
+          <div className={styles.loadingState}>{t("loadingPatients")}</div>
         ) : filteredClients.length === 0 ? (
-          <div className={styles.emptyState}>No se han encontrado contactos en esta clínica.</div>
+          <div className={styles.emptyState}>{t("noContactsFound")}</div>
         ) : (
           <table className="table">
             <thead>
@@ -875,7 +877,7 @@ export default function ContactsPage() {
                     </th>
                   );
                 })}
-                <th>Acción</th>
+                <th>{t("action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -909,7 +911,7 @@ export default function ContactsPage() {
                   <td>
                     <Link href={`/dashboard/contacts/${client.id}`} className={styles.actionLink}>
                       <Icons.Eye size={16} />
-                      <span>Ficha</span>
+                      <span>{t("profile")}</span>
                     </Link>
                   </td>
                 </tr>
@@ -922,7 +924,7 @@ export default function ContactsPage() {
         {!loading && filteredClients.length > 0 && (
           <div className={styles.paginationContainer}>
             <div className={styles.paginationLeft}>
-              <span className={styles.paginationLabel}>MOSTRAR</span>
+              <span className={styles.paginationLabel}>{t("show")}</span>
               <select 
                 className={styles.paginationSelect}
                 value={itemsPerPage}
@@ -943,7 +945,7 @@ export default function ContactsPage() {
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               >
-                <Icons.ChevronLeft size={14} /> Anterior
+                <Icons.ChevronLeft size={14} /> {t("previous")}
               </button>
               
               <button className={`${styles.pageNum} ${styles.pageNumActive}`}>
@@ -987,7 +989,7 @@ export default function ContactsPage() {
                     <line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
                 </div>
-                <h3 className={styles.deleteConfirmTitle}>¿Deseas eliminar los clientes?</h3>
+                <h3 className={styles.deleteConfirmTitle}>{t("deleteClientsConfirm")}</h3>
                 <button className={styles.deleteConfirmClose} onClick={() => setShowDeleteConfirmModal(false)}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -1017,11 +1019,11 @@ export default function ContactsPage() {
         <div className={styles.modalOverlay}>
           <div className={`${styles.permissionsModalContent} glass fade-in`}>
             <div className={styles.modalHeader} style={{ borderBottom: "none", paddingBottom: 0 }}>
-              <h2 style={{ color: "var(--primary)" }}>Permisos</h2>
+              <h2 style={{ color: "var(--primary)" }}>{t("permissions")}</h2>
             </div>
             <div className={styles.permissionsBody}>
               <p className={styles.permissionsText}>
-                Seleccione los empleados que tienen acceso a la Información de estos clientes
+                {t("selectEmployeesWithAccess")}
               </p>
               
               <div className={styles.permissionsList}>
@@ -1042,7 +1044,7 @@ export default function ContactsPage() {
                       <div style={{ width: "10px", height: "2px", backgroundColor: "#fff" }}></div>
                     ) : null}
                   </span>
-                  <span className={styles.permissionsItemText}>Seleccionar todos</span>
+                  <span className={styles.permissionsItemText}>{t("selectAll")}</span>
                 </label>
                 
                 {clinicUsers.map(user => (
@@ -1067,10 +1069,10 @@ export default function ContactsPage() {
             
             <div className={styles.modalActions} style={{ paddingTop: "20px" }}>
               <button type="button" className="btn btn-secondary" onClick={() => setShowPermissionsModal(false)}>
-                Cancelar
+                {t("cancel")}
               </button>
               <button type="button" className="btn btn-primary" onClick={handleSavePermissions}>
-                Guardar
+                {t("save")}
               </button>
             </div>
           </div>
@@ -1083,7 +1085,7 @@ export default function ContactsPage() {
           <div className={styles.drawerPanel} onClick={(e) => e.stopPropagation()}>
             {/* Drawer Header */}
             <div className={styles.drawerHeader}>
-              <h2 className={styles.drawerTitle}>Crear cliente</h2>
+              <h2 className={styles.drawerTitle}>{t("createClient")}</h2>
               <button className={styles.drawerCloseBtn} onClick={() => setShowCreateModal(false)}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -1098,14 +1100,14 @@ export default function ContactsPage() {
                 className={`${styles.drawerTab} ${creationTab === "general" ? styles.drawerTabActive : ""}`}
                 onClick={() => setCreationTab("general")}
               >
-                Información general
+                {t("generalInfo")}
               </button>
               <button
                 type="button"
                 className={`${styles.drawerTab} ${creationTab === "otros" ? styles.drawerTabActive : ""}`}
                 onClick={() => setCreationTab("otros")}
               >
-                Otros datos
+                {t("otherData")}
               </button>
             </div>
 
@@ -1116,18 +1118,18 @@ export default function ContactsPage() {
                 {/* ── TAB: Información general ── */}
                 {creationTab === "general" && (
                   <>
-                    <p className={styles.drawerSectionTitle}>Datos generales</p>
+                    <p className={styles.drawerSectionTitle}>{t("generalData")}</p>
 
                     {/* Nombre / Apellidos */}
                     <div className={styles.drawerGrid2}>
                       <div className={styles.drawerField}>
-                        <label className={styles.drawerLabel}>Nombre</label>
-                        <input type="text" className={styles.drawerInput} placeholder="Añadir nombre"
+                        <label className={styles.drawerLabel}>{t("name")}</label>
+                        <input type="text" className={styles.drawerInput} placeholder={t("addNamePlaceholder")}
                           value={formFirstName} onChange={(e) => setFormFirstName(e.target.value)} required />
                       </div>
                       <div className={styles.drawerField}>
-                        <label className={styles.drawerLabel}>Apellidos</label>
-                        <input type="text" className={styles.drawerInput} placeholder="Añadir apellidos"
+                        <label className={styles.drawerLabel}>{t("lastName")}</label>
+                        <input type="text" className={styles.drawerInput} placeholder={t("addLastNamePlaceholder")}
                           value={formLastName} onChange={(e) => setFormLastName(e.target.value)} required />
                       </div>
                     </div>
@@ -1136,7 +1138,7 @@ export default function ContactsPage() {
                     <div className={styles.drawerGrid2}>
                       {/* Birth date with calendar popup */}
                       <div className={styles.drawerField} style={{ position: "relative" }}>
-                        <label className={styles.drawerLabel}>Fecha de nacimiento</label>
+                        <label className={styles.drawerLabel}>{t("colBirthDate")}</label>
                         <button
                           type="button"
                           className={styles.drawerInputBtn}

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
+import { translate } from "@/lib/translations";
 import { hasPermission, canDeleteAppointment, canCreateOrEditAppointment } from "@/lib/permissions";
 import styles from "./Agenda.module.css";
 import { getCountryConfig } from "@/lib/countries";
@@ -67,6 +68,29 @@ interface Appointment {
     name: string;
   };
 }
+
+const formatSpanishDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  const d = new Date(`${dateStr}T00:00:00`);
+  const weekdays = ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."];
+  const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  return `${weekdays[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+};
+
+const formatTime12h = (time24: string) => {
+  if (!time24) return "";
+  const [hStr, mStr] = time24.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${h >= 12 ? "pm" : "am"}`;
+};
+
+const formatDuration = (min: number) => {
+  if (min === 60) return "1h";
+  if (min === 120) return "2h";
+  if (min % 60 === 0) return `${min / 60}h`;
+  return `${min} min`;
+};
 
 const COUNTRIES = [
   { flag: "🇪🇸", code: "ES", name: "España", dial: "+34" },
@@ -192,7 +216,7 @@ function getAppointmentLayouts(apps: Appointment[]): Record<string, AppointmentL
 }
 
 export default function AgendaPage() {
-  const { activeClinic, user: currentUser } = useApp();
+  const { activeClinic, user: currentUser, language } = useApp();
   const cConfig = getCountryConfig(activeClinic?.country || "ES");
   const currencySymbol = cConfig.currency;
   const showPrices = currentUser?.role === "ADMIN" || hasPermission(currentUser, "otros", "Mostrar precio servicios");
@@ -478,6 +502,13 @@ export default function AgendaPage() {
 
   // Service Warning Modal Settings
   const [showServiceWarningModal, setShowServiceWarningModal] = useState(false);
+  const [searchServiceQuery, setSearchServiceQuery] = useState("");
+  const [showServiceEditDropdown, setShowServiceEditDropdown] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+  const formatPrice = (price: number) => {
+    return showPrices ? (currencySymbol === "€" ? `${price.toFixed(2).replace(".", ",")} €` : `${currencySymbol}${price.toFixed(2)}`) : "";
+  };
   const [warningModalConfirmCallback, setWarningModalConfirmCallback] = useState<(() => void) | null>(null);
 
   // Global Tags Panel Settings
@@ -657,8 +688,23 @@ export default function AgendaPage() {
   const [formTime, setFormTime] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formStatus, setFormStatus] = useState("PENDING");
+  const [formEndTime, setFormEndTime] = useState("");
   const [googleSyncing, setGoogleSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+
+  // Refs and States for inline edit modal fields
+  const startTimeRef = useRef<HTMLDivElement>(null);
+  const endTimeRef = useRef<HTMLDivElement>(null);
+  const editCalRef = useRef<HTMLDivElement>(null);
+  const serviceEditDropdownRef = useRef<HTMLDivElement>(null);
+  const startTimeDropdownContainerRef = useRef<HTMLDivElement>(null);
+  const endTimeDropdownContainerRef = useRef<HTMLDivElement>(null);
+
+  const [showStartTimeDropdown, setShowStartTimeDropdown] = useState(false);
+  const [showEndTimeDropdown, setShowEndTimeDropdown] = useState(false);
+  const [showEditCal, setShowEditCal] = useState(false);
+  const [editCalMonth, setEditCalMonth] = useState(new Date().getMonth());
+  const [editCalYear, setEditCalYear] = useState(new Date().getFullYear());
 
   // States and refs for label/tag manager
   const [showTagsDropdown, setShowTagsDropdown] = useState(false);
@@ -999,6 +1045,18 @@ export default function AgendaPage() {
       if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(event.target as Node)) {
         setShowSettingsPopover(false);
       }
+      if (editCalRef.current && !editCalRef.current.contains(event.target as Node)) {
+        setShowEditCal(false);
+      }
+      if (startTimeRef.current && !startTimeRef.current.contains(event.target as Node)) {
+        setShowStartTimeDropdown(false);
+      }
+      if (endTimeRef.current && !endTimeRef.current.contains(event.target as Node)) {
+        setShowEndTimeDropdown(false);
+      }
+      if (serviceEditDropdownRef.current && !serviceEditDropdownRef.current.contains(event.target as Node)) {
+        setShowServiceEditDropdown(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -1030,6 +1088,27 @@ export default function AgendaPage() {
       window.removeEventListener("keydown", handleEscapeKeyDown);
     };
   }, []);
+
+  // Scroll selected time into view when dropdowns are opened
+  useEffect(() => {
+    if (showStartTimeDropdown && startTimeDropdownContainerRef.current) {
+      const container = startTimeDropdownContainerRef.current;
+      const selectedEl = container.querySelector('[data-selected="true"]');
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [showStartTimeDropdown]);
+
+  useEffect(() => {
+    if (showEndTimeDropdown && endTimeDropdownContainerRef.current) {
+      const container = endTimeDropdownContainerRef.current;
+      const selectedEl = container.querySelector('[data-selected="true"]');
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [showEndTimeDropdown]);
 
   // Close country pickers on outside click
   useEffect(() => {
@@ -1512,16 +1591,24 @@ export default function AgendaPage() {
     setFormServiceId(app.serviceId);
     setFormStatus(app.status);
     setFormNotes(app.notes || "");
+    setFormClinicId(app.clinicId || "");
     
     const startD = new Date(app.start);
     const yyyy = startD.getFullYear();
     const mm = String(startD.getMonth() + 1).padStart(2, "0");
     const dd = String(startD.getDate()).padStart(2, "0");
     setFormDate(`${yyyy}-${mm}-${dd}`);
+    setEditCalMonth(startD.getMonth());
+    setEditCalYear(yyyy);
     
     const hh = String(startD.getHours()).padStart(2, "0");
     const min = String(startD.getMinutes()).padStart(2, "0");
     setFormTime(`${hh}:${min}`);
+
+    const endD = new Date(app.end);
+    const endH = String(endD.getHours()).padStart(2, "0");
+    const endM = String(endD.getMinutes()).padStart(2, "0");
+    setFormEndTime(`${endH}:${endM}`);
     
     // Reset custom view modal states
     setEditModalTab("datos");
@@ -2083,20 +2170,20 @@ export default function AgendaPage() {
   };
 
   // Submit appointment edit
-  const handleUpdateAppointment = async (e: React.FormEvent, forceProceed = false) => {
+  const handleUpdateAppointment = async (e: React.FormEvent | null, forceProceed = false, shouldRedirectToCaja = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!canCreateOrEditAppointment(currentUser)) {
       alert("No tienes permisos para modificar citas (Sólo lectura).");
       return;
     }
-    if (!selectedAppointment || !formUserId || !formServiceId || !formDate || !formTime) return;
+    if (!selectedAppointment || !formUserId || !formServiceId || !formDate || !formTime || !formEndTime) return;
 
     const selectedService = servicesList.find((s) => s.id === formServiceId);
     if (!forceProceed && selectedService?.allowedUserIds) {
       const allowed = selectedService.allowedUserIds.split(",");
       if (!allowed.includes(formUserId)) {
         setWarningModalConfirmCallback(() => () => {
-          handleUpdateAppointment(e, true);
+          handleUpdateAppointment(e, true, shouldRedirectToCaja);
         });
         setShowServiceWarningModal(true);
         return;
@@ -2104,7 +2191,15 @@ export default function AgendaPage() {
     }
 
     const startDateTime = new Date(`${formDate}T${formTime}`);
-    const duration = selectedService ? selectedService.duration : 45;
+    const startHourMin = formTime.split(":");
+    const endHourMin = formEndTime.split(":");
+    const startMinTotal = parseInt(startHourMin[0], 10) * 60 + parseInt(startHourMin[1], 10);
+    const endMinTotal = parseInt(endHourMin[0], 10) * 60 + parseInt(endHourMin[1], 10);
+    let duration = endMinTotal - startMinTotal;
+    if (duration <= 0) {
+      alert("La hora de fin debe ser posterior a la de inicio.");
+      return;
+    }
 
     if (checkIfOutsideShift(formUserId, formDate, formTime, duration)) {
       const confirmSave = window.confirm(
@@ -2121,6 +2216,7 @@ export default function AgendaPage() {
       id: selectedAppointment.id,
       userId: formUserId,
       serviceId: formServiceId,
+      clinicId: formClinicId,
       start: startDateTime.toISOString(),
       end: endDateTime.toISOString(),
       status: formStatus,
@@ -2148,8 +2244,13 @@ export default function AgendaPage() {
         }
       }
       setShowEditModal(false);
+      setIsEditingApp(false);
       fetchAppointments();
       triggerAutoSync();
+
+      if (shouldRedirectToCaja) {
+        window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${formServiceId}&appointmentId=${selectedAppointment.id}`;
+      }
     }
   };
 
@@ -3350,7 +3451,7 @@ export default function AgendaPage() {
       <header className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <h1 className={styles.title}>Agenda</h1>
+            <h1 className={styles.title}>{translate("agendaTitle", language)}</h1>
             {googleSyncing && (
               <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
                 <Icons.Sync size={12} className={styles.spinningIcon} />
@@ -4838,564 +4939,1210 @@ export default function AgendaPage() {
       {/* EDIT APPOINTMENT MODAL */}
       {showEditModal && selectedAppointment && typeof window !== "undefined" && createPortal(
         <div 
-          className={!isEditingApp ? styles.drawerOverlay : styles.modalOverlay}
-          onClick={() => setShowEditModal(false)}
+          className={styles.drawerOverlay}
+          onClick={() => {
+            setShowEditModal(false);
+            setIsEditingApp(false);
+          }}
         >
           <div 
-            className={!isEditingApp ? styles.agendaDrawer : `${styles.modalContent} ${!isEditingApp ? styles.modalContentWide : ""} glass fade-in`}
+            className={styles.agendaDrawer}
+            style={isEditingApp ? { width: "900px", maxWidth: "95vw" } : {}}
             onClick={(e) => e.stopPropagation()}
           >
-            {isEditingApp ? (
-              // EDIT MODAL VIEW
-              <>
-                <div className={styles.modalHeader}>
-                  <h2>Editar Cita</h2>
-                  <button 
-                    onClick={() => setShowEditModal(false)} 
-                    className={styles.closeBtn}
-                  >
-                    <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
-                  </button>
-                </div>
-                <form onSubmit={handleUpdateAppointment} className={styles.modalForm} style={{ padding: "0 32px 32px 32px" }}>
-                  <div className="form-group">
-                    <label className="form-label">Fisioterapeuta / Especialista</label>
-                    <select
-                      className="input select"
-                      value={formUserId}
-                      onChange={(e) => setFormUserId(e.target.value)}
-                      required
-                    >
-                      {filteredStaffForDropdown.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name} {s.lastName || ""}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Servicio</label>
-                    <select
-                      className="input select"
-                      value={formServiceId}
-                      onChange={(e) => setFormServiceId(e.target.value)}
-                      required
-                    >
-                      {filteredServicesForDropdown.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.duration} min{showPrices ? ` - ${s.price}€` : ""})
-                        </option>
-                      ))}
-                    </select>
-                    {matchingVoucher && (
-                      <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", backgroundColor: "var(--bg-input)", borderRadius: "6px", border: "1px solid var(--border-color)" }}>
-                        <input
-                          type="checkbox"
-                          id="useVoucherSessionCheckEdit"
-                          checked={useVoucherSession}
-                          onChange={(e) => setUseVoucherSession(e.target.checked)}
-                          style={{ width: "16px", height: "16px", cursor: "pointer" }}
-                        />
-                        <label htmlFor="useVoucherSessionCheckEdit" style={{ fontSize: "13px", color: "var(--text-primary)", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-                          <span style={{ fontWeight: 700, color: "var(--primary)" }}>{matchingVoucher.name}</span>
-                          {matchingVoucher.expirationDate && (
-                            <span style={{ color: "var(--text-muted)" }}>
-                              {" "} - {new Date(matchingVoucher.expirationDate).toLocaleDateString("es-ES")}
-                            </span>
-                          )}
-                          <span style={{ fontWeight: 600 }}>
-                            {" "} - {matchingVoucher.sessions - matchingVoucher.remainingSessions}/{matchingVoucher.sessions} sesiones
-                          </span>
-                        </label>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ display: "flex", gap: "16px" }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label">Fecha</label>
-                      <input
-                        type="date"
-                        className="input"
-                        value={formDate}
-                        onChange={(e) => setFormDate(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label">Hora</label>
-                      <input
-                        type="time"
-                        className="input"
-                        value={formTime}
-                        onChange={(e) => setFormTime(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Notas de consulta</label>
-                    <textarea
-                      className="input"
-                      style={{ minHeight: "80px", resize: "vertical" }}
-                      placeholder="Añadir comentarios sobre la consulta..."
-                      value={formNotes}
-                      onChange={(e) => setFormNotes(e.target.value)}
-                    />
-                  </div>
-
-                  <div className={styles.modalActions}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setIsEditingApp(false)}>
-                      Atrás
-                    </button>
-                    <button type="submit" className="btn btn-primary">
-                      Guardar Cambios
-                    </button>
-                  </div>
-                </form>
-              </>
-            ) : (
-              // DRAWER VIEW (INFORMACION)
-              <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+            <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
                 {/* Header: Title and Tabs */}
-                <div className={styles.drawerHeader}>
-                  <div className={styles.drawerHeaderTopRow}>
-                    <h2 className={styles.drawerTitle}>Información</h2>
+                <div className={styles.drawerHeader} style={isEditingApp ? { borderBottom: "none", paddingBottom: 0, paddingTop: "12px" } : {}}>
+                  <div className={styles.drawerHeaderTopRow} style={isEditingApp ? { marginBottom: "8px" } : {}}>
+                    <h2 className={styles.drawerTitle}>{isEditingApp ? "Editar Cita" : "Información"}</h2>
+                    
+                    {/* Status Badge Dropdown */}
+                    <div style={{ position: "relative", marginLeft: "auto", marginRight: "12px" }} ref={statusDropdownRef}>
+                      <button
+                        type="button"
+                        className={styles.statusBadgeDropdownBtn}
+                        style={{
+                          backgroundColor:
+                            (isEditingApp ? formStatus : selectedAppointment.status) === "CONFIRMED" || (isEditingApp ? formStatus : selectedAppointment.status) === "COMPLETED"
+                              ? "#48bb78"
+                              : (isEditingApp ? formStatus : selectedAppointment.status) === "PENDING"
+                              ? "#ecc94b"
+                              : (isEditingApp ? formStatus : selectedAppointment.status) === "CANCELLED"
+                              ? "#f56565"
+                              : "#a0aec0",
+                        }}
+                        onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                      >
+                        {(isEditingApp ? formStatus : selectedAppointment.status) === "CONFIRMED"
+                          ? "Confirmada"
+                          : (isEditingApp ? formStatus : selectedAppointment.status) === "COMPLETED"
+                          ? "Completada"
+                          : (isEditingApp ? formStatus : selectedAppointment.status) === "PENDING"
+                          ? "Pendiente"
+                          : (isEditingApp ? formStatus : selectedAppointment.status) === "CANCELLED"
+                          ? "Cancelada"
+                          : "No asistió"}{" "}
+                        ▾
+                      </button>
+                      {showStatusDropdown && (
+                        <div className={styles.statusDropdownMenu} style={{ top: "100%", right: 0, marginTop: "4px" }}>
+                          {[
+                            { val: "PENDING", label: "Pendiente" },
+                            { val: "CONFIRMED", label: "Confirmada" },
+                            { val: "COMPLETED", label: "Completada" },
+                            { val: "CANCELLED", label: "Cancelada" },
+                            { val: "NOSHOW", label: "No asistió" }
+                          ].map((opt) => (
+                            <div
+                              key={opt.val}
+                              className={styles.statusItem}
+                              onClick={() => {
+                                if (isEditingApp) {
+                                  setFormStatus(opt.val);
+                                  setShowStatusDropdown(false);
+                                } else {
+                                  handleUpdateStatus(opt.val);
+                                }
+                              }}
+                            >
+                              {opt.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <button 
-                      onClick={() => setShowEditModal(false)} 
+                      onClick={() => {
+                        setShowEditModal(false);
+                        setIsEditingApp(false);
+                      }} 
                       className={styles.drawerCloseBtn}
                     >
                       <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
                     </button>
                   </div>
                   
-                  <div className={styles.drawerTabsContainer}>
-                    <button
-                      type="button"
-                      className={`${styles.drawerTabBtn} ${editModalTab === "datos" ? styles.drawerTabBtnActive : ""}`}
-                      onClick={() => setEditModalTab("datos")}
-                    >
-                      Datos
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.drawerTabBtn} ${editModalTab === "bonos" ? styles.drawerTabBtnActive : ""}`}
-                      onClick={() => setEditModalTab("bonos")}
-                    >
-                      Bonos
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.drawerTabBtn} ${editModalTab === "citas" ? styles.drawerTabBtnActive : ""}`}
-                      onClick={() => setEditModalTab("citas")}
-                    >
-                      Citas
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.drawerTabBtn} ${editModalTab === "seguimientos" ? styles.drawerTabBtnActive : ""}`}
-                      onClick={() => setEditModalTab("seguimientos")}
-                    >
-                      Seguimientos
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.drawerTabBtn} ${editModalTab === "historial" ? styles.drawerTabBtnActive : ""}`}
-                      onClick={() => setEditModalTab("historial")}
-                    >
-                      Historial
-                    </button>
-                  </div>
+                  {!isEditingApp && (
+                    <div className={styles.drawerTabsContainer}>
+                      <button
+                        type="button"
+                        className={`${styles.drawerTabBtn} ${editModalTab === "datos" ? styles.drawerTabBtnActive : ""}`}
+                        onClick={() => setEditModalTab("datos")}
+                      >
+                        Datos
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.drawerTabBtn} ${editModalTab === "bonos" ? styles.drawerTabBtnActive : ""}`}
+                        onClick={() => setEditModalTab("bonos")}
+                      >
+                        Bonos
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.drawerTabBtn} ${editModalTab === "citas" ? styles.drawerTabBtnActive : ""}`}
+                        onClick={() => setEditModalTab("citas")}
+                      >
+                        Citas
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.drawerTabBtn} ${editModalTab === "seguimientos" ? styles.drawerTabBtnActive : ""}`}
+                        onClick={() => setEditModalTab("seguimientos")}
+                      >
+                        Seguimientos
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.drawerTabBtn} ${editModalTab === "historial" ? styles.drawerTabBtnActive : ""}`}
+                        onClick={() => setEditModalTab("historial")}
+                      >
+                        Historial
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Status Toolbar Container */}
-                <div className={styles.statusToolbarContainer}>
-                  <div style={{ position: "relative" }} ref={statusDropdownRef}>
-                    <button
-                      type="button"
-                      className={styles.statusBadgeDropdownBtn}
-                      style={{
-                        backgroundColor:
-                          selectedAppointment.status === "CONFIRMED" || selectedAppointment.status === "COMPLETED"
-                            ? "#48bb78"
-                            : selectedAppointment.status === "PENDING"
-                            ? "#ecc94b"
-                            : selectedAppointment.status === "CANCELLED"
-                            ? "#f56565"
-                            : "#a0aec0",
-                      }}
-                      onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                    >
-                      {selectedAppointment.status === "CONFIRMED"
-                        ? "Confirmada"
-                        : selectedAppointment.status === "COMPLETED"
-                        ? "Completada"
-                        : selectedAppointment.status === "PENDING"
-                        ? "Pendiente"
-                        : selectedAppointment.status === "CANCELLED"
-                        ? "Cancelada"
-                        : "No asistió"}{" "}
-                      ▾
-                    </button>
-                    {showStatusDropdown && (
-                      <div className={styles.statusDropdownMenu}>
-                        <div className={styles.statusItem} onClick={() => handleUpdateStatus("PENDING")}>
-                          Pendiente
-                        </div>
-                        <div className={styles.statusItem} onClick={() => handleUpdateStatus("CONFIRMED")}>
-                          Confirmada
-                        </div>
-                        <div className={styles.statusItem} onClick={() => handleUpdateStatus("COMPLETED")}>
-                          Completada
-                        </div>
-                        <div className={styles.statusItem} onClick={() => handleUpdateStatus("CANCELLED")}>
-                          Cancelada
-                        </div>
-                        <div className={styles.statusItem} onClick={() => handleUpdateStatus("NOSHOW")}>
-                          No asistió
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Plus button + tag manager dropdown */}
-                  <div style={{ position: "relative" }} ref={tagsDropdownRef}>
-                    <button 
-                      type="button" 
-                      className={styles.plusSmallBtn} 
-                      onClick={() => {
-                        setShowTagsDropdown(!showTagsDropdown);
-                        setTagsSubView("list");
-                        setSearchTagQuery("");
-                      }} 
-                      title="Gestionar etiquetas"
-                    >
-                      +
-                    </button>
-                    
-                    {showTagsDropdown && (
-                      <div className={styles.tagsDropdownMenu}>
-                        {tagsSubView === "list" ? (
-                          <>
-                            <h3 className={styles.tagsDropdownTitle}>Etiquetas</h3>
-                            <div className={styles.tagsSearchWrapper}>
-                              <svg className={styles.tagsSearchIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                              <input 
-                                type="text"
-                                className={styles.tagsSearchInput}
-                                placeholder="Buscar etiqueta"
-                                value={searchTagQuery}
-                                onChange={(e) => setSearchTagQuery(e.target.value)}
-                              />
-                            </div>
-                            <div className={styles.tagsList}>
-                              {availableTags
-                                .filter(tag => {
-                                  // Filter out already added tags to this appointment
+                {!isEditingApp && (
+                  <div className={styles.statusToolbarContainer}>
+                    {/* Plus button + tag manager dropdown */}
+                    <div style={{ position: "relative" }} ref={tagsDropdownRef}>
+                      <button 
+                        type="button" 
+                        className={styles.plusSmallBtn} 
+                        onClick={() => {
+                          setShowTagsDropdown(!showTagsDropdown);
+                          setTagsSubView("list");
+                          setSearchTagQuery("");
+                        }} 
+                        title="Gestionar etiquetas"
+                      >
+                        +
+                      </button>
+                      
+                      {showTagsDropdown && (
+                        <div className={styles.tagsDropdownMenu}>
+                          {tagsSubView === "list" ? (
+                            <>
+                              <h3 className={styles.tagsDropdownTitle}>Etiquetas</h3>
+                              <div className={styles.tagsSearchWrapper}>
+                                <svg className={styles.tagsSearchIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input 
+                                  type="text"
+                                  className={styles.tagsSearchInput}
+                                  placeholder="Buscar etiqueta"
+                                  value={searchTagQuery}
+                                  onChange={(e) => setSearchTagQuery(e.target.value)}
+                                />
+                              </div>
+                              <div className={styles.tagsList}>
+                                {availableTags
+                                  .filter(tag => {
+                                    const currentTags = selectedAppointment.tags 
+                                      ? selectedAppointment.tags.split(",").filter(Boolean).map(t => t.split(":")[0])
+                                      : [];
+                                    if (currentTags.includes(tag.name)) return false;
+                                    return tag.name.toLowerCase().includes(searchTagQuery.toLowerCase());
+                                  })
+                                  .map(tag => (
+                                    <div
+                                      key={tag.name}
+                                      className={styles.tagsListItem}
+                                      style={{ backgroundColor: tag.color, display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                                    >
+                                      <span 
+                                        style={{ flex: 1, cursor: "pointer", display: "block" }} 
+                                        onClick={() => handleAddTagToAppointment(tag)}
+                                      >
+                                        {tag.name}
+                                      </span>
+                                      <span 
+                                        className={styles.editTagIcon}
+                                        title="Eliminar etiqueta"
+                                        onClick={() => handleDeleteTagGlobal(tag.name)}
+                                        style={{ cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "8px" }}
+                                      >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                      </span>
+                                    </div>
+                                  ))}
+                                {availableTags.filter(tag => {
                                   const currentTags = selectedAppointment.tags 
                                     ? selectedAppointment.tags.split(",").filter(Boolean).map(t => t.split(":")[0])
                                     : [];
                                   if (currentTags.includes(tag.name)) return false;
-                                  
-                                  // Filter by search query
                                   return tag.name.toLowerCase().includes(searchTagQuery.toLowerCase());
-                                })
-                                .map(tag => (
-                                  <div
-                                    key={tag.name}
-                                    className={styles.tagsListItem}
-                                    style={{ backgroundColor: tag.color, display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                                  >
-                                    <span 
-                                      style={{ flex: 1, cursor: "pointer", display: "block" }} 
-                                      onClick={() => handleAddTagToAppointment(tag)}
-                                    >
-                                      {tag.name}
-                                    </span>
-                                    <span 
-                                      className={styles.editTagIcon}
-                                      title="Eliminar etiqueta"
-                                      onClick={() => handleDeleteTagGlobal(tag.name)}
-                                      style={{ cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "8px" }}
-                                    >
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                    </span>
-                                  </div>
-                                ))}
-                              {availableTags.filter(tag => {
-                                const currentTags = selectedAppointment.tags 
-                                  ? selectedAppointment.tags.split(",").filter(Boolean).map(t => t.split(":")[0])
-                                  : [];
-                                if (currentTags.includes(tag.name)) return false;
-                                return tag.name.toLowerCase().includes(searchTagQuery.toLowerCase());
-                              }).length === 0 && (
-                                <div style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "center", padding: "8px" }}>Sin etiquetas disponibles</div>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              className={styles.newTagBtn}
-                              onClick={() => {
-                                setTagsSubView("create");
-                                setNewTagName("");
-                                setNewTagColor("#add8e6"); // Default first color
-                              }}
-                            >
-                              Nueva etiqueta
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <h3 className={styles.tagsDropdownTitle}>Nueva etiqueta</h3>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                              <div>
-                                <label className={styles.newTagLabel}>Nombre</label>
-                                <input 
-                                  type="text"
-                                  className="input"
-                                  style={{ width: "100%", fontSize: "12px", padding: "6px 10px", outline: "none", border: "1px solid var(--border-color)", borderRadius: "4px" }}
-                                  placeholder="Nombre de la etiqueta"
-                                  value={newInfoTagName}
-                                  onChange={(e) => setNewInfoTagName(e.target.value)}
-                                  autoFocus
-                                />
+                                }).length === 0 && (
+                                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "center", padding: "8px" }}>Sin etiquetas disponibles</div>
+                                )}
                               </div>
-                              <div>
-                                <label className={styles.newTagLabel}>ASIGNAR COLOR</label>
-                                <div className={styles.colorPickerGrid}>
-                                  {TAG_COLORS.map(color => (
-                                    <div
-                                      key={color}
-                                      className={`${styles.colorCircle} ${newTagColor === color ? styles.colorCircleSelected : ""}`}
-                                      style={{ backgroundColor: color }}
-                                      onClick={() => setNewTagColor(color)}
-                                    />
-                                  ))}
+                              <button
+                                type="button"
+                                className={styles.newTagBtn}
+                                onClick={() => {
+                                  setTagsSubView("create");
+                                  setNewInfoTagName("");
+                                  setNewTagColor("#add8e6");
+                                }}
+                              >
+                                Nueva etiqueta
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <h3 className={styles.tagsDropdownTitle}>Nueva etiqueta</h3>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                <div>
+                                  <label className={styles.newTagLabel}>Nombre</label>
+                                  <input 
+                                    type="text"
+                                    className="input"
+                                    style={{ width: "100%", fontSize: "12px", padding: "6px 10px", outline: "none", border: "1px solid var(--border-color)", borderRadius: "4px" }}
+                                    placeholder="Nombre de la etiqueta"
+                                    value={newInfoTagName}
+                                    onChange={(e) => setNewInfoTagName(e.target.value)}
+                                    autoFocus
+                                  />
+                                </div>
+                                <div>
+                                  <label className={styles.newTagLabel}>ASIGNAR COLOR</label>
+                                  <div className={styles.colorPickerGrid}>
+                                    {TAG_COLORS.map(color => (
+                                      <div
+                                        key={color}
+                                        className={`${styles.colorCircle} ${newTagColor === color ? styles.colorCircleSelected : ""}`}
+                                        style={{ backgroundColor: color }}
+                                        onClick={() => setNewTagColor(color)}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className={styles.newTagActions}>
+                                  <button 
+                                    type="button"
+                                    className={styles.newTagCancelBtn}
+                                    onClick={() => setTagsSubView("list")}
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    className={styles.newTagSaveBtn}
+                                    disabled={!newInfoTagName.trim()}
+                                    onClick={() => handleCreateNewTagGlobal(newInfoTagName, newTagColor)}
+                                  >
+                                    Guardar
+                                  </button>
                                 </div>
                               </div>
-                              <div className={styles.newTagActions}>
-                                <button 
-                                  type="button"
-                                  className={styles.newTagCancelBtn}
-                                  onClick={() => setTagsSubView("list")}
-                                >
-                                  Cancelar
-                                </button>
-                                <button 
-                                  type="button"
-                                  className={styles.newTagSaveBtn}
-                                  disabled={!newInfoTagName.trim()}
-                                  onClick={() => handleCreateNewTagGlobal(newInfoTagName, newTagColor)}
-                                >
-                                  Guardar
-                                </button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Display selected tags */}
-                  {selectedAppointment.tags && selectedAppointment.tags.split(",").filter(Boolean).map(tagStr => {
-                    const [tagName, tagColor] = tagStr.split(":");
-                    return (
-                      <span 
-                        key={tagName} 
-                        style={{ 
-                          backgroundColor: tagColor || "#ef4444", 
-                          color: "#fff", 
-                          padding: "4px 8px", 
-                          borderRadius: "4px", 
-                          fontSize: "11px", 
-                          fontWeight: 700, 
-                          display: "inline-flex", 
-                          alignItems: "center", 
-                          gap: "6px" 
-                        }}
-                      >
-                        {tagName}
-                        <button 
-                          type="button" 
-                          onClick={() => handleRemoveTagFromAppointment(tagName)} 
+                    {/* Display selected tags */}
+                    {selectedAppointment.tags && selectedAppointment.tags.split(",").filter(Boolean).map(tagStr => {
+                      const [tagName, tagColor] = tagStr.split(":");
+                      return (
+                        <span 
+                          key={tagName} 
                           style={{ 
-                            background: "none", 
-                            border: "none", 
+                            backgroundColor: tagColor || "#ef4444", 
                             color: "#fff", 
-                            cursor: "pointer", 
-                            padding: 0, 
+                            padding: "4px 8px", 
+                            borderRadius: "4px", 
                             fontSize: "11px", 
-                            fontWeight: "bold",
-                            display: "inline-flex",
-                            alignItems: "center"
+                            fontWeight: 700, 
+                            display: "inline-flex", 
+                            alignItems: "center", 
+                            gap: "6px" 
                           }}
                         >
-                          ✕
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
+                          {tagName}
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveTagFromAppointment(tagName)} 
+                            style={{ 
+                              background: "none", 
+                              border: "none", 
+                              color: "#fff", 
+                              cursor: "pointer", 
+                              padding: 0, 
+                              fontSize: "11px", 
+                              fontWeight: "bold",
+                              display: "inline-flex",
+                              alignItems: "center"
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Body (scrollable) */}
                 <div className={styles.drawerBody}>
                   {editModalTab === "datos" && (
-                    <div className={styles.drawerInfoGrid}>
-                      {/* Left: Patient Details */}
-                      <div className={styles.infoLeftCol}>
-                        <div className={styles.clientInfoBlock}>
-                          <div className={styles.clientAvatar}>
-                            {selectedAppointment.client.firstName.charAt(0)}
-                            {selectedAppointment.client.lastName ? selectedAppointment.client.lastName.charAt(0) : ""}
-                          </div>
-                          <div className={styles.clientMeta}>
-                            <h3 className={styles.clientName}>
-                              <a 
-                                href={`/dashboard/contacts/${selectedAppointment.clientId}`}
-                                style={{ 
-                                  color: "inherit", 
-                                  textDecoration: "none" 
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
-                                onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
-                                title="Ver ficha de cliente"
-                              >
-                                {selectedAppointment.client.firstName} {selectedAppointment.client.lastName}
-                              </a>
-                            </h3>
-                            <span className={styles.clientIdText}>
-                              # {selectedAppointment.client.clientNumber || "N/A"}
-                            </span>
-                            <span className={styles.clientPhoneText}>
-                              {selectedAppointment.client.phone || "Sin teléfono"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <button 
-                          type="button"
-                          onClick={() => handleSendWhatsAppReminder(selectedAppointment)} 
-                          className={styles.whatsappBtn}
-                          style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", border: "none", background: "var(--bg-input)", color: "var(--text-primary)", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600 }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
-                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                          </svg>
-                          Whatsapp
-                        </button>
-
-
-                        {/* Switch Toggle */}
-                        <div className={styles.remindersContainer}>
-                          <div 
-                            className={styles.reminderToggleSwitch}
-                            style={{ 
-                              backgroundColor: editPatReceivesReminders ? "#008298" : "#cbd5e0"
-                            }}
-                            onClick={() => handleToggleReminders(!editPatReceivesReminders)}
-                          >
-                            <div 
-                              className={styles.reminderToggleKnob}
-                              style={{ 
-                                left: editPatReceivesReminders ? "18px" : "2px"
-                              }}
-                            />
-                          </div>
-                          <span>Recordatorios</span>
-                          <button 
-                            type="button" 
-                            className={styles.reminderGearBtn}
-                            title="Configurar recordatorios"
-                          >
-                            <Icons.Settings size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Right: Appointment details column */}
-                      <div className={styles.drawerRightDetails}>
-                        <div className={styles.detailDateTime}>
-                          {(() => {
-                            const startD = new Date(selectedAppointment.start);
-                            const endD = new Date(selectedAppointment.end);
-                            const months = ["Ene.", "Feb.", "Mar.", "Abr.", "May.", "Jun.", "Jul.", "Ago.", "Sep.", "Oct.", "Nov.", "Dic."];
-                            return `${months[startD.getMonth()]} ${startD.getDate()} ${String(startD.getHours()).padStart(2, "0")}:${String(startD.getMinutes()).padStart(2, "0")} - ${String(endD.getHours()).padStart(2, "0")}:${String(endD.getMinutes()).padStart(2, "0")}`;
-                          })()}
-                        </div>
-
-                        <div className={styles.detailClinicName}>
-                          {selectedAppointment.clinic?.name || activeClinic?.name || "Clifav Central"}
-                          {selectedAppointment.user && (
-                            <div style={{ marginTop: "2px", color: "var(--text-secondary)" }}>
-                              {selectedAppointment.user.name} {selectedAppointment.user.lastName || ""}
+                    <>
+                      <div className={styles.drawerInfoGrid} style={isEditingApp ? { gridTemplateColumns: "250px 1fr", gap: "32px" } : {}}>
+                        {/* Left: Patient Details */}
+                        <div className={styles.infoLeftCol}>
+                          <div className={styles.clientInfoBlock}>
+                            <div className={styles.clientAvatar}>
+                              {selectedAppointment.client.firstName.charAt(0)}
+                              {selectedAppointment.client.lastName ? selectedAppointment.client.lastName.charAt(0) : ""}
                             </div>
+                            <div className={styles.clientMeta}>
+                              <h3 className={styles.clientName}>
+                                <a 
+                                  href={`/dashboard/contacts/${selectedAppointment.clientId}`}
+                                  style={{ 
+                                    color: "inherit", 
+                                    textDecoration: "none" 
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
+                                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
+                                  title="Ver ficha de cliente"
+                                >
+                                  {selectedAppointment.client.firstName} {selectedAppointment.client.lastName}
+                                </a>
+                              </h3>
+                              <span className={styles.clientIdText}>
+                                # {selectedAppointment.client.clientNumber || "N/A"}
+                              </span>
+                              <span className={styles.clientPhoneText}>
+                                {selectedAppointment.client.phone || "Sin teléfono"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {!isEditingApp && (
+                            <>
+                              <button 
+                                type="button"
+                                onClick={() => handleSendWhatsAppReminder(selectedAppointment)} 
+                                className={styles.whatsappBtn}
+                                style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", border: "none", background: "var(--bg-input)", color: "var(--text-primary)", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600 }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
+                                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.5 8.5 0 0 1-7.6-4.7 8.38 8.38 0 0 1-.9-3.8z" />
+                                </svg>
+                                Whatsapp
+                              </button>
+
+                              {/* Switch Toggle */}
+                              <div className={styles.remindersContainer}>
+                                <div 
+                                  className={styles.reminderToggleSwitch}
+                                  style={{ 
+                                    backgroundColor: editPatReceivesReminders ? "#008298" : "#cbd5e0"
+                                  }}
+                                  onClick={() => handleToggleReminders(!editPatReceivesReminders)}
+                                >
+                                  <div 
+                                    className={styles.reminderToggleKnob}
+                                    style={{ 
+                                      left: editPatReceivesReminders ? "18px" : "2px"
+                                    }}
+                                  />
+                                </div>
+                                <span>Recordatorios</span>
+                                <button 
+                                  type="button" 
+                                  className={styles.reminderGearBtn}
+                                  title="Configurar recordatorios"
+                                >
+                                  <Icons.Settings size={14} />
+                                </button>
+                              </div>
+                            </>
                           )}
                         </div>
 
-                        <div className={styles.detailServiceName}>
-                          {selectedAppointment.service.name}
-                        </div>
+                        {/* Right: Appointment details column */}
+                        <div className={styles.drawerRightDetails}>
+                          {isEditingApp ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                              {/* Date & Time Row */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  {/* Date Picker */}
+                                  <div style={{ position: "relative" }} ref={editCalRef}>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        setShowEditCal(!showEditCal);
+                                        setShowStartTimeDropdown(false);
+                                        setShowEndTimeDropdown(false);
+                                      }} 
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        color: "var(--text-primary)",
+                                        fontSize: "20px",
+                                        fontWeight: 800,
+                                        padding: 0,
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px"
+                                      }}
+                                    >
+                                      {formatSpanishDate(formDate)} <span>▾</span>
+                                    </button>
+                                    {showEditCal && (
+                                      <div 
+                                        style={{
+                                          position: "absolute",
+                                          top: "100%",
+                                          left: 0,
+                                          backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                                          border: "1px solid var(--border-color, #e2e8f0)",
+                                          borderRadius: "8px",
+                                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                                          zIndex: 160,
+                                          width: "250px",
+                                          padding: "12px",
+                                          marginTop: "4px"
+                                        }}
+                                      >
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                                          <button 
+                                            type="button" 
+                                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-primary)", fontWeight: "bold" }}
+                                            onClick={() => {
+                                              if (editCalMonth === 0) { setEditCalMonth(11); setEditCalYear(y => y - 1); }
+                                              else setEditCalMonth(m => m - 1);
+                                            }}
+                                          >
+                                            &lt;
+                                          </button>
+                                          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                                            {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][editCalMonth]} {editCalYear}
+                                          </div>
+                                          <button 
+                                            type="button" 
+                                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-primary)", fontWeight: "bold" }}
+                                            onClick={() => {
+                                              if (editCalMonth === 11) { setEditCalMonth(0); setEditCalYear(y => y + 1); }
+                                              else setEditCalMonth(m => m + 1);
+                                            }}
+                                          >
+                                            &gt;
+                                          </button>
+                                        </div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", textAlign: "center", marginBottom: "4px" }}>
+                                          {["Lu","Ma","Mi","Ju","Vi","Sá","Do"].map(d => (
+                                            <div key={d} style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)" }}>{d}</div>
+                                          ))}
+                                        </div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
+                                          {(() => {
+                                            const firstDay = new Date(editCalYear, editCalMonth, 1).getDay();
+                                            const offset = firstDay === 0 ? 6 : firstDay - 1;
+                                            const daysInMonth = new Date(editCalYear, editCalMonth + 1, 0).getDate();
+                                            const cells = [];
+                                            for (let i = 0; i < offset; i++) cells.push(<div key={`e${i}`} />);
+                                            for (let d = 1; d <= daysInMonth; d++) {
+                                              const formatted = `${editCalYear}-${String(editCalMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                                              const isSelected = formDate === formatted;
+                                              cells.push(
+                                                <button 
+                                                  key={d} 
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setFormDate(formatted);
+                                                    setShowEditCal(false);
+                                                  }}
+                                                  style={{
+                                                    border: "none",
+                                                    borderRadius: "4px",
+                                                    padding: "4px 0",
+                                                    cursor: "pointer",
+                                                    fontSize: "11px",
+                                                    fontWeight: 600,
+                                                    backgroundColor: isSelected ? "var(--primary, #008fa3)" : "transparent",
+                                                    color: isSelected ? "#ffffff" : "var(--text-primary)",
+                                                  }}
+                                                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = "var(--bg-input)"; }}
+                                                  onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = "transparent"; }}
+                                                >
+                                                  {d}
+                                                </button>
+                                              );
+                                            }
+                                            return cells;
+                                          })()}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
 
-                        <div className={styles.detailPrice}>
-                          {showPrices ? (currencySymbol === "€" ? `${selectedAppointment.service.price.toFixed(2).replace(".", ",")} €` : `${currencySymbol}${selectedAppointment.service.price.toFixed(2)}`) : "—"}
-                        </div>
+                                {/* Time Range Triggers */}
+                                <div style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "14px", color: "var(--text-secondary)", fontWeight: 600 }}>
+                                  {/* Start Time Dropdown */}
+                                  <div style={{ position: "relative" }} ref={startTimeRef}>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        setShowStartTimeDropdown(!showStartTimeDropdown);
+                                        setShowEditCal(false);
+                                        setShowEndTimeDropdown(false);
+                                      }} 
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        color: "var(--text-secondary)",
+                                        fontSize: "14px",
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        padding: 0
+                                      }}
+                                    >
+                                      {formTime}
+                                    </button>
+                                    {showStartTimeDropdown && (
+                                      <div 
+                                        ref={startTimeDropdownContainerRef}
+                                        style={{
+                                          position: "absolute",
+                                          top: "100%",
+                                          left: 0,
+                                          backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                                          border: "1px solid var(--border-color, #e2e8f0)",
+                                          borderRadius: "8px",
+                                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                                          zIndex: 160,
+                                          width: "120px",
+                                          maxHeight: "200px",
+                                          overflowY: "auto",
+                                          marginTop: "4px"
+                                        }}
+                                      >
+                                        {(() => {
+                                          const intervals = [];
+                                          for (let h = 0; h < 24; h++) {
+                                            for (let m = 0; m < 60; m += 5) {
+                                              intervals.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+                                            }
+                                          }
+                                          return intervals.map((t) => {
+                                            const isSelected = formTime === t;
+                                            return (
+                                              <div
+                                                key={t}
+                                                data-selected={isSelected ? "true" : "false"}
+                                                onClick={() => {
+                                                  setFormTime(t);
+                                                  setShowStartTimeDropdown(false);
+                                                }}
+                                                style={{
+                                                  padding: "8px 12px",
+                                                  cursor: "pointer",
+                                                  fontSize: "13px",
+                                                  display: "flex",
+                                                  justifyContent: "space-between",
+                                                  alignItems: "center",
+                                                  color: "var(--text-primary)",
+                                                  backgroundColor: isSelected ? "var(--bg-input-hover)" : "transparent"
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input)"}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isSelected ? "var(--bg-input-hover)" : "transparent"}
+                                              >
+                                                <span>{formatTime12h(t)}</span>
+                                                {isSelected && <span style={{ color: "var(--primary)" }}>✓</span>}
+                                              </div>
+                                            );
+                                          });
+                                        })()}
+                                      </div>
+                                    )}
+                                  </div>
 
-                        <div style={{ marginTop: "4px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
-                          {(() => {
-                            const matchingSales = agendaSales.filter((sale) => {
-                              try {
-                                const itemsArr = JSON.parse(sale.itemsJson || "[]");
-                                return itemsArr.some((i: any) => i.id === `db-app-${selectedAppointment.id}` || i.id === selectedAppointment.id);
-                              } catch (e) {
-                                return false;
-                              }
-                            });
+                                  <span>-</span>
 
-                            const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
-                            const servicePrice = selectedAppointment.service?.price || 0;
+                                  {/* End Time Dropdown */}
+                                  <div style={{ position: "relative" }} ref={endTimeRef}>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        setShowEndTimeDropdown(!showEndTimeDropdown);
+                                        setShowEditCal(false);
+                                        setShowStartTimeDropdown(false);
+                                      }} 
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        color: "var(--text-secondary)",
+                                        fontSize: "14px",
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        padding: 0
+                                      }}
+                                    >
+                                      {formEndTime}
+                                    </button>
+                                    {showEndTimeDropdown && (
+                                      <div 
+                                        ref={endTimeDropdownContainerRef}
+                                        style={{
+                                          position: "absolute",
+                                          top: "100%",
+                                          left: 0,
+                                          backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                                          border: "1px solid var(--border-color, #e2e8f0)",
+                                          borderRadius: "8px",
+                                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                                          zIndex: 160,
+                                          width: "120px",
+                                          maxHeight: "200px",
+                                          overflowY: "auto",
+                                          marginTop: "4px"
+                                        }}
+                                      >
+                                        {(() => {
+                                          const intervals = [];
+                                          for (let h = 0; h < 24; h++) {
+                                            for (let m = 0; m < 60; m += 5) {
+                                              intervals.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+                                            }
+                                          }
+                                          return intervals.map((t) => {
+                                            const isSelected = formEndTime === t;
+                                            return (
+                                              <div
+                                                key={t}
+                                                data-selected={isSelected ? "true" : "false"}
+                                                onClick={() => {
+                                                  setFormEndTime(t);
+                                                  setShowEndTimeDropdown(false);
+                                                }}
+                                                style={{
+                                                  padding: "8px 12px",
+                                                  cursor: "pointer",
+                                                  fontSize: "13px",
+                                                  display: "flex",
+                                                  justifyContent: "space-between",
+                                                  alignItems: "center",
+                                                  color: "var(--text-primary)",
+                                                  backgroundColor: isSelected ? "var(--bg-input-hover)" : "transparent"
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input)"}
+                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isSelected ? "var(--bg-input-hover)" : "transparent"}
+                                              >
+                                                <span>{formatTime12h(t)}</span>
+                                                {isSelected && <span style={{ color: "var(--primary)" }}>✓</span>}
+                                              </div>
+                                            );
+                                          });
+                                        })()}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
 
-                            const getPaymentMethodTextLocal = (method: string) => {
-                              const m = method.toUpperCase();
-                              if (m === "CASH" || m === "EFECTIVO") return "Efectivo";
-                              if (m === "CARD" || m === "TARJETA") return "Tarjeta";
-                              if (m === "TRANSFER" || m === "TRANSFERENCIA") return "Transferencia";
-                              return method;
-                            };
+                              {/* Tags Row */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Etiquetas</label>
+                                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                                  <div style={{ position: "relative" }} ref={tagsDropdownRef}>
+                                    <button 
+                                      type="button" 
+                                      className={styles.plusSmallBtn} 
+                                      onClick={() => {
+                                        setShowTagsDropdown(!showTagsDropdown);
+                                        setTagsSubView("list");
+                                        setSearchTagQuery("");
+                                      }} 
+                                      title="Gestionar etiquetas"
+                                    >
+                                      +
+                                    </button>
+                                    
+                                    {showTagsDropdown && (
+                                      <div className={styles.tagsDropdownMenu} style={{ top: "100%", left: 0, marginTop: "4px" }}>
+                                        {tagsSubView === "list" ? (
+                                          <>
+                                            <h3 className={styles.tagsDropdownTitle}>Etiquetas</h3>
+                                            <div className={styles.tagsSearchWrapper}>
+                                              <svg className={styles.tagsSearchIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                              <input 
+                                                type="text"
+                                                className={styles.tagsSearchInput}
+                                                placeholder="Buscar etiqueta"
+                                                value={searchTagQuery}
+                                                onChange={(e) => setSearchTagQuery(e.target.value)}
+                                              />
+                                            </div>
+                                            <div className={styles.tagsList}>
+                                              {availableTags
+                                                .filter(tag => {
+                                                  const currentTags = selectedAppointment.tags 
+                                                    ? selectedAppointment.tags.split(",").filter(Boolean).map(t => t.split(":")[0])
+                                                    : [];
+                                                  if (currentTags.includes(tag.name)) return false;
+                                                  return tag.name.toLowerCase().includes(searchTagQuery.toLowerCase());
+                                                })
+                                                .map(tag => (
+                                                  <div
+                                                    key={tag.name}
+                                                    className={styles.tagsListItem}
+                                                    style={{ backgroundColor: tag.color, display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                                                  >
+                                                    <span 
+                                                      style={{ flex: 1, cursor: "pointer", display: "block" }} 
+                                                      onClick={() => handleAddTagToAppointment(tag)}
+                                                    >
+                                                      {tag.name}
+                                                    </span>
+                                                    <span 
+                                                      className={styles.editTagIcon}
+                                                      title="Eliminar etiqueta"
+                                                      onClick={() => handleDeleteTagGlobal(tag.name)}
+                                                      style={{ cursor: "pointer", display: "flex", alignItems: "center", marginLeft: "8px" }}
+                                                    >
+                                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                    </span>
+                                                  </div>
+                                                ))}
+                                              {availableTags.filter(tag => {
+                                                const currentTags = selectedAppointment.tags 
+                                                  ? selectedAppointment.tags.split(",").filter(Boolean).map(t => t.split(":")[0])
+                                                  : [];
+                                                if (currentTags.includes(tag.name)) return false;
+                                                return tag.name.toLowerCase().includes(searchTagQuery.toLowerCase());
+                                              }).length === 0 && (
+                                                <div style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "center", padding: "8px" }}>Sin etiquetas disponibles</div>
+                                              )}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              className={styles.newTagBtn}
+                                              onClick={() => {
+                                                setTagsSubView("create");
+                                                setNewTagName("");
+                                                setNewTagColor("#add8e6");
+                                              }}
+                                            >
+                                              Nueva etiqueta
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <h3 className={styles.tagsDropdownTitle}>Nueva etiqueta</h3>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                              <div>
+                                                <label className={styles.newTagLabel}>Nombre</label>
+                                                <input 
+                                                  type="text"
+                                                  className="input"
+                                                  style={{ width: "100%", fontSize: "12px", padding: "6px 10px", outline: "none", border: "1px solid var(--border-color)", borderRadius: "4px" }}
+                                                  placeholder="Nombre de la etiqueta"
+                                                  value={newInfoTagName}
+                                                  onChange={(e) => setNewInfoTagName(e.target.value)}
+                                                  autoFocus
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className={styles.newTagLabel}>ASIGNAR COLOR</label>
+                                                <div className={styles.colorPickerGrid}>
+                                                  {TAG_COLORS.map(color => (
+                                                    <div
+                                                      key={color}
+                                                      className={`${styles.colorCircle} ${newTagColor === color ? styles.colorCircleSelected : ""}`}
+                                                      style={{ backgroundColor: color }}
+                                                      onClick={() => setNewTagColor(color)}
+                                                    />
+                                                  ))}
+                                                </div>
+                                              </div>
+                                              <div className={styles.newTagActions}>
+                                                <button 
+                                                  type="button"
+                                                  className={styles.newTagCancelBtn}
+                                                  onClick={() => setTagsSubView("list")}
+                                                >
+                                                  Cancelar
+                                                </button>
+                                                <button 
+                                                  type="button"
+                                                  className={styles.newTagSaveBtn}
+                                                  disabled={!newInfoTagName.trim()}
+                                                  onClick={() => handleCreateNewTagGlobal(newInfoTagName, newTagColor)}
+                                                >
+                                                  Guardar
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
 
-                            if (servicePrice === 0) {
-                              return <span className={styles.paymentTagGreen}>GRATUITO</span>;
-                            } else if (totalPaid >= servicePrice) {
-                              const methods = [...new Set(matchingSales.map(s => getPaymentMethodTextLocal(s.paymentMethod)))];
-                              return (
-                                <>
-                                  <span className={styles.paymentTagGreen}>PAGADO</span>
-                                  {methods.map((method, idx) => (
-                                    <span key={idx} className={styles.paymentMethodTag}>
-                                      {method}
-                                    </span>
+                                  {selectedAppointment.tags && selectedAppointment.tags.split(",").filter(Boolean).map(tagStr => {
+                                    const [tagName, tagColor] = tagStr.split(":");
+                                    return (
+                                      <span 
+                                        key={tagName} 
+                                        style={{ 
+                                          backgroundColor: tagColor || "#ef4444", 
+                                          color: "#fff", 
+                                          padding: "4px 8px", 
+                                          borderRadius: "4px", 
+                                          fontSize: "11px", 
+                                          fontWeight: 700, 
+                                          display: "inline-flex", 
+                                          alignItems: "center", 
+                                          gap: "6px" 
+                                        }}
+                                      >
+                                        {tagName}
+                                        <button 
+                                          type="button" 
+                                          onClick={() => handleRemoveTagFromAppointment(tagName)} 
+                                          style={{ 
+                                            background: "none", 
+                                            border: "none", 
+                                            color: "#fff", 
+                                            cursor: "pointer", 
+                                            padding: 0, 
+                                            fontSize: "11px", 
+                                            fontWeight: "bold",
+                                            display: "inline-flex",
+                                            alignItems: "center"
+                                          }}
+                                        >
+                                          ✕
+                                        </button>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Service dropdown select */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }} ref={serviceEditDropdownRef}>
+                                <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Servicio</label>
+                                <div style={{ position: "relative" }}>
+                                  {(() => {
+                                    const currentService = servicesList.find(s => s.id === formServiceId);
+                                    return currentService ? (
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                        <div 
+                                          style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                            border: "1px solid var(--border-color)",
+                                            backgroundColor: "var(--bg-panel-solid)",
+                                            padding: "8px 12px",
+                                            borderRadius: "6px",
+                                            fontSize: "13px",
+                                            width: "100%",
+                                            justifyContent: "space-between"
+                                          }}
+                                        >
+                                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                            <span style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: currentService.color || "var(--primary)" }} />
+                                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{currentService.name}</span>
+                                          </div>
+                                          <span 
+                                            style={{ cursor: "pointer", color: "var(--text-secondary)", fontWeight: "bold" }}
+                                            onClick={() => setFormServiceId("")}
+                                          >
+                                            ✕
+                                          </span>
+                                        </div>
+                                        <div 
+                                          style={{
+                                            borderLeft: `4px solid ${currentService.color || "var(--primary)"}`,
+                                            backgroundColor: "var(--bg-input, #f7fafc)",
+                                            padding: "12px",
+                                            borderRadius: "0 6px 6px 0",
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center"
+                                          }}
+                                        >
+                                          <div>
+                                            <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{currentService.name}</div>
+                                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{currentService.duration} min</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <button 
+                                        type="button" 
+                                        style={{
+                                          width: "100%",
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          background: "var(--bg-input)",
+                                          border: "1px solid var(--border-color)",
+                                          borderRadius: "6px",
+                                          color: "var(--text-muted)",
+                                          fontSize: "13px",
+                                          padding: "8px 12px",
+                                          textAlign: "left",
+                                          cursor: "pointer"
+                                        }}
+                                        onClick={() => setShowServiceEditDropdown(true)}
+                                      >
+                                        <span>Seleccionar servicio...</span>
+                                        <span>▾</span>
+                                      </button>
+                                    );
+                                  })()}
+                                  {showServiceEditDropdown && (
+                                    <div 
+                                      style={{
+                                        position: "absolute",
+                                        top: "100%",
+                                        left: 0,
+                                        right: 0,
+                                        backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                                        border: "1px solid var(--border-color)",
+                                        borderRadius: "8px",
+                                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                                        zIndex: 180,
+                                        maxHeight: "300px",
+                                        overflowY: "auto",
+                                        marginTop: "4px",
+                                        padding: "8px"
+                                      }}
+                                    >
+                                      <input 
+                                        type="text"
+                                        placeholder="🔍 Buscar servicio..."
+                                        value={searchServiceQuery}
+                                        onChange={(e) => setSearchServiceQuery(e.target.value)}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 10px",
+                                          fontSize: "13px",
+                                          border: "1px solid var(--border-color)",
+                                          borderRadius: "6px",
+                                          marginBottom: "8px",
+                                          outline: "none",
+                                          backgroundColor: "var(--bg-input)",
+                                          color: "var(--text-primary)"
+                                        }}
+                                      />
+                                      {(() => {
+                                        const categories: Record<string, any> = {};
+                                        servicesList.forEach(s => {
+                                          if (searchServiceQuery && !s.name.toLowerCase().includes(searchServiceQuery.toLowerCase())) {
+                                            return;
+                                          }
+                                          const cat = s.category || "General";
+                                          if (!categories[cat]) categories[cat] = [];
+                                          categories[cat].push(s);
+                                        });
+
+                                        const catKeys = Object.keys(categories);
+                                        if (catKeys.length === 0) {
+                                          return <div style={{ padding: "8px", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>No se encontraron servicios</div>;
+                                        }
+
+                                        return catKeys.map(cat => {
+                                          const isExpanded = expandedCategories[cat] !== false;
+                                          const catServices = categories[cat];
+                                          const catColor = catServices[0]?.color || "var(--primary)";
+
+                                          return (
+                                            <div key={cat} style={{ marginBottom: "8px" }}>
+                                              <div 
+                                                onClick={() => setExpandedCategories(prev => ({ ...prev, [cat]: !isExpanded }))}
+                                                style={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  gap: "6px",
+                                                  padding: "6px 4px",
+                                                  cursor: "pointer",
+                                                  fontWeight: 700,
+                                                  fontSize: "12px",
+                                                  color: "var(--text-primary)",
+                                                  borderBottom: "1px solid var(--border-color)",
+                                                  userSelect: "none"
+                                                }}
+                                              >
+                                                <span style={{ fontSize: "10px", transition: "transform 0.2s", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+                                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: catColor }} />
+                                                <span>{cat}</span>
+                                                <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-muted)" }}>{catServices.length}</span>
+                                              </div>
+                                              {isExpanded && (
+                                                <div style={{ paddingLeft: "8px", marginTop: "4px" }}>
+                                                  {catServices.map((s: any) => {
+                                                    const isSelected = formServiceId === s.id;
+                                                    return (
+                                                      <div
+                                                        key={s.id}
+                                                        onClick={() => {
+                                                          setFormServiceId(s.id);
+                                                          const [startH, startM] = formTime.split(":").map(Number);
+                                                          const startMinutesTotal = startH * 60 + startM;
+                                                          const endMinutesTotal = startMinutesTotal + s.duration;
+                                                          const endH = Math.floor(endMinutesTotal / 60) % 24;
+                                                          const endM = endMinutesTotal % 60;
+                                                          setFormEndTime(`${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`);
+                                                          setShowServiceEditDropdown(false);
+                                                        }}
+                                                        style={{
+                                                          display: "flex",
+                                                          justifyContent: "space-between",
+                                                          alignItems: "center",
+                                                          padding: "8px",
+                                                          fontSize: "13px",
+                                                          cursor: "pointer",
+                                                          borderRadius: "4px",
+                                                          borderLeft: `3px solid ${s.color || "var(--primary)"}`,
+                                                          marginBottom: "2px",
+                                                          backgroundColor: isSelected ? "var(--bg-input-hover)" : "transparent",
+                                                          color: "var(--text-primary)"
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input)"}
+                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isSelected ? "var(--bg-input-hover)" : "transparent"}
+                                                      >
+                                                        <span style={{ fontWeight: isSelected ? 700 : 500 }}>{s.name}</span>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
+                                                          <span>{formatDuration(s.duration)}</span>
+                                                          <span>•</span>
+                                                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{formatPrice(s.price)}</span>
+                                                          {isSelected && <span style={{ color: "var(--primary)" }}>✓</span>}
+                                                        </div>
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        });
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Clinic Dropdown */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Ubicación</label>
+                                <select
+                                  className="input select"
+                                  value={formClinicId}
+                                  onChange={(e) => setFormClinicId(e.target.value)}
+                                  style={{
+                                    width: "100%",
+                                    background: "var(--bg-input)",
+                                    border: "1px solid var(--border-color)",
+                                    borderRadius: "6px",
+                                    fontSize: "13px",
+                                    padding: "8px 12px",
+                                    color: "var(--text-primary)"
+                                  }}
+                                >
+                                  {(currentUser?.clinics || []).map((c: any) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
                                   ))}
-                                </>
-                              );
-                            } else if (totalPaid > 0) {
-                              const methods = [...new Set(matchingSales.map(s => getPaymentMethodTextLocal(s.paymentMethod)))];
-                              return (
-                                <>
-                                  <span className={styles.paymentTagYellow}>PAGO PARCIAL</span>
-                                  {methods.map((method, idx) => (
-                                    <span key={idx} className={styles.paymentMethodTag}>
-                                      {method}
-                                    </span>
+                                </select>
+                              </div>
+
+                              {/* User Dropdown */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Profesional</label>
+                                <select
+                                  className="input select"
+                                  value={formUserId}
+                                  onChange={(e) => setFormUserId(e.target.value)}
+                                  style={{
+                                    width: "100%",
+                                    background: "var(--bg-input)",
+                                    border: "1px solid var(--border-color)",
+                                    borderRadius: "6px",
+                                    fontSize: "13px",
+                                    padding: "8px 12px",
+                                    color: "var(--text-primary)"
+                                  }}
+                                >
+                                  {filteredStaffForDropdown.map(u => (
+                                    <option key={u.id} value={u.id}>{u.name} {u.lastName || ""}</option>
                                   ))}
-                                </>
-                              );
-                            } else {
-                              return <span className={styles.paymentTagRed}>NO PAGADO</span>;
-                            }
-                          })()}
+                                </select>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className={styles.detailDateTime}>
+                                {(() => {
+                                  const startD = new Date(selectedAppointment.start);
+                                  const endD = new Date(selectedAppointment.end);
+                                  const months = ["Ene.", "Feb.", "Mar.", "Abr.", "May.", "Jun.", "Jul.", "Ago.", "Sep.", "Oct.", "Nov.", "Dic."];
+                                  return `${months[startD.getMonth()]} ${startD.getDate()} ${String(startD.getHours()).padStart(2, "0")}:${String(startD.getMinutes()).padStart(2, "0")} - ${String(endD.getHours()).padStart(2, "0")}:${String(endD.getMinutes()).padStart(2, "0")}`;
+                                })()}
+                              </div>
+
+                              <div className={styles.detailClinicName}>
+                                {selectedAppointment.clinic?.name || activeClinic?.name || "Clifav Central"}
+                                {selectedAppointment.user && (
+                                  <div style={{ marginTop: "2px", color: "var(--text-secondary)" }}>
+                                    {selectedAppointment.user.name} {selectedAppointment.user.lastName || ""}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className={styles.detailServiceName}>
+                                {selectedAppointment.service.name}
+                              </div>
+
+                              <div className={styles.detailPrice}>
+                                {showPrices ? (currencySymbol === "€" ? `${selectedAppointment.service.price.toFixed(2).replace(".", ",")} €` : `${currencySymbol}${selectedAppointment.service.price.toFixed(2)}`) : "—"}
+                              </div>
+
+                              <div style={{ marginTop: "4px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                                {(() => {
+                                  const matchingSales = agendaSales.filter((sale) => {
+                                    try {
+                                      const itemsArr = JSON.parse(sale.itemsJson || "[]");
+                                      return itemsArr.some((i: any) => i.id === `db-app-${selectedAppointment.id}` || i.id === selectedAppointment.id);
+                                    } catch (e) {
+                                      return false;
+                                    }
+                                  });
+
+                                  const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+                                  const servicePrice = selectedAppointment.service?.price || 0;
+
+                                  const getPaymentMethodTextLocal = (method: string) => {
+                                    const m = method.toUpperCase();
+                                    if (m === "CASH" || m === "EFECTIVO") return "Efectivo";
+                                    if (m === "CARD" || m === "TARJETA") return "Tarjeta";
+                                    if (m === "TRANSFER" || m === "TRANSFERENCIA") return "Transferencia";
+                                    return method;
+                                  };
+
+                                  if (servicePrice === 0) {
+                                    return <span className={styles.paymentTagGreen}>GRATUITO</span>;
+                                  } else if (totalPaid >= servicePrice) {
+                                    const methods = [...new Set(matchingSales.map(s => getPaymentMethodTextLocal(s.paymentMethod)))];
+                                    return (
+                                      <>
+                                        <span className={styles.paymentTagGreen}>PAGADO</span>
+                                        {methods.map((method, idx) => (
+                                          <span key={idx} className={styles.paymentMethodTag}>
+                                            {method}
+                                          </span>
+                                        ))}
+                                      </>
+                                    );
+                                  } else if (totalPaid > 0) {
+                                    const methods = [...new Set(matchingSales.map(s => getPaymentMethodTextLocal(s.paymentMethod)))];
+                                    return (
+                                      <>
+                                        <span className={styles.paymentTagYellow}>PAGO PARCIAL</span>
+                                        {methods.map((method, idx) => (
+                                          <span key={idx} className={styles.paymentMethodTag}>
+                                            {method}
+                                          </span>
+                                        ))}
+                                      </>
+                                    );
+                                  } else {
+                                    return <span className={styles.paymentTagRed}>NO PAGADO</span>;
+                                  }
+                                })()}
+                              </div>
+                            </>
+                          )}
+
+                          {/* Internal note note text field */}
+                          <div style={{ marginTop: "24px", borderTop: "1px solid var(--border-color)", paddingTop: "16px" }}>
+                            <label className="form-label" style={{ fontWeight: 600, color: "var(--primary)", display: "block", marginBottom: "8px" }}>Nota interna</label>
+                            {isEditingApp ? (
+                              <textarea
+                                className="input"
+                                style={{ minHeight: "80px", width: "100%", padding: "8px", resize: "vertical", backgroundColor: "var(--bg-input)", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-primary)" }}
+                                placeholder="Añadir comentarios sobre la consulta..."
+                                value={formNotes}
+                                onChange={(e) => setFormNotes(e.target.value)}
+                              />
+                            ) : (
+                              <div style={{ fontSize: "13px", color: "var(--text-primary)", whiteSpace: "pre-wrap", lineHeight: "1.5" }}>
+                                {selectedAppointment.notes || <span style={{ color: "var(--text-muted)" }}>Sin notas internas</span>}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </>
                   )}
 
                   {editModalTab === "bonos" && (
@@ -5531,7 +6278,6 @@ export default function AgendaPage() {
                       )}
                     </div>
                   )}
-
 
                   {editModalTab === "citas" && (
                     <div className={styles.pastCitasPane}>
@@ -5758,7 +6504,6 @@ export default function AgendaPage() {
                     </div>
                   )}
 
-                  {/* === HISTORIAL TAB === */}
                   {editModalTab === "historial" && (
                     <div className={styles.historialPane}>
                       {loadingLogs ? (
@@ -5840,6 +6585,59 @@ export default function AgendaPage() {
                         Guardar
                       </button>
                     </>
+                  ) : isEditingApp ? (
+                    <div style={{ display: "flex", width: "100%", gap: "10px", justifyContent: "space-between" }}>
+                      <button
+                        type="button"
+                        className={styles.segCancelBtn}
+                        onClick={() => {
+                          const startD = new Date(selectedAppointment.start);
+                          const yyyy = startD.getFullYear();
+                          const mm = String(startD.getMonth() + 1).padStart(2, "0");
+                          const dd = String(startD.getDate()).padStart(2, "0");
+                          setFormDate(`${yyyy}-${mm}-${dd}`);
+                          setFormTime(`${String(startD.getHours()).padStart(2, "0")}:${String(startD.getMinutes()).padStart(2, "0")}`);
+                          
+                          const endD = new Date(selectedAppointment.end);
+                          setFormEndTime(`${String(endD.getHours()).padStart(2, "0")}:${String(endD.getMinutes()).padStart(2, "0")}`);
+                          
+                          setFormUserId(selectedAppointment.userId);
+                          setFormServiceId(selectedAppointment.serviceId);
+                          setFormNotes(selectedAppointment.notes || "");
+                          setFormStatus(selectedAppointment.status);
+
+                          setIsEditingApp(false);
+                        }}
+                        style={{ flex: 1 }}
+                      >
+                        Cancelar
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateAppointment(null, false, false)}
+                        className={styles.segSaveBtn}
+                        style={{
+                          flex: 1.5,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Editar cita
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateAppointment(null, false, true)}
+                        className={styles.cajaBtn}
+                        style={{
+                          flex: 1.8,
+                          cursor: "pointer",
+                          backgroundColor: "#00b4cc",
+                          color: "#fff"
+                        }}
+                      >
+                        Cobrar y Editar cita
+                      </button>
+                    </div>
                   ) : (
                     <>
                       {/* Left: Más opciones context button */}
@@ -5865,15 +6663,7 @@ export default function AgendaPage() {
                             >
                               Copiar cita
                             </div>
-                            <div
-                              className={styles.moreOptionsItem}
-                              onClick={() => {
-                                alert("Función para repetir cita la próxima semana activada.");
-                                setShowMoreOptions(false);
-                              }}
-                            >
-                              Repetir cita
-                            </div>
+                            
                             <div
                               className={styles.moreOptionsItem}
                               onClick={() => {
@@ -5909,8 +6699,7 @@ export default function AgendaPage() {
                     </>
                   )}
                 </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>,
         document.body

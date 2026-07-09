@@ -9,6 +9,7 @@ import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./ClientDetail.module.css";
 import { getCountryConfig } from "@/lib/countries";
+import { translate } from "@/lib/translations";
 
 interface Client {
   id: string;
@@ -132,7 +133,8 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
 
 export default function ClientDetailPage() {
   const { id } = useParams() as { id: string };
-  const { activeClinic, user: currentUser } = useApp();
+  const { activeClinic, user: currentUser, language } = useApp();
+  const t = (key: string) => translate(key, language);
   const cConfig = getCountryConfig(activeClinic?.country || "ES");
   const identityLabel = cConfig.idName;
   const router = useRouter();
@@ -142,6 +144,20 @@ export default function ClientDetailPage() {
       router.push("/dashboard/agenda");
     }
   }, [currentUser, router]);
+
+  useEffect(() => {
+    if (activeClinic) {
+      const code = activeClinic.country || "ES";
+      const config = getCountryConfig(code);
+      setCreateCountry(config.name);
+      const matched = COUNTRIES.find((c) => c.code === config.code);
+      if (matched) {
+        setPhoneCountry(matched);
+        setDniCountry(matched);
+        setCountryDropdownCountry(matched);
+      }
+    }
+  }, [activeClinic]);
 
   const showPersonalData = currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Ver datos personales");
   const showDocumentsTab = currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Ver documentos");
@@ -206,7 +222,69 @@ export default function ClientDetailPage() {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
   // Create Client Modal State
+  const COUNTRIES = [
+    { code: "ES", flag: "🇪🇸", name: "España", dial: "+34" },
+    { code: "AD", flag: "🇦🇩", name: "Andorra", dial: "+376" },
+    { code: "AR", flag: "🇦🇷", name: "Argentina", dial: "+54" },
+    { code: "AU", flag: "🇦🇺", name: "Australia", dial: "+61" },
+    { code: "AT", flag: "🇦🇹", name: "Austria", dial: "+43" },
+    { code: "BE", flag: "🇧🇪", name: "Bélgica", dial: "+32" },
+    { code: "BO", flag: "🇧🇴", name: "Bolivia", dial: "+591" },
+    { code: "BR", flag: "🇧🇷", name: "Brasil", dial: "+55" },
+    { code: "CA", flag: "🇨🇦", name: "Canadá", dial: "+1" },
+    { code: "CL", flag: "🇨🇱", name: "Chile", dial: "+56" },
+    { code: "CN", flag: "🇨🇳", name: "China", dial: "+86" },
+    { code: "CO", flag: "🇨🇴", name: "Colombia", dial: "+57" },
+    { code: "CR", flag: "🇨🇷", name: "Costa Rica", dial: "+506" },
+    { code: "CU", flag: "🇨🇺", name: "Cuba", dial: "+53" },
+    { code: "CZ", flag: "🇨🇿", name: "República Checa", dial: "+420" },
+    { code: "DK", flag: "🇩🇰", name: "Dinamarca", dial: "+45" },
+    { code: "DO", flag: "🇩🇴", name: "Rep. Dominicana", dial: "+1" },
+    { code: "EC", flag: "🇪🇨", name: "Ecuador", dial: "+593" },
+    { code: "EG", flag: "🇪🇬", name: "Egipto", dial: "+20" },
+    { code: "SV", flag: "🇸🇻", name: "El Salvador", dial: "+503" },
+    { code: "FI", flag: "🇫🇮", name: "Finlandia", dial: "+358" },
+    { code: "FR", flag: "🇫🇷", name: "Francia", dial: "+33" },
+    { code: "DE", flag: "🇩🇪", name: "Alemania", dial: "+49" },
+    { code: "GR", flag: "🇬🇷", name: "Grecia", dial: "+30" },
+    { code: "GT", flag: "🇬🇹", name: "Guatemala", dial: "+502" },
+    { code: "HN", flag: "🇭🇳", name: "Honduras", dial: "+504" },
+    { code: "HU", flag: "🇬🇺", name: "Hungría", dial: "+36" },
+    { code: "IN", flag: "🇮🇳", name: "India", dial: "+91" },
+    { code: "ID", flag: "🇮🇩", name: "Indonesia", dial: "+62" },
+    { code: "IE", flag: "🇮🇪", name: "Irlanda", dial: "+353" },
+    { code: "IL", flag: "🇮🇱", name: "Israel", dial: "+972" },
+    { code: "IT", flag: "🇮🇹", name: "Italia", dial: "+39" },
+    { code: "JP", flag: "🇯🇵", name: "Japón", dial: "+81" },
+    { code: "MX", flag: "🇲🇽", name: "México", dial: "+52" },
+    { code: "MA", flag: "🇲🇦", name: "Marruecos", dial: "+212" },
+    { code: "NL", flag: "🇳🇱", name: "Países Bajos", dial: "+31" },
+    { code: "NI", flag: "🇳🇮", name: "Nicaragua", dial: "+505" },
+    { code: "NO", flag: "🇳🇴", name: "Noruega", dial: "+47" },
+    { code: "PA", flag: "🇵🇦", name: "Panamá", dial: "+507" },
+    { code: "PY", flag: "🇵🇾", name: "Paraguay", dial: "+595" },
+    { code: "PE", flag: "🇵🇪", name: "Perú", dial: "+51" },
+    { code: "PL", flag: "🇵🇱", name: "Polonia", dial: "+48" },
+    { code: "PT", flag: "🇵🇹", name: "Portugal", dial: "+351" },
+    { code: "PR", flag: "🇵🇷", name: "Puerto Rico", dial: "+1" },
+    { code: "RO", flag: "🇷🇴", name: "Rumanía", dial: "+40" },
+    { code: "RU", flag: "🇷🇺", name: "Rusia", dial: "+7" },
+    { code: "SA", flag: "🇸🇦", name: "Arabia Saudí", dial: "+966" },
+    { code: "SE", flag: "🇸🇪", name: "Suecia", dial: "+46" },
+    { code: "CH", flag: "🇨🇭", name: "Suiza", dial: "+41" },
+    { code: "TH", flag: "🇹🇭", name: "Tailandia", dial: "+66" },
+    { code: "TR", flag: "🇹🇷", name: "Turquía", dial: "+90" },
+    { code: "UA", flag: "🇺🇦", name: "Ucrania", dial: "+380" },
+    { code: "AE", flag: "🇦🇪", name: "Emiratos Árabes", dial: "+971" },
+    { code: "GB", flag: "🇬🇧", name: "Reino Unido", dial: "+44" },
+    { code: "US", flag: "🇺🇸", name: "Estados Unidos", dial: "+1" },
+    { code: "UY", flag: "🇺🇾", name: "Uruguay", dial: "+598" },
+    { code: "VE", flag: "🇻🇪", name: "Venezuela", dial: "+58" }
+  ];
+
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creationTab, setCreationTab] = useState<"general" | "otros">("general");
+
   const [createFirstName, setCreateFirstName] = useState("");
   const [createLastName, setCreateLastName] = useState("");
   const [createPhone, setCreatePhone] = useState("");
@@ -218,6 +296,100 @@ export default function ClientDetailPage() {
   const [createMunicipality, setCreateMunicipality] = useState("");
   const [createPostalCode, setCreatePostalCode] = useState("");
   const [createCountry, setCreateCountry] = useState("España");
+  const [createIban, setCreateIban] = useState("");
+  const [createBic, setCreateBic] = useState("");
+  const [createTags, setCreateTags] = useState("");
+
+  const [createAestheticTreatments, setCreateAestheticTreatments] = useState("");
+  const [createAllergies, setCreateAllergies] = useState("");
+  const [createMedication, setCreateMedication] = useState("");
+  const [createMedicalHistory, setCreateMedicalHistory] = useState("");
+  const [createOtherNotes, setCreateOtherNotes] = useState("");
+
+  const [createTutorName, setCreateTutorName] = useState("");
+  const [createTutorLastName, setCreateTutorLastName] = useState("");
+  const [createTutorDniNif, setCreateTutorDniNif] = useState("");
+  const [createTutorPhone, setCreateTutorPhone] = useState("");
+  const [createTutorEmail, setCreateTutorEmail] = useState("");
+  const [createTutorAddress, setCreateTutorAddress] = useState("");
+  const [createTutorPostalCode, setCreateTutorPostalCode] = useState("");
+  const [createTutorMunicipality, setCreateTutorMunicipality] = useState("");
+
+  const [createIsSelfEmployed, setCreateIsSelfEmployed] = useState(false);
+  const [createIsCompany, setCreateIsCompany] = useState(false);
+  const [createReceivesReminders, setCreateReceivesReminders] = useState(true);
+
+  // Picker dropdown states for creation form
+  const [phoneCountry, setPhoneCountry] = useState(COUNTRIES[0]);
+  const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const phoneDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [countryDropdownCountry, setCountryDropdownCountry] = useState(COUNTRIES[0]);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [showBirthCalendar, setShowBirthCalendar] = useState(false);
+  const [birthCalYear, setBirthCalYear] = useState(new Date().getFullYear() - 30);
+  const [birthCalMonth, setBirthCalMonth] = useState(new Date().getMonth());
+  const birthCalRef = useRef<HTMLDivElement>(null);
+
+  const [dniCountry, setDniCountry] = useState(COUNTRIES[0]);
+  const [showDniDropdown, setShowDniDropdown] = useState(false);
+  const [dniSearch, setDniSearch] = useState("");
+  const dniDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Address autocomplete states for client creation form
+  const [showCreateAddressDropdown, setShowCreateAddressDropdown] = useState(false);
+  const createAddressAutocompleteRef = useRef<HTMLDivElement>(null);
+
+  const handleCreateAddressChange = async (val: string) => {
+    setCreateAddress(val);
+    if (val.trim().length > 3) {
+      try {
+        const countryCode = activeClinic?.country || "ES";
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            val
+          )}&countrycodes=${countryCode.toLowerCase()}&limit=5&addressdetails=1`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const formatted = data.map((item: any) => {
+            const road = item.address.road || item.address.pedestrian || "";
+            const houseNumber = item.address.house_number || "";
+            const cityVal = item.address.city || item.address.town || item.address.village || item.address.suburb || "";
+            const postcode = item.address.postcode || "";
+            const countryName = item.address.country || "";
+            return {
+              address: [road, houseNumber].filter(Boolean).join(", "),
+              city: cityVal,
+              postalCode: postcode,
+              country: countryName,
+              displayName: item.display_name,
+            };
+          });
+          setAddressSuggestions(formatted);
+          setShowCreateAddressDropdown(true);
+        }
+      } catch (e) {
+        console.error("Error fetching autocompleted address:", e);
+      }
+    } else {
+      setAddressSuggestions([]);
+      setShowCreateAddressDropdown(false);
+    }
+  };
+
+  const handleSelectCreateAddressSuggestion = (item: any) => {
+    setCreateAddress(item.address || item.displayName.split(",")[0]);
+    if (item.city) setCreateMunicipality(item.city);
+    if (item.postalCode) setCreatePostalCode(item.postalCode);
+    if (item.country) setCreateCountry(item.country);
+    setAddressSuggestions([]);
+    setShowCreateAddressDropdown(false);
+  };
 
   // Edit fields for full edit modal
   const [formFirstName, setFormFirstName] = useState("");
@@ -1101,7 +1273,6 @@ export default function ClientDetailPage() {
     setShowCreateSeguimientoMenu(false);
   };
 
-  // Click outside options dropdown menu
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (optionsRef.current && !optionsRef.current.contains(event.target as Node)) {
@@ -1109,6 +1280,21 @@ export default function ClientDetailPage() {
       }
       if (addressAutocompleteRef.current && !addressAutocompleteRef.current.contains(event.target as Node)) {
         setShowAddressDropdown(false);
+      }
+      if (createAddressAutocompleteRef.current && !createAddressAutocompleteRef.current.contains(event.target as Node)) {
+        setShowCreateAddressDropdown(false);
+      }
+      if (phoneDropdownRef.current && !phoneDropdownRef.current.contains(event.target as Node)) {
+        setShowPhoneDropdown(false);
+      }
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target as Node)) {
+        setShowCountryDropdown(false);
+      }
+      if (birthCalRef.current && !birthCalRef.current.contains(event.target as Node)) {
+        setShowBirthCalendar(false);
+      }
+      if (dniDropdownRef.current && !dniDropdownRef.current.contains(event.target as Node)) {
+        setShowDniDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -1936,19 +2122,55 @@ export default function ClientDetailPage() {
     e.preventDefault();
     if (!activeClinic || !createFirstName || !createLastName) return;
 
+    // Convert birth date from DD/MM/YYYY to YYYY-MM-DD if needed
+    let birthDateParsed = null;
+    if (createBirthDate) {
+      if (createBirthDate.includes("/")) {
+        const parts = createBirthDate.split("/");
+        if (parts.length === 3) {
+          birthDateParsed = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      } else {
+        birthDateParsed = createBirthDate;
+      }
+    }
+
     const payload = {
       firstName: createFirstName,
       lastName: createLastName,
       phone: createPhone,
       email: createEmail,
       dniNif: createDniNif,
-      birthDate: createBirthDate || null,
+      birthDate: birthDateParsed,
       gender: createGender,
       address: createAddress,
       municipality: createMunicipality,
       postalCode: createPostalCode,
       country: createCountry,
-      clinicId: activeClinic.id
+      iban: createIban,
+      bic: createBic,
+      tags: createTags,
+      clinicId: activeClinic.id,
+      isSelfEmployed: createIsSelfEmployed,
+      isCompany: createIsCompany,
+      receivesReminders: createReceivesReminders,
+      
+      // Medical notes
+      aestheticTreatments: createAestheticTreatments,
+      allergies: createAllergies,
+      medication: createMedication,
+      medicalHistory: createMedicalHistory,
+      otherNotes: createOtherNotes,
+      
+      // Tutor details
+      tutorName: createTutorName,
+      tutorLastName: createTutorLastName,
+      tutorDniNif: createTutorDniNif,
+      tutorPhone: createTutorPhone,
+      tutorEmail: createTutorEmail,
+      tutorAddress: createTutorAddress,
+      tutorPostalCode: createTutorPostalCode,
+      tutorMunicipality: createTutorMunicipality,
     };
 
     const res = await fetch("/api/clients", {
@@ -1960,6 +2182,9 @@ export default function ClientDetailPage() {
     if (res.ok) {
       const newClient = await res.json();
       setShowCreateModal(false);
+      setCreationTab("general");
+      
+      // Reset states
       setCreateFirstName("");
       setCreateLastName("");
       setCreatePhone("");
@@ -1969,6 +2194,27 @@ export default function ClientDetailPage() {
       setCreateAddress("");
       setCreateMunicipality("");
       setCreatePostalCode("");
+      setCreateCountry("España");
+      setCreateIban("");
+      setCreateBic("");
+      setCreateTags("");
+      setCreateGender("Femenino");
+      setCreateAestheticTreatments("");
+      setCreateAllergies("");
+      setCreateMedication("");
+      setCreateMedicalHistory("");
+      setCreateOtherNotes("");
+      setCreateTutorName("");
+      setCreateTutorLastName("");
+      setCreateTutorDniNif("");
+      setCreateTutorPhone("");
+      setCreateTutorEmail("");
+      setCreateTutorAddress("");
+      setCreateTutorPostalCode("");
+      setCreateTutorMunicipality("");
+      setCreateIsSelfEmployed(false);
+      setCreateIsCompany(false);
+      setCreateReceivesReminders(true);
       
       // Update lists and navigate to details
       fetchSidebarClientsList();
@@ -2517,7 +2763,7 @@ export default function ClientDetailPage() {
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    return `(${age} años)`;
+    return t("timezone") === "Time Zone" ? `(${age} years old)` : t("timezone") === "Zona horària" ? `(${age} anys)` : t("timezone") === "Ordu-eremua" ? `(${age} urte)` : `(${age} años)`;
   };
 
   const filteredSidebarClients = sidebarClients.filter(c =>
@@ -2527,7 +2773,7 @@ export default function ClientDetailPage() {
   );
 
   if (loading) {
-    return <div className={styles.loadingState}>Cargando ficha del paciente...</div>;
+    return <div className={styles.loadingState}>{t("timezone") === "Time Zone" ? "Loading patient profile..." : t("timezone") === "Zona horària" ? "Carregant fitxa del pacient..." : t("timezone") === "Ordu-eremua" ? "Pazientearen fitxa kargatzen..." : "Cargando ficha del paciente..."}</div>;
   }
 
   if (!client) return null;
@@ -2559,7 +2805,7 @@ export default function ClientDetailPage() {
           <Icons.Search size={16} className={styles.sidebarSearchIcon} />
           <input 
             type="text" 
-            placeholder="Buscar cliente" 
+            placeholder={t("searchClient")} 
             className={styles.sidebarSearchInput}
             value={sidebarSearch}
             onChange={(e) => setSidebarSearch(e.target.value)}
@@ -2580,7 +2826,7 @@ export default function ClientDetailPage() {
                 </div>
                 <div className={styles.sidebarInfo}>
                   <span className={styles.sidebarClientName}>{c.firstName} {c.lastName}</span>
-                  <span className={styles.sidebarClientPhone}>{c.phone || "Sin teléfono"}</span>
+                  <span className={styles.sidebarClientPhone}>{c.phone || (t("timezone") === "Time Zone" ? "No phone" : t("timezone") === "Zona horària" ? "Sense telèfon" : t("timezone") === "Ordu-eremua" ? "Telefonorik ez" : "Sin teléfono")}</span>
                 </div>
                 <div className={styles.sidebarInitialLetter}>
                   {c.lastName.charAt(0).toUpperCase()}
@@ -2592,10 +2838,10 @@ export default function ClientDetailPage() {
 
         <div className={styles.sidebarFooterButtons}>
           <button className={styles.orangeBtn} onClick={() => setShowCreateModal(true)}>
-            Crear contacto
+            {t("createContactBtn")}
           </button>
           <button className={styles.whiteBtn} onClick={() => router.push("/dashboard/contacts")}>
-            Explorar clientes
+            {t("exploreClients")}
           </button>
         </div>
       </div>
@@ -2606,7 +2852,7 @@ export default function ClientDetailPage() {
         <div className={styles.backNav}>
           <Link href="/dashboard/contacts" className={styles.backLink}>
             <Icons.ChevronLeft size={16} />
-            <span>Volver a Contactos</span>
+            <span>{t("backToContacts")}</span>
           </Link>
         </div>
 
@@ -2619,7 +2865,7 @@ export default function ClientDetailPage() {
           <div className={styles.patientMeta}>
             <div className={styles.nameRow}>
               <h1>{client.firstName} {client.lastName}</h1>
-              <span className={styles.clientNumberBadge}>Cliente #{client.clientNumber}</span>
+              <span className={styles.clientNumberBadge}>{t("clientCol")} #{client.clientNumber}</span>
             </div>
             <div className={styles.contactChips}>
               {client.phone && (
@@ -2654,7 +2900,7 @@ export default function ClientDetailPage() {
               className={styles.optionsBtn}
               onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
             >
-              <span>Opciones</span>
+              <span>{t("options")}</span>
               <Icons.ChevronDown size={14} />
             </button>
 
@@ -2666,7 +2912,7 @@ export default function ClientDetailPage() {
                   onClick={() => setShowOptionsDropdown(false)}
                 >
                   <Icons.Calendar size={14} />
-                  <span>Nueva cita</span>
+                  <span>{t("timezone") === "Time Zone" ? "New appointment" : t("timezone") === "Zona horària" ? "Nova cita" : t("timezone") === "Ordu-eremua" ? "Hitzordu berria" : "Nueva cita"}</span>
                 </Link>
                 <button 
                   className={styles.optionItem}
@@ -2680,7 +2926,7 @@ export default function ClientDetailPage() {
                   }}
                 >
                   <Icons.Users size={14} />
-                  <span>Nuevo tutor legal</span>
+                  <span>{t("timezone") === "Time Zone" ? "New legal guardian" : t("timezone") === "Zona horària" ? "Nou tutor legal" : t("timezone") === "Ordu-eremua" ? "Tutor legal berria" : "Nuevo tutor legal"}</span>
                 </button>
                 <button 
                   className={styles.optionItem}
@@ -2690,7 +2936,7 @@ export default function ClientDetailPage() {
                   }}
                 >
                   <Icons.Award size={14} />
-                  <span>Etiquetas</span>
+                  <span>{t("colTags")}</span>
                 </button>
                 <button 
                   className={styles.optionItem}
@@ -2700,7 +2946,7 @@ export default function ClientDetailPage() {
                   }}
                 >
                   <Icons.FileText size={14} />
-                  <span>Notas</span>
+                  <span>{t("timezone") === "Time Zone" ? "Notes" : t("timezone") === "Zona horària" ? "Notes" : t("timezone") === "Ordu-eremua" ? "Oharrak" : "Notas"}</span>
                 </button>
                 {client.phone && (
                   <a 
@@ -2723,7 +2969,7 @@ export default function ClientDetailPage() {
                     }}
                   >
                     <Icons.Trash size={14} />
-                    <span>Eliminar</span>
+                    <span>{t("timezone") === "Time Zone" ? "Delete" : t("timezone") === "Zona horària" ? "Eliminar" : t("timezone") === "Ordu-eremua" ? "Ezabatu" : "Eliminar"}</span>
                   </button>
                 )}
               </div>
@@ -2737,14 +2983,14 @@ export default function ClientDetailPage() {
             className={`${styles.tabBtn} ${activeTab === "general" ? styles.tabBtnActive : ""}`}
             onClick={() => setActiveTab("general")}
           >
-            Datos personales
+            {t("tabPersonalData")}
           </button>
           {showDocumentsTab && (
             <button 
               className={`${styles.tabBtn} ${activeTab === "documents" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("documents")}
             >
-              Documentos
+              {t("tabDocuments")}
             </button>
           )}
           {showFormsTab && (
@@ -2752,7 +2998,7 @@ export default function ClientDetailPage() {
               className={`${styles.tabBtn} ${activeTab === "forms" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("forms")}
             >
-              Formularios
+              {t("tabForms")}
             </button>
           )}
           {showMedicalTab && (
@@ -2760,7 +3006,7 @@ export default function ClientDetailPage() {
               className={`${styles.tabBtn} ${activeTab === "medical" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("medical")}
             >
-              Seguimientos
+              {t("tabFollowUps")}
             </button>
           )}
           {currentUser?.role === "ADMIN" && (
@@ -2768,7 +3014,7 @@ export default function ClientDetailPage() {
               className={`${styles.tabBtn} ${activeTab === "permissions" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("permissions")}
             >
-              Permisos
+              {t("tabPermissions")}
             </button>
           )}
           {showBillingTab && (
@@ -2776,7 +3022,7 @@ export default function ClientDetailPage() {
               className={`${styles.tabBtn} ${activeTab === "billing" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("billing")}
             >
-              Artículos
+              {t("tabArticlesClient")}
             </button>
           )}
           {showBudgetsTab && (
@@ -2784,7 +3030,7 @@ export default function ClientDetailPage() {
               className={`${styles.tabBtn} ${activeTab === "budgets" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("budgets")}
             >
-              Presupuestos
+              {t("tabBudgetsClient")}
             </button>
           )}
         </div>
@@ -2796,13 +3042,13 @@ export default function ClientDetailPage() {
           {activeTab === "general" && (
             <div className={styles.personalDataCard}>
               <div className={styles.personalDataHeader}>
-                <span className={styles.personalDataTitle}>Datos Personales</span>
+                <span className={styles.personalDataTitle}>{t("personalDataTitle")}</span>
                 {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Editar clientes")) && (
                   <button 
                     className={styles.cardEditBtn}
                     onClick={() => setShowFullEditModal(true)}
                   >
-                    Editar
+                    {t("edit")}
                   </button>
                 )}
               </div>
@@ -2810,7 +3056,7 @@ export default function ClientDetailPage() {
               <div className={styles.personalFieldsList}>
                 {/* Field Row: Nombre */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Nombre</span>
+                  <span className={styles.fieldLabel}>{t("fieldName")}</span>
                   {editingField === "firstName" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -2821,10 +3067,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("firstName")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("firstName")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -2835,7 +3081,7 @@ export default function ClientDetailPage() {
                       <button 
                         className={styles.inlineEditTriggerBtn}
                         onClick={() => startInlineEdit("firstName", client.firstName)}
-                        title="Editar nombre"
+                        title={t("timezone") === "Time Zone" ? "Edit name" : "Editar nombre"}
                       >
                         <Icons.Edit size={12} />
                       </button>
@@ -2845,7 +3091,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Apellido */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Apellido</span>
+                  <span className={styles.fieldLabel}>{t("fieldLastName")}</span>
                   {editingField === "lastName" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -2856,10 +3102,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("lastName")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("lastName")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -2870,7 +3116,7 @@ export default function ClientDetailPage() {
                       <button 
                         className={styles.inlineEditTriggerBtn}
                         onClick={() => startInlineEdit("lastName", client.lastName)}
-                        title="Editar apellidos"
+                        title={t("timezone") === "Time Zone" ? "Edit last name" : "Editar apellidos"}
                       >
                         <Icons.Edit size={12} />
                       </button>
@@ -2891,10 +3137,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("email")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("email")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -2906,7 +3152,7 @@ export default function ClientDetailPage() {
                         <button 
                           className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("email", client.email || "")}
-                          title="Editar email"
+                          title={t("timezone") === "Time Zone" ? "Edit email" : "Editar email"}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -2917,7 +3163,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Telefono */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Teléfono</span>
+                  <span className={styles.fieldLabel}>{t("fieldPhone")}</span>
                   {editingField === "phone" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -2928,10 +3174,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("phone")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("phone")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -2945,7 +3191,7 @@ export default function ClientDetailPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className={styles.whatsAppIconLink}
-                          title="Enviar WhatsApp"
+                          title={t("timezone") === "Time Zone" ? "Send WhatsApp" : "Enviar WhatsApp"}
                         >
                           <WhatsAppIcon size={16} />
                         </a>
@@ -2954,7 +3200,7 @@ export default function ClientDetailPage() {
                         <button 
                           className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("phone", client.phone || "")}
-                          title="Editar teléfono"
+                          title={t("timezone") === "Time Zone" ? "Edit phone" : "Editar teléfono"}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -2965,7 +3211,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Fecha Nacimiento */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Fecha de nacimiento</span>
+                  <span className={styles.fieldLabel}>{t("fieldBirthDate")}</span>
                   {editingField === "birthDate" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -2976,10 +3222,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("birthDate")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("birthDate")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -2998,7 +3244,7 @@ export default function ClientDetailPage() {
                         <button 
                           className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("birthDate", client.birthDate ? client.birthDate.split("T")[0] : "")}
-                          title="Editar fecha de nacimiento"
+                          title={t("timezone") === "Time Zone" ? "Edit date of birth" : "Editar fecha de nacimiento"}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -3020,10 +3266,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("dniNif")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("dniNif")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -3033,9 +3279,9 @@ export default function ClientDetailPage() {
                       <span className={styles.fieldValue}>{showPersonalData ? (client.dniNif || "-") : "******"}</span>
                       {showPersonalData && (
                         <button 
-                           className={styles.inlineEditTriggerBtn}
+                          className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("dniNif", client.dniNif || "")}
-                          title={`Editar ${identityLabel}`}
+                          title={(t("timezone") === "Time Zone" ? "Edit " : "Editar ") + identityLabel}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -3046,7 +3292,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Pais */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>País</span>
+                  <span className={styles.fieldLabel}>{t("fieldCountry")}</span>
                   {editingField === "country" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -3057,10 +3303,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("country")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("country")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -3071,7 +3317,7 @@ export default function ClientDetailPage() {
                       <button 
                         className={styles.inlineEditTriggerBtn}
                         onClick={() => startInlineEdit("country", client.country || "España")}
-                        title="Editar país"
+                        title={t("timezone") === "Time Zone" ? "Edit country" : "Editar país"}
                       >
                         <Icons.Edit size={12} />
                       </button>
@@ -3081,7 +3327,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Direccion */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Dirección</span>
+                  <span className={styles.fieldLabel}>{t("fieldAddress")}</span>
                   {editingField === "address" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -3092,10 +3338,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("address")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("address")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -3107,7 +3353,7 @@ export default function ClientDetailPage() {
                         <button 
                           className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("address", client.address || "")}
-                          title="Editar dirección"
+                          title={t("timezone") === "Time Zone" ? "Edit address" : "Editar dirección"}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -3118,7 +3364,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Ciudad/Municipio */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Ciudad/Municipio</span>
+                  <span className={styles.fieldLabel}>{t("colMunicipality")}</span>
                   {editingField === "municipality" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -3129,10 +3375,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("municipality")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("municipality")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -3144,7 +3390,7 @@ export default function ClientDetailPage() {
                         <button 
                           className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("municipality", client.municipality || "")}
-                          title="Editar ciudad/municipio"
+                          title={t("timezone") === "Time Zone" ? "Edit city" : "Editar ciudad/municipio"}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -3155,7 +3401,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Codigo postal */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Código postal</span>
+                  <span className={styles.fieldLabel}>{t("colPostalCode")}</span>
                   {editingField === "postalCode" ? (
                     <div className={styles.inlineEditForm}>
                       <input 
@@ -3166,10 +3412,10 @@ export default function ClientDetailPage() {
                         autoFocus
                       />
                       <div className={styles.inlineEditActions}>
-                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("postalCode")} title="Guardar">
+                        <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("postalCode")} title={t("save")}>
                           <Icons.Check size={14} />
                         </button>
-                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title="Cancelar">
+                        <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
                           <Icons.Close size={14} />
                         </button>
                       </div>
@@ -3181,7 +3427,7 @@ export default function ClientDetailPage() {
                         <button 
                           className={styles.inlineEditTriggerBtn}
                           onClick={() => startInlineEdit("postalCode", client.postalCode || "")}
-                          title="Editar código postal"
+                          title={t("timezone") === "Time Zone" ? "Edit postal code" : "Editar código postal"}
                         >
                           <Icons.Edit size={12} />
                         </button>
@@ -3192,7 +3438,7 @@ export default function ClientDetailPage() {
 
                 {/* Field Row: Alta */}
                 <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>Alta</span>
+                  <span className={styles.fieldLabel}>{t("timezone") === "Time Zone" ? "Registered" : t("timezone") === "Zona horària" ? "Alta" : t("timezone") === "Ordu-eremua" ? "Izena emanda" : "Alta"}</span>
                   <div className={styles.fieldValueContainer}>
                     <span className={styles.fieldValue}>
                       {new Date(client.createdAt).toLocaleDateString("es-ES")}
@@ -3211,7 +3457,7 @@ export default function ClientDetailPage() {
                     onChange={() => handleToggleSwitch("isSelfEmployed", client.isSelfEmployed)} 
                   />
                   <div className={styles.switchToggle} />
-                  <span className={styles.switchText}>Es Autónomo</span>
+                  <span className={styles.switchText}>{t("timezone") === "Time Zone" ? "Is Self-Employed" : t("timezone") === "Zona horària" ? "És Autònom" : t("timezone") === "Ordu-eremua" ? "Autonomoa da" : "Es Autónomo"}</span>
                 </label>
 
                 <label className={styles.switchRow}>
@@ -3222,7 +3468,7 @@ export default function ClientDetailPage() {
                     onChange={() => handleToggleSwitch("isCompany", client.isCompany)} 
                   />
                   <div className={styles.switchToggle} />
-                  <span className={styles.switchText}>Es Empresa</span>
+                  <span className={styles.switchText}>{t("timezone") === "Time Zone" ? "Is Company" : t("timezone") === "Zona horària" ? "És Empresa" : t("timezone") === "Ordu-eremua" ? "Enpresa da" : "Es Empresa"}</span>
                 </label>
 
                 <label className={styles.switchRow}>
@@ -3233,28 +3479,28 @@ export default function ClientDetailPage() {
                     onChange={() => handleToggleSwitch("receivesReminders", client.receivesReminders)} 
                   />
                   <div className={styles.switchToggle} />
-                  <span className={styles.switchText}>Recibirá Recordatorios</span>
+                  <span className={styles.switchText}>{t("timezone") === "Time Zone" ? "Receives Reminders" : t("timezone") === "Zona horària" ? "Rep Recordatoris" : t("timezone") === "Ordu-eremua" ? "Oroigarriak jasotzen ditu" : "Recibirá Recordatorios"}</span>
                 </label>
               </div>
 
               {/* Tutor legal scroll target */}
               <div id="tutor-section" style={{ marginTop: "32px", borderTop: "1px solid var(--border-color)", paddingTop: "20px" }}>
-                <h3 style={{ fontSize: "14px", fontWeight: "700", textTransform: "uppercase", marginBottom: "16px" }}>Tutor Legal / Representante</h3>
+                <h3 style={{ fontSize: "14px", fontWeight: "700", textTransform: "uppercase", marginBottom: "16px" }}>{t("timezone") === "Time Zone" ? "Legal Guardian / Representative" : t("timezone") === "Zona horària" ? "Tutor Legal / Representant" : t("timezone") === "Ordu-eremua" ? "Tutor Legal / Ordezkaria" : "Tutor Legal / Representante"}</h3>
                 <div className={styles.personalFieldsList}>
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>Nombre Tutor</span>
+                    <span className={styles.fieldLabel}>{t("timezone") === "Time Zone" ? "Guardian Name" : t("timezone") === "Zona horària" ? "Nom del Tutor" : t("timezone") === "Ordu-eremua" ? "Tutorearen Izena" : "Nombre Tutor"}</span>
                     <span className={styles.fieldValue}>
                       {showPersonalData ? `${client.tutorName || "-"} ${client.tutorLastName || ""}` : "******"}
                     </span>
                   </div>
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>Teléfono Tutor</span>
+                    <span className={styles.fieldLabel}>{t("timezone") === "Time Zone" ? "Guardian Phone" : t("timezone") === "Zona horària" ? "Telèfon del Tutor" : t("timezone") === "Ordu-eremua" ? "Tutorearen Telefonoa" : "Teléfono Tutor"}</span>
                     <span className={styles.fieldValue}>
                       {showPersonalData ? (client.tutorPhone || "-") : "******"}
                     </span>
                   </div>
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>Email Tutor</span>
+                    <span className={styles.fieldLabel}>{t("timezone") === "Time Zone" ? "Guardian Email" : t("timezone") === "Zona horària" ? "Email del Tutor" : t("timezone") === "Ordu-eremua" ? "Tutorearen Emaila" : "Email Tutor"}</span>
                     <span className={styles.fieldValue}>
                       {showPersonalData ? (client.tutorEmail || "-") : "******"}
                     </span>
@@ -6662,6 +6908,7 @@ export default function ClientDetailPage() {
       {showCreateModal && typeof window !== "undefined" && createPortal(
         <div className={styles.drawerOverlay} onClick={() => setShowCreateModal(false)}>
           <div className={styles.drawerPanel} onClick={(e) => e.stopPropagation()}>
+            {/* Drawer Header */}
             <div className={styles.drawerHeader}>
               <h2 className={styles.drawerTitle}>Crear cliente</h2>
               <button className={styles.drawerCloseBtn} onClick={() => setShowCreateModal(false)}>
@@ -6671,79 +6918,473 @@ export default function ClientDetailPage() {
               </button>
             </div>
 
+            {/* Tabs */}
+            <div className={styles.drawerTabs}>
+              <button
+                type="button"
+                className={`${styles.drawerTab} ${creationTab === "general" ? styles.drawerTabActive : ""}`}
+                onClick={() => setCreationTab("general")}
+              >
+                Información general
+              </button>
+              <button
+                type="button"
+                className={`${styles.drawerTab} ${creationTab === "otros" ? styles.drawerTabActive : ""}`}
+                onClick={() => setCreationTab("otros")}
+              >
+                Otros datos
+              </button>
+            </div>
+
             <form onSubmit={handleCreateContact} className={styles.drawerForm}>
               <div className={styles.drawerScrollBody}>
-                <p className={styles.drawerSectionTitle}>Datos generales</p>
-                
-                <div className={styles.drawerGrid2}>
-                  <div className={styles.drawerField}>
-                    <label className={styles.drawerLabel}>Nombre *</label>
-                    <input 
-                      type="text" 
-                      className={styles.drawerInput}
-                      value={createFirstName}
-                      onChange={(e) => setCreateFirstName(e.target.value)}
-                      required 
-                    />
-                  </div>
-                  
-                  <div className={styles.drawerField}>
-                    <label className={styles.drawerLabel}>Apellidos *</label>
-                    <input 
-                      type="text" 
-                      className={styles.drawerInput}
-                      value={createLastName}
-                      onChange={(e) => setCreateLastName(e.target.value)}
-                      required 
-                    />
-                  </div>
-                </div>
 
-                <div className={styles.drawerGrid2}>
-                  <div className={styles.drawerField}>
-                    <label className={styles.drawerLabel}>Fecha de nacimiento</label>
-                    <input 
-                      type="date" 
-                      className={styles.drawerInput}
-                      value={createBirthDate}
-                      onChange={(e) => setCreateBirthDate(e.target.value)}
-                    />
-                  </div>
+                {/* ── TAB: Información general ── */}
+                {creationTab === "general" && (
+                  <>
+                    <p className={styles.drawerSectionTitle}>Datos generales</p>
 
-                  <div className={styles.drawerField}>
-                    <label className={styles.drawerLabel}>DNI/NIF</label>
-                    <input 
-                      type="text" 
-                      className={styles.drawerInput}
-                      value={createDniNif}
-                      onChange={(e) => setCreateDniNif(e.target.value)}
-                    />
-                  </div>
-                </div>
+                    {/* Nombre / Apellidos */}
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Nombre *</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir nombre"
+                          value={createFirstName} onChange={(e) => setCreateFirstName(e.target.value)} required />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Apellidos *</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir apellidos"
+                          value={createLastName} onChange={(e) => setCreateLastName(e.target.value)} required />
+                      </div>
+                    </div>
 
-                <div className={styles.drawerGrid2}>
-                  <div className={styles.drawerField}>
-                    <label className={styles.drawerLabel}>Número de teléfono</label>
-                    <input 
-                      type="text" 
-                      className={styles.drawerInput}
-                      value={createPhone}
-                      onChange={(e) => setCreatePhone(e.target.value)}
-                    />
-                  </div>
+                    {/* Fecha nacimiento / DNI */}
+                    <div className={styles.drawerGrid2}>
+                      {/* Birth date with calendar popup */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>Fecha de nacimiento</label>
+                        <button
+                          type="button"
+                          className={styles.drawerInputBtn}
+                          onClick={() => {
+                            setShowBirthCalendar((v) => !v);
+                            setShowPhoneDropdown(false);
+                            setShowCountryDropdown(false);
+                            setShowDniDropdown(false);
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                          </svg>
+                          <span style={{ color: createBirthDate ? "var(--text-primary)" : "var(--text-muted)" }}>
+                            {createBirthDate || "dd/mm/aaaa"}
+                          </span>
+                        </button>
 
-                  <div className={styles.drawerField}>
-                    <label className={styles.drawerLabel}>Email</label>
-                    <input 
-                      type="email" 
-                      className={styles.drawerInput}
-                      value={createEmail}
-                      onChange={(e) => setCreateEmail(e.target.value)}
-                    />
-                  </div>
-                </div>
+                        {showBirthCalendar && (
+                          <div ref={birthCalRef} className={styles.birthCalendar}>
+                            {/* Calendar nav */}
+                            <div className={styles.birthCalHeader}>
+                              <button type="button" className={styles.birthCalNav}
+                                onClick={() => {
+                                  if (birthCalMonth === 0) { setBirthCalMonth(11); setBirthCalYear(y => y - 1); }
+                                  else setBirthCalMonth(m => m - 1);
+                                }}>‹</button>
+                              <div className={styles.birthCalTitle}>
+                                <select className={styles.birthCalSelect} value={birthCalMonth}
+                                  onChange={(e) => setBirthCalMonth(Number(e.target.value))}>
+                                  {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+                                    .map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                </select>
+                                <select className={styles.birthCalSelect} value={birthCalYear}
+                                  onChange={(e) => setBirthCalYear(Number(e.target.value))}>
+                                  {Array.from({ length: 120 }, (_, i) => new Date().getFullYear() - i)
+                                    .map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                              </div>
+                              <button type="button" className={styles.birthCalNav}
+                                onClick={() => {
+                                  const maxY = new Date().getFullYear();
+                                  const maxM = new Date().getMonth();
+                                  if (birthCalYear < maxY || (birthCalYear === maxY && birthCalMonth < maxM)) {
+                                    if (birthCalMonth === 11) { setBirthCalMonth(0); setBirthCalYear(y => y + 1); }
+                                    else setBirthCalMonth(m => m + 1);
+                                  }
+                                }}>›</button>
+                            </div>
+
+                            {/* Day headers */}
+                            <div className={styles.birthCalGrid}>
+                              {["Lu","Ma","Mi","Ju","Vi","Sá","Do"].map(d => (
+                                <div key={d} className={styles.birthCalDayLabel}>{d}</div>
+                              ))}
+                              {(() => {
+                                const today = new Date();
+                                const firstDay = new Date(birthCalYear, birthCalMonth, 1).getDay();
+                                const offset = firstDay === 0 ? 6 : firstDay - 1;
+                                const daysInMonth = new Date(birthCalYear, birthCalMonth + 1, 0).getDate();
+                                const cells = [];
+                                for (let i = 0; i < offset; i++) cells.push(<div key={`e${i}`} />);
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                  const dateObj = new Date(birthCalYear, birthCalMonth, d);
+                                  const isFuture = dateObj > today;
+                                  const formatted = `${String(d).padStart(2,"0")}/${String(birthCalMonth+1).padStart(2,"0")}/${birthCalYear}`;
+                                  const isSelected = createBirthDate === formatted;
+                                  cells.push(
+                                    <button key={d} type="button"
+                                      disabled={isFuture}
+                                      className={`${styles.birthCalDay} ${isSelected ? styles.birthCalDaySelected : ""} ${isFuture ? styles.birthCalDayDisabled : ""}`}
+                                      onClick={() => { setCreateBirthDate(formatted); setShowBirthCalendar(false); }}
+                                    >{d}</button>
+                                  );
+                                }
+                                return cells;
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* DNI/NIF */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>{identityLabel}</label>
+                        <div className={styles.drawerInputFlag}>
+                          <button type="button" className={styles.flagPickerBtn}
+                            onClick={() => { setShowDniDropdown(v => !v); setShowPhoneDropdown(false); setShowCountryDropdown(false); setShowBirthCalendar(false); }}>
+                            <span>{dniCountry.flag}</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                          </button>
+                          <input type="text" className={styles.drawerInputFlagInput} placeholder={`Añadir ${identityLabel} / Pasaporte`}
+                            value={createDniNif} onChange={(e) => setCreateDniNif(e.target.value)} />
+                        </div>
+
+                        {showDniDropdown && (
+                          <div ref={dniDropdownRef} className={styles.countryDropdown}>
+                            <div className={styles.countrySearch}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input autoFocus type="text" placeholder="Buscar país..."
+                                className={styles.countrySearchInput}
+                                value={dniSearch} onChange={(e) => setDniSearch(e.target.value)} />
+                            </div>
+                            <div className={styles.countryList}>
+                              {COUNTRIES.filter(c =>
+                                c.name.toLowerCase().includes(dniSearch.toLowerCase())
+                              ).map(c => (
+                                <button key={c.code} type="button" className={styles.countryOption}
+                                  onClick={() => { setDniCountry(c); setShowDniDropdown(false); setDniSearch(""); }}>
+                                  <span>{c.flag}</span>
+                                  <span className={styles.countryName}>{c.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Teléfono / Email */}
+                    <div className={styles.drawerGrid2}>
+                      {/* Phone with country picker */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>Número de teléfono</label>
+                        <div className={styles.drawerInputFlag}>
+                          <button type="button" className={styles.flagPickerBtn}
+                            onClick={() => { setShowPhoneDropdown(v => !v); setShowCountryDropdown(false); setShowBirthCalendar(false); setShowDniDropdown(false); }}>
+                            <span>{phoneCountry.flag}</span>
+                            <span className={styles.flagDial}>{phoneCountry.dial}</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                          </button>
+                          <input type="tel" className={styles.drawerInputFlagInput} placeholder=""
+                            value={createPhone} onChange={(e) => setCreatePhone(e.target.value)} />
+                        </div>
+
+                        {showPhoneDropdown && (
+                          <div ref={phoneDropdownRef} className={styles.countryDropdown}>
+                            <div className={styles.countrySearch}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input autoFocus type="text" placeholder="Buscar país..."
+                                className={styles.countrySearchInput}
+                                value={phoneSearch} onChange={(e) => setPhoneSearch(e.target.value)} />
+                            </div>
+                            <div className={styles.countryList}>
+                              {COUNTRIES.filter(c =>
+                                c.name.toLowerCase().includes(phoneSearch.toLowerCase()) ||
+                                c.dial.includes(phoneSearch)
+                              ).map(c => (
+                                <button key={c.code} type="button" className={styles.countryOption}
+                                  onClick={() => { setPhoneCountry(c); setShowPhoneDropdown(false); setPhoneSearch(""); }}>
+                                  <span>{c.flag}</span>
+                                  <span className={styles.countryName}>{c.name}</span>
+                                  <span className={styles.countryDial}>{c.dial}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Email</label>
+                        <input type="email" className={styles.drawerInput} placeholder="Añadir email"
+                          value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} />
+                      </div>
+                    </div>
+
+                    {/* País / Dirección */}
+                    <div className={styles.drawerGrid2}>
+                      {/* Country picker */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>País</label>
+                        <div className={styles.drawerInputFlag}>
+                          <button type="button" className={styles.flagPickerBtn}
+                            onClick={() => { setShowCountryDropdown(v => !v); setShowPhoneDropdown(false); setShowBirthCalendar(false); setShowDniDropdown(false); }}>
+                            <span>{countryDropdownCountry.flag}</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                          </button>
+                          <input type="text" className={styles.drawerInputFlagInput}
+                            placeholder="Añadir País"
+                            value={createCountry}
+                            onChange={(e) => setCreateCountry(e.target.value)} />
+                        </div>
+
+                        {showCountryDropdown && (
+                          <div ref={countryDropdownRef} className={styles.countryDropdown}>
+                            <div className={styles.countrySearch}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input autoFocus type="text" placeholder="Buscar país..."
+                                className={styles.countrySearchInput}
+                                value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)} />
+                            </div>
+                            <div className={styles.countryList}>
+                              {COUNTRIES.filter(c =>
+                                c.name.toLowerCase().includes(countrySearch.toLowerCase())
+                              ).map(c => (
+                                <button key={c.code} type="button" className={styles.countryOption}
+                                  onClick={() => {
+                                    setCountryDropdownCountry(c);
+                                    setCreateCountry(c.name);
+                                    setShowCountryDropdown(false);
+                                    setCountrySearch("");
+                                  }}>
+                                  <span>{c.flag}</span>
+                                  <span className={styles.countryName}>{c.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.drawerField} style={{ position: "relative" }} ref={createAddressAutocompleteRef}>
+                        <label className={styles.drawerLabel}>Dirección</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir dirección"
+                          value={createAddress} onChange={(e) => handleCreateAddressChange(e.target.value)} />
+                        
+                        {showCreateAddressDropdown && addressSuggestions.length > 0 && (
+                          <div style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                            border: "1px solid var(--border-color, #e2e8f0)",
+                            borderRadius: "8px",
+                            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                            zIndex: 100,
+                            maxHeight: "200px",
+                            overflowY: "auto",
+                            marginTop: "4px"
+                          }}>
+                            {addressSuggestions.map((item, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => handleSelectCreateAddressSuggestion(item)}
+                                style={{
+                                  padding: "10px 12px",
+                                  cursor: "pointer",
+                                  fontSize: "13px",
+                                  borderBottom: idx === addressSuggestions.length - 1 ? "none" : "1px solid var(--border-color)",
+                                  color: "var(--text-primary)",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input, #f7fafc)"}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                              >
+                                {item.displayName}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ciudad / Código Postal */}
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Ciudad / Municipio</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir ciudad / municipio"
+                          value={createMunicipality} onChange={(e) => setCreateMunicipality(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Código Postal</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir código postal"
+                          value={createPostalCode} onChange={(e) => setCreatePostalCode(e.target.value)} />
+                      </div>
+                    </div>
+
+                    {/* Switches */}
+                    <div className={styles.drawerSwitchGroup}>
+                      <label className={styles.drawerSwitchRow}>
+                        <span className={`${styles.drawerToggle} ${createIsSelfEmployed ? styles.drawerToggleOn : ""}`}
+                          onClick={() => setCreateIsSelfEmployed(!createIsSelfEmployed)}>
+                          <span className={styles.drawerToggleThumb} />
+                        </span>
+                        <span className={styles.drawerSwitchLabel}>Es Autónomo</span>
+                      </label>
+                      <label className={styles.drawerSwitchRow}>
+                        <span className={`${styles.drawerToggle} ${createIsCompany ? styles.drawerToggleOn : ""}`}
+                          onClick={() => setCreateIsCompany(!createIsCompany)}>
+                          <span className={styles.drawerToggleThumb} />
+                        </span>
+                        <span className={styles.drawerSwitchLabel}>Es Empresa</span>
+                      </label>
+                      <label className={styles.drawerSwitchRow}>
+                        <span className={`${styles.drawerToggle} ${createReceivesReminders ? styles.drawerToggleOn : ""}`}
+                          onClick={() => setCreateReceivesReminders(!createReceivesReminders)}>
+                          <span className={styles.drawerToggleThumb} />
+                        </span>
+                        <span className={styles.drawerSwitchLabel}>Recibirá Recordatorios</span>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {/* ── TAB: Otros datos ── */}
+                {creationTab === "otros" && (
+                  <>
+                    <p className={styles.drawerSectionTitle}>Género y etiquetas</p>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Género</label>
+                        <select className={styles.drawerSelect} value={createGender} onChange={(e) => setCreateGender(e.target.value)}>
+                          <option value="Femenino">Femenino</option>
+                          <option value="Masculino">Masculino</option>
+                          <option value="Otro">Otro</option>
+                        </select>
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Etiquetas (separadas por coma)</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Ej: Frecuente, Espalda"
+                          value={createTags} onChange={(e) => setCreateTags(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <p className={styles.drawerSectionTitle}>Facturación</p>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>IBAN</label>
+                        <input type="text" className={styles.drawerInput} placeholder="ES21 0000..."
+                          value={createIban} onChange={(e) => setCreateIban(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>BIC / SWIFT</label>
+                        <input type="text" className={styles.drawerInput} placeholder="BARCES..."
+                          value={createBic} onChange={(e) => setCreateBic(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <p className={styles.drawerSectionTitle}>Salud</p>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Tratamientos estéticos previos</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Describe tratamientos previos..."
+                        value={createAestheticTreatments} onChange={(e) => setCreateAestheticTreatments(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Alergias</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Alergias conocidas..."
+                        value={createAllergies} onChange={(e) => setCreateAllergies(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Medicación actual</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Medicamentos que toma..."
+                        value={createMedication} onChange={(e) => setCreateMedication(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Antecedentes médicos</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Antecedentes relevantes..."
+                        value={createMedicalHistory} onChange={(e) => setCreateMedicalHistory(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Otras notas</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Observaciones adicionales..."
+                        value={createOtherNotes} onChange={(e) => setCreateOtherNotes(e.target.value)} rows={2} />
+                    </div>
+
+                    <p className={styles.drawerSectionTitle}>Tutor / Representante</p>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Nombre tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Nombre"
+                          value={createTutorName} onChange={(e) => setCreateTutorName(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Apellidos tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Apellidos"
+                          value={createTutorLastName} onChange={(e) => setCreateTutorLastName(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>DNI tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="DNI tutor"
+                          value={createTutorDniNif} onChange={(e) => setCreateTutorDniNif(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Teléfono tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Teléfono tutor"
+                          value={createTutorPhone} onChange={(e) => setCreateTutorPhone(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Email tutor</label>
+                      <input type="email" className={styles.drawerInput} placeholder="tutor@correo.com"
+                        value={createTutorEmail} onChange={(e) => setCreateTutorEmail(e.target.value)} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Dirección tutor</label>
+                      <input type="text" className={styles.drawerInput} placeholder="Dirección tutor"
+                        value={createTutorAddress} onChange={(e) => setCreateTutorAddress(e.target.value)} />
+                    </div>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Municipio tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Municipio tutor"
+                          value={createTutorMunicipality} onChange={(e) => setCreateTutorMunicipality(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>C.P. tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Código postal"
+                          value={createTutorPostalCode} onChange={(e) => setCreateTutorPostalCode(e.target.value)} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
+              {/* Footer actions */}
               <div className={styles.drawerFooter}>
                 <button type="button" className={styles.drawerCancelBtn} onClick={() => setShowCreateModal(false)}>
                   Cancelar

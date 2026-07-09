@@ -8,9 +8,10 @@ import { Icons } from "./Icons";
 import styles from "./Sidebar.module.css";
 import LinkComponent from "next/link"; // importing Link directly as next/link is safer
 import { hasPermission } from "@/lib/permissions";
+import { translate } from "@/lib/translations";
 
 export default function Sidebar() {
-  const { user, activeClinic, setActiveClinic, sidebarCollapsed, setSidebarCollapsed, logout, theme, toggleTheme, mobileSidebarOpen, setMobileSidebarOpen } = useApp();
+  const { user, activeClinic, setActiveClinic, sidebarCollapsed, setSidebarCollapsed, logout, theme, toggleTheme, mobileSidebarOpen, setMobileSidebarOpen, language } = useApp();
   const pathname = usePathname();
   const router = useRouter();
   const [showClinicsDropdown, setShowClinicsDropdown] = useState(false);
@@ -77,21 +78,21 @@ export default function Sidebar() {
     hasPermission(user, "contabilidad", "Solo cobrar");
 
   const navItems = [
-    { name: "Agenda", path: "/dashboard/agenda", icon: <Icons.Calendar size={20} /> },
+    { name: translate("agenda", language), path: "/dashboard/agenda", icon: <Icons.Calendar size={20} /> },
     ...(user.role === "ADMIN" || hasPermission(user, "clientes", "Ver clientes") ? [
-      { name: "Contactos", path: "/dashboard/contacts", icon: <Icons.Users size={20} /> }
+      { name: translate("contacts", language), path: "/dashboard/contacts", icon: <Icons.Users size={20} /> }
     ] : []),
     ...(hasAccountingAccess ? [
-      { name: "Ventas", path: "/dashboard/sales", icon: <Icons.Sales size={20} /> }
+      { name: translate("sales", language), path: "/dashboard/sales", icon: <Icons.Sales size={20} /> }
     ] : []),
     ...(user.role === "ADMIN" || hasPermission(user, "estadisticas", "Ver Estadisticas") ? [
-      { name: "Estadísticas", path: "/dashboard/statistics", icon: <Icons.Stats size={20} /> }
+      { name: translate("stats", language), path: "/dashboard/statistics", icon: <Icons.Stats size={20} /> }
     ] : []),
     ...(activeClinic?.controlHorarioActivo ? [
-      { name: "Control Horario", path: "/dashboard/control-horario", icon: <Icons.CalendarClock size={20} /> }
+      { name: translate("clockControl", language), path: "/dashboard/control-horario", icon: <Icons.CalendarClock size={20} /> }
     ] : []),
     ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración") || hasPermission(user, "configuracion", "Editar su propio horario") ? [
-      { name: "Configuración", path: "/dashboard/settings", icon: <Icons.Settings size={20} /> }
+      { name: translate("settings", language), path: "/dashboard/settings", icon: <Icons.Settings size={20} /> }
     ] : []),
   ];
 
@@ -126,7 +127,7 @@ export default function Sidebar() {
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
             className={styles.toggleBtn}
-            title={isCollapsed ? "Desplegar menú" : "Colapsar menú"}
+            title={isCollapsed ? translate("expandMenu", language) : translate("collapseMenu", language)}
           >
             <Icons.Menu size={18} />
           </button>
@@ -137,7 +138,7 @@ export default function Sidebar() {
         {isCollapsed ? (
           <div 
             className={styles.clinicIndicator} 
-            title={activeClinic?.name || "Seleccionar Clínica"}
+            title={activeClinic?.name || translate("selectClinic", language)}
             onClick={() => setSidebarCollapsed(false)}
           >
             <Icons.MapPin size={16} />
@@ -150,15 +151,15 @@ export default function Sidebar() {
             >
               <Icons.MapPin size={16} className={styles.pinIcon} />
               <div className={styles.clinicInfo}>
-                <span className={styles.clinicLabel}>Sede Activa</span>
-                <span className={styles.clinicName}>{activeClinic?.name || "Cargando..."}</span>
+                <span className={styles.clinicLabel}>{translate("activeSite", language)}</span>
+                <span className={styles.clinicName}>{activeClinic?.name || translate("loading", language)}</span>
               </div>
               <Icons.ChevronDown size={14} className={styles.chevronIcon} />
             </button>
 
             {showClinicsDropdown && user.clinics && (
               <div className={styles.dropdownMenu}>
-                <div className={styles.dropdownHeader}>Cambiar de clínica</div>
+                <div className={styles.dropdownHeader}>{translate("changeClinic", language)}</div>
                 {user.clinics.map((clinic) => (
                   <button
                     key={clinic.id}
@@ -207,38 +208,65 @@ export default function Sidebar() {
 
       {/* User Area */}
       <div className={styles.userFooter}>
-        <div className={styles.userInfoArea}>
-          <div className={styles.avatar}>
-            {user.name.charAt(0)}
-          </div>
-          {!isCollapsed && (
-            <div className={styles.userDetails}>
-              <span className={styles.userName}>{user.name}</span>
-              <span className={styles.userRole}>
-                {user.role === "ADMIN" ? "Administrador" : user.role === "DOCTOR" ? "Fisioterapeuta" : "Personal"}
-              </span>
+        {isCollapsed ? (
+          <div className={styles.footerControlsStack}>
+            {/* 1. Circle Avatar */}
+            <div 
+              className={styles.avatar} 
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/dashboard/account")}
+              title={translate("myAccount", language)}
+            >
+              {user.name.charAt(0)}
             </div>
-          )}
-        </div>
-        
-        {/* Theme Toggle Button */}
-        <button 
-          onClick={toggleTheme} 
-          className={styles.themeToggleBtn}
-          title={theme === "light" ? "Activar modo noche" : "Activar modo claro"}
-        >
-          {theme === "light" ? <Icons.Moon size={18} /> : <Icons.Sun size={18} />}
-          {!isCollapsed && <span>{theme === "light" ? "Modo Noche" : "Modo Claro"}</span>}
-        </button>
- 
-        <button 
-          onClick={logout} 
-          className={styles.logoutBtn} 
-          title="Cerrar sesión"
-        >
-          <Icons.LogOut size={18} />
-          {!isCollapsed && <span>Salir</span>}
-        </button>
+            
+            {/* 2. Theme Toggle */}
+            <button 
+              onClick={toggleTheme} 
+              className={styles.footerIconBtn}
+              title={theme === "light" ? translate("activateNightMode", language) : translate("activateLightMode", language)}
+            >
+              {theme === "light" ? <Icons.Moon size={18} /> : <Icons.Sun size={18} />}
+            </button>
+            
+            {/* 3. Logout */}
+            <button 
+              onClick={logout} 
+              className={styles.logoutIconBtn} 
+              title={translate("closeSession", language)}
+            >
+              <Icons.LogOut size={18} />
+            </button>
+          </div>
+        ) : (
+          /* Horizontal Row for Avatar, Theme Toggle, and Logout */
+          <div className={styles.footerControlsRow}>
+            <div 
+              className={styles.avatar} 
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/dashboard/account")}
+              title={translate("myAccount", language)}
+            >
+              {user.name.charAt(0)}
+            </div>
+            
+            <button 
+              onClick={toggleTheme} 
+              className={styles.footerIconBtn}
+              title={theme === "light" ? translate("activateNightMode", language) : translate("activateLightMode", language)}
+            >
+              {theme === "light" ? <Icons.Moon size={18} /> : <Icons.Sun size={18} />}
+            </button>
+            
+            <button 
+              onClick={logout} 
+              className={styles.logoutIconBtn} 
+              title={translate("closeSession", language)}
+            >
+              <Icons.LogOut size={18} />
+            </button>
+          </div>
+        )}
       </div>
     </aside>
     </>

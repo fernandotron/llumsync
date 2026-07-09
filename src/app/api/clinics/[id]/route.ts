@@ -32,3 +32,25 @@ export async function PUT(
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json({ error: "Falta ID de clínica" }, { status: 400 });
+    }
+
+    await prisma.clinic.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Clínica eliminada correctamente" });
+  } catch (error) {
+    console.error("Error deleting clinic:", error);
+    return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
+  }
+}

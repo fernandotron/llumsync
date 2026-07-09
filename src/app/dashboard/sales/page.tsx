@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Sales.module.css";
+import { translate } from "@/lib/translations";
 import { getCountryConfig } from "@/lib/countries";
 
 interface Client {
@@ -494,7 +495,8 @@ const formatDateToInputHelper = (d: Date | null) => {
 
 export default function SalesPage() {
   const router = useRouter();
-  const { activeClinic, user: currentUser } = useApp();
+  const { activeClinic, user: currentUser, language } = useApp();
+  const t = (key: string) => translate(key, language);
   const cConfig = getCountryConfig(activeClinic?.country || "ES");
   const currencySymbol = cConfig.currency;
   const taxLabel = cConfig.taxName;
@@ -6144,7 +6146,7 @@ export default function SalesPage() {
           {/* Top dashboard header panel */}
           <header className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <h1 className={styles.title}>GESTIÓN INTERNA / VENTAS</h1>
+          <h1 className={styles.title}>{translate("salesTitle", language)}</h1>
           <span className={styles.clinicSubtitle}>{activeClinic?.name || "Clifav"}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -6186,16 +6188,16 @@ export default function SalesPage() {
               onClick={() => setActiveTab(tab)}
             >
               {tab === "articulos"
-                ? "Artículos"
+                ? t("tabArticles")
                 : tab === "facturas"
-                ? "Facturas"
+                ? t("tabInvoices")
                 : tab === "pagos"
-                ? "Pagos"
+                ? t("tabPayments")
                 : tab === "resumen"
-                ? "Resumen"
+                ? t("tabSummary")
                 : tab === "ingresos_gastos"
-                ? "Ingresos & Gastos"
-                : "Presupuestos"}
+                ? t("tabIncomeExpenses")
+                : t("tabBudgets")}
             </button>
           ))}
       </div>
@@ -6209,13 +6211,13 @@ export default function SalesPage() {
               className={`${styles.subTabBtn} ${activeSubTab === "emitidas" ? styles.subTabBtnActive : ""}`}
               onClick={() => setActiveSubTab("emitidas")}
             >
-              Emitidas
+              {t("timezone") === "Time Zone" ? "Issued" : t("timezone") === "Zona horària" ? "Emeses" : t("timezone") === "Ordu-eremua" ? "Igorritakoak" : "Emitidas"}
             </button>
             <button
               className={`${styles.subTabBtn} ${activeSubTab === "recibidas" ? styles.subTabBtnActive : ""}`}
               onClick={() => setActiveSubTab("recibidas")}
             >
-              Recibidas
+              {t("timezone") === "Time Zone" ? "Received" : t("timezone") === "Zona horària" ? "Rebudes" : t("timezone") === "Ordu-eremua" ? "Jasotakoak" : "Recibidas"}
             </button>
           </div>
         )}
@@ -6231,7 +6233,7 @@ export default function SalesPage() {
             style={showFilterDropdown ? { borderColor: "#009bb3", color: "#009bb3" } : undefined}
           >
             <Icons.Filter size={16} />
-            <span>Filtrar</span>
+            <span>{t("filter")}</span>
           </button>
 
           {/* ACTIVE FILTER BADGES */}
@@ -6245,7 +6247,7 @@ export default function SalesPage() {
               }}
             >
               <Icons.Calendar size={12} />
-              <span>FECHA: {getFilterText()}</span>
+              <span>{t("dateLabel")}: {getFilterText()}</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -7144,7 +7146,7 @@ export default function SalesPage() {
               }}
             >
               <Icons.Plus size={16} />
-              <span>Añadir movimiento</span>
+              <span>{t("timezone") === "Time Zone" ? "Add movement" : "Añadir movimiento"}</span>
             </button>
           )}
         </div>
@@ -7158,26 +7160,27 @@ export default function SalesPage() {
               return (
                 <div className={styles.metricsRow}>
                   <div className={styles.metricItem}>
-                    Volumen de negocio: <span>{formatPrice(stats.volumenNegocio)}</span>
+                    {t("businessVolume")}: <span>{formatPrice(stats.volumenNegocio)}</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Citas: <span>{formatPrice(stats.citasSum)} ({stats.citasCount})</span>
+                    {t("appointments")}: <span>{formatPrice(stats.citasSum)} ({stats.citasCount})</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Bonos: <span>{formatPrice(0)} (0)</span>
+                    {t("vouchers")}: <span>{formatPrice(0)} (0)</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Productos: <span>{formatPrice(stats.productosSum)} ({stats.productosCount})</span>
+                    {t("products")}: <span>{formatPrice(stats.productosSum)} ({stats.productosCount})</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Suscripciones: <span>{formatPrice(0)} (0)</span>
+                    {t("subscriptions")}: <span>{formatPrice(0)} (0)</span>
                   </div>
                   <div className={styles.metricItem}>
-                    Presupuestos: <span>{formatPrice(0)} (0)</span>
+                    {t("budgets")}: <span>{formatPrice(0)} (0)</span>
                   </div>
                 </div>
               );
             })()}
+
 
 
 
@@ -7204,16 +7207,16 @@ export default function SalesPage() {
                         onClick={() => handleSort("refMov")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        REF. MOV {sortColumn === "refMov" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("colRefMov")} {sortColumn === "refMov" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
-                    {visibleColumns.nuV && <th>NU. V</th>}
+                    {visibleColumns.nuV && <th>{t("colNuV")}</th>}
                     {visibleColumns.fecha && (
                       <th
                         onClick={() => handleSort("fecha")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        FECHA {sortColumn === "fecha" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("colDate")} {sortColumn === "fecha" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                     {visibleColumns.hora && (
@@ -7221,7 +7224,7 @@ export default function SalesPage() {
                         onClick={() => handleSort("hora")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        HORA {sortColumn === "hora" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("colTime")} {sortColumn === "hora" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                     {visibleColumns.tipo && (
@@ -7229,7 +7232,7 @@ export default function SalesPage() {
                         onClick={() => handleSort("tipo")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        TIPO {sortColumn === "tipo" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("colType")} {sortColumn === "tipo" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                     {visibleColumns.detalle && (
@@ -7237,30 +7240,30 @@ export default function SalesPage() {
                         onClick={() => handleSort("detalle")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        DETALLE {sortColumn === "detalle" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("colDetail")} {sortColumn === "detalle" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
-                    {visibleColumns.clientNumber && <th>NÚMERO DE CLIENTE</th>}
+                    {visibleColumns.clientNumber && <th>{t("colClientNum2")}</th>}
                     {visibleColumns.cliente && (
                       <th
                         onClick={() => handleSort("cliente")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        CLIENTE {sortColumn === "cliente" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("clientCol")} {sortColumn === "cliente" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
-                    {visibleColumns.dni && <th>DNI</th>}
-                    {visibleColumns.empleado && <th>EMPLEADO</th>}
-                    {visibleColumns.consulta && <th>CONSULTA</th>}
-                    {visibleColumns.estado && <th>ESTADO</th>}
-                    {visibleColumns.metodoPago && <th>MÉTODO DE PAGO</th>}
-                    {visibleColumns.fechaPago && <th>FECHA DE PAGO</th>}
+                    {visibleColumns.dni && <th>{identityLabel}</th>}
+                    {visibleColumns.empleado && <th>{t("colEmployee")}</th>}
+                    {visibleColumns.consulta && <th>{t("colClinic")}</th>}
+                    {visibleColumns.estado && <th>{t("invoiceStatus").toUpperCase()}</th>}
+                    {visibleColumns.metodoPago && <th>{t("paymentMethods").toUpperCase()}</th>}
+                    {visibleColumns.fechaPago && <th>{t("timezone") === "Time Zone" ? "PAYMENT DATE" : t("timezone") === "Zona horària" ? "DATA DE PAGAMENT" : t("timezone") === "Ordu-eremua" ? "ORDAINKETA DATA" : "FECHA DE PAGO"}</th>}
                     {visibleColumns.factura && (
                       <th
                         onClick={() => handleSort("factura")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        FACTURA {sortColumn === "factura" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("invoiceNumber").toUpperCase()} {sortColumn === "factura" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                     {visibleColumns.precio && (
@@ -7268,7 +7271,7 @@ export default function SalesPage() {
                         onClick={() => handleSort("precio")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        PRECIO {sortColumn === "precio" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("timezone") === "Time Zone" ? "PRICE" : "PRECIO"} {sortColumn === "precio" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                     {visibleColumns.iva && (
@@ -7276,7 +7279,7 @@ export default function SalesPage() {
                         onClick={() => handleSort("iva")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        IVA {sortColumn === "iva" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {taxLabel} {sortColumn === "iva" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                     {visibleColumns.irpf && (
@@ -7292,7 +7295,7 @@ export default function SalesPage() {
                         onClick={() => handleSort("total")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        TOTAL {sortColumn === "total" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("totalLabel").toUpperCase()} {sortColumn === "total" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                     {visibleColumns.pagado && (
@@ -7300,7 +7303,7 @@ export default function SalesPage() {
                         onClick={() => handleSort("pagado")}
                         style={{ cursor: "pointer", userSelect: "none" }}
                       >
-                        PAGADO {sortColumn === "pagado" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
+                        {t("invoicePaid").toUpperCase()} {sortColumn === "pagado" ? (sortDirection === "asc" ? "▴" : "▾") : "▾"}
                       </th>
                     )}
                   </tr>
@@ -7309,7 +7312,7 @@ export default function SalesPage() {
                   {getArticlesList().length === 0 ? (
                     <tr>
                       <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 1} className={styles.emptyState}>
-                        No se encontraron resultados
+                        {t("timezone") === "Time Zone" ? "No results found" : t("timezone") === "Zona horària" ? "No s'han trobat resultats" : t("timezone") === "Ordu-eremua" ? "Ez da emaitzarik aurkitu" : "No se encontraron resultados"}
                       </td>
                     </tr>
                   ) : (

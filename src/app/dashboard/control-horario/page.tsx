@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import styles from "./ControlHorario.module.css";
+import { translate } from "@/lib/translations";
 
 interface WorkEntry {
   id: string;
@@ -24,7 +25,7 @@ interface WorkEntry {
 }
 
 export default function ControlHorarioPage() {
-  const { user, activeClinic } = useApp();
+  const { user, activeClinic, language } = useApp();
   const [activeTab, setActiveTab] = useState<"fichar" | "admin">("fichar");
   
   // Real-time Clock display
@@ -382,7 +383,7 @@ export default function ControlHorarioPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <div>
-          <h2 className={styles.title}>Control Horario</h2>
+          <h2 className={styles.title}>{translate("clockControlTitle", language)}</h2>
           <div className={styles.subtitle}>{currentDateStr}</div>
         </div>
       </div>

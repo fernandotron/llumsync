@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
 import styles from "./Statistics.module.css";
+import { translate } from "@/lib/translations";
 import { getCountryConfig } from "@/lib/countries";
 
 // Date range helpers
@@ -46,7 +47,8 @@ const isSameDay = (d1: Date, d2: Date | null) => {
 
 export default function StatisticsPage() {
   const router = useRouter();
-  const { activeClinic, user: currentUser } = useApp();
+  const { activeClinic, user: currentUser, language } = useApp();
+  const t = (key: string) => translate(key, language);
   const cConfig = getCountryConfig(activeClinic?.country || "ES");
   const currencySymbol = cConfig.currency;
 
@@ -135,7 +137,7 @@ export default function StatisticsPage() {
     return (
       <div className={styles.loadingState}>
         <div className={styles.loadingSpinner}></div>
-        <span>Calculando métricas y análisis de consulta...</span>
+        <span>{t("statsLoadingMetrics")}</span>
       </div>
     );
   }
@@ -651,7 +653,7 @@ export default function StatisticsPage() {
       {/* TOOLBAR */}
       <header className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <h1 className={styles.title}>Estadísticas y Analítica</h1>
+          <h1 className={styles.title}>{translate("statsTitle", language)}</h1>
           <span className={styles.clinicSubtitle}>{activeClinic?.name}</span>
         </div>
       </header>
@@ -664,7 +666,7 @@ export default function StatisticsPage() {
           onClick={() => setShowFilterDropdown(!showFilterDropdown)}
         >
           <Icons.Filter size={15} />
-          <span>Filtrar</span>
+          <span>{t("filter")}</span>
         </button>
 
         {dateFilterStart && dateFilterEnd && (
@@ -675,7 +677,7 @@ export default function StatisticsPage() {
             }}
           >
             <Icons.Calendar size={12} />
-            <span>FECHA: {getFilterText()}</span>
+            <span>{t("dateLabel")}: {getFilterText()}</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -698,7 +700,7 @@ export default function StatisticsPage() {
             <div className={styles.cascadeFilterRightCol}>
               <h3 className={styles.chartCardTitle}>
                 <Icons.Calendar size={16} style={{ marginRight: "6px", verticalAlign: "middle" }} />
-                Rango de fechas
+                {t("dateRange")}
               </h3>
 
               <div className="form-group" style={{ marginBottom: "8px" }}>
@@ -709,17 +711,17 @@ export default function StatisticsPage() {
                   onChange={(e) => handlePresetChange(e.target.value)}
                   style={{ width: "100%", height: "28px", padding: "2px 8px", fontSize: "12px" }}
                 >
-                  <option value="hoy">Hoy</option>
-                  <option value="ayer">Ayer</option>
-                  <option value="ultimos_7">Últimos 7 días</option>
-                  <option value="ultimos_30">Últimos 30 días</option>
-                  <option value="ultimos_90">Últimos 90 días</option>
-                  <option value="esta_semana">Esta semana</option>
-                  <option value="este_mes">Este mes</option>
-                  <option value="mes_anterior">Mes anterior</option>
+                  <option value="hoy">{t("today")}</option>
+                  <option value="ayer">{t("yesterday")}</option>
+                  <option value="ultimos_7">{t("last7days")}</option>
+                  <option value="ultimos_30">{t("last30days")}</option>
+                  <option value="ultimos_90">{t("last90days")}</option>
+                  <option value="esta_semana">{t("thisWeek")}</option>
+                  <option value="este_mes">{t("thisMonth")}</option>
+                  <option value="mes_anterior">{t("lastMonth")}</option>
                   <option value="octubre_2025">Octubre 1-15, 2025 (Demo)</option>
                   <option value="junio_2026">Junio 1-22, 2026 (Demo)</option>
-                  <option value="personalizado">Personalizado</option>
+                  <option value="personalizado">{t("custom")}</option>
                 </select>
               </div>
 
@@ -727,7 +729,7 @@ export default function StatisticsPage() {
                 <div>
                   <div className={styles.pickerInputsRow}>
                     <div className="form-group" style={{ flex: 1, marginBottom: "4px" }}>
-                      <label className="form-label" style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>Inicio</label>
+                      <label className="form-label" style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{t("startDate")}</label>
                       <input
                         type="text"
                         className="input"
@@ -738,7 +740,7 @@ export default function StatisticsPage() {
                       />
                     </div>
                     <div className="form-group" style={{ flex: 1, marginBottom: "4px" }}>
-                      <label className="form-label" style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>Final</label>
+                      <label className="form-label" style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{t("endDate")}</label>
                       <input
                         type="text"
                         className="input"
@@ -823,7 +825,7 @@ export default function StatisticsPage() {
                   className={styles.btnCancel}
                   onClick={() => setShowFilterDropdown(false)}
                 >
-                  Cancelar
+                  {t("cancel")}
                 </button>
                 <button
                   type="button"
@@ -838,7 +840,7 @@ export default function StatisticsPage() {
                     setShowFilterDropdown(false);
                   }}
                 >
-                  Aplicar
+                  {t("apply")}
                 </button>
               </div>
             </div>
@@ -849,11 +851,11 @@ export default function StatisticsPage() {
       {/* TABS SELECTOR */}
       <nav className={styles.tabsList}>
         {[
-          { key: "general", label: "General" },
-          { key: "citas", label: "Citas" },
-          { key: "ventas", label: "Ventas y facturación" },
-          { key: "clientes", label: "Clientes" },
-          { key: "rendimiento", label: "Rendimiento" }
+          { key: "general", label: t("tabGeneral") },
+          { key: "citas", label: t("tabAppointments") },
+          { key: "ventas", label: t("tabSalesAndBilling") },
+          { key: "clientes", label: t("tabClients") },
+          { key: "rendimiento", label: t("tabPerformance") }
         ].map((tab) => (
           <button
             key={tab.key}
@@ -871,13 +873,13 @@ export default function StatisticsPage() {
         <div className={styles.dashboardGrid}>
           {/* Left Column: Resumen */}
           <div className={styles.card}>
-            <h3 className={styles.chartCardTitle}>Resumen</h3>
+            <h3 className={styles.chartCardTitle}>{t("summary")}</h3>
             <div className={styles.summaryList}>
               <div className={styles.summaryItem}>
                 <div className={`${styles.summaryIcon} ${styles.blue}`}>
                   <Icons.DollarCircle size={16} />
                 </div>
-                <span className={styles.summaryLabel}>ventas</span>
+                <span className={styles.summaryLabel}>{t("statsSales")}</span>
                 <strong className={styles.summaryValue}>{formatPrice(totalRevenue)}</strong>
               </div>
 
@@ -885,7 +887,7 @@ export default function StatisticsPage() {
                 <div className={`${styles.summaryIcon} ${styles.purple}`}>
                   <Icons.Calendar size={16} />
                 </div>
-                <span className={styles.summaryLabel}>citas reservadas</span>
+                <span className={styles.summaryLabel}>{t("statsBookedAppts")}</span>
                 <strong className={styles.summaryValue}>{appointmentsCount}</strong>
               </div>
 
@@ -893,7 +895,7 @@ export default function StatisticsPage() {
                 <div className={`${styles.summaryIcon} ${styles.green}`}>
                   <Icons.Clock size={16} />
                 </div>
-                <span className={styles.summaryLabel}>ocupadas</span>
+                <span className={styles.summaryLabel}>{t("statsOccupied")}</span>
                 <strong className={styles.summaryValue}>{occupiedHoursText}</strong>
               </div>
 
@@ -901,7 +903,7 @@ export default function StatisticsPage() {
                 <div className={`${styles.summaryIcon} ${styles.blue}`}>
                   <Icons.Users size={16} />
                 </div>
-                <span className={styles.summaryLabel}>clientes</span>
+                <span className={styles.summaryLabel}>{t("statsClients")}</span>
                 <strong className={styles.summaryValue}>{uniqueClientsCount}</strong>
               </div>
 
@@ -909,7 +911,7 @@ export default function StatisticsPage() {
                 <div className={`${styles.summaryIcon} ${styles.orange}`}>
                   <Icons.Warning size={16} />
                 </div>
-                <span className={styles.summaryLabel}>clientes que no asistieron</span>
+                <span className={styles.summaryLabel}>{t("statsNoShows")}</span>
                 <strong className={styles.summaryValue}>{noShowsCount}</strong>
               </div>
 
@@ -917,7 +919,7 @@ export default function StatisticsPage() {
                 <div className={`${styles.summaryIcon} ${styles.red}`}>
                   <Icons.Trash size={16} />
                 </div>
-                <span className={styles.summaryLabel}>cancelaciones</span>
+                <span className={styles.summaryLabel}>{t("statsCancellations")}</span>
                 <strong className={styles.summaryValue}>{cancellationsCount}</strong>
               </div>
             </div>
@@ -927,10 +929,10 @@ export default function StatisticsPage() {
           <div className={styles.generalRightCol}>
             {/* Top Chart: Ingresos Bar Chart */}
             <div className={styles.card}>
-              <h3 className={styles.chartCardTitle}>Ingresos</h3>
+              <h3 className={styles.chartCardTitle}>{t("income")}</h3>
               <div className={styles.chartCanvas}>
                 {dailyIncomeData.length === 0 ? (
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>No hay datos suficientes para este período.</span>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{t("noDataForPeriod")}</span>
                 ) : (
                   <svg viewBox="0 0 700 240" className={styles.svgChart}>
                     <line x1="40" y1="20" x2="660" y2="20" className={styles.gridLine} />
@@ -987,15 +989,15 @@ export default function StatisticsPage() {
                           {/* Legends inside SVG */}
                           <g transform="translate(40, 230)">
                             <circle cx="10" cy="-4" r="4" fill="#3b82f6" />
-                            <text x="20" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Servicios</text>
+                            <text x="20" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartServices")}</text>
                             <circle cx="100" cy="-4" r="4" fill="#ec4899" />
-                            <text x="110" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Productos</text>
+                            <text x="110" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartProducts")}</text>
                             <circle cx="190" cy="-4" r="4" fill="#8b5cf6" />
-                            <text x="200" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Bonos</text>
+                            <text x="200" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartVouchers")}</text>
                             <circle cx="270" cy="-4" r="4" fill="#10b981" />
-                            <text x="280" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Suscripciones</text>
+                            <text x="280" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartSubscriptions")}</text>
                             <circle cx="370" cy="-4" r="4" fill="#f59e0b" />
-                            <text x="380" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Presupuestos</text>
+                            <text x="380" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartBudgets")}</text>
                           </g>
                         </>
                       );
@@ -1007,10 +1009,10 @@ export default function StatisticsPage() {
 
             {/* Bottom Chart: Citas Line Chart */}
             <div className={styles.card}>
-              <h3 className={styles.chartCardTitle}>Citas</h3>
+              <h3 className={styles.chartCardTitle}>{t("tabAppointments")}</h3>
               <div className={styles.chartCanvas}>
                 {dailyAppointmentsData.length === 0 ? (
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Sin datos de citas para este período.</span>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{t("noApptData")}</span>
                 ) : (
                   <svg viewBox="0 0 700 240" className={styles.svgChart}>
                     <line x1="40" y1="20" x2="660" y2="20" className={styles.gridLine} />
@@ -1080,10 +1082,10 @@ export default function StatisticsPage() {
           <div className={styles.citasLayout}>
             {/* Left Column: Multi-series Line Chart */}
             <div className={styles.card}>
-              <h3 className={styles.chartCardTitle}>Total de citas en el período: {appointmentsCount}</h3>
+              <h3 className={styles.chartCardTitle}>{t("totalApptsPeriod")}: {appointmentsCount}</h3>
               <div className={styles.chartCanvas}>
                 {dailyAppointmentsData.length === 0 ? (
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Sin datos.</span>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{t("noData")}</span>
                 ) : (
                   <svg viewBox="0 0 700 240" className={styles.svgChart}>
                     <line x1="40" y1="20" x2="660" y2="20" className={styles.gridLine} />
@@ -1138,11 +1140,11 @@ export default function StatisticsPage() {
 
                           <g transform="translate(40, 230)">
                             <circle cx="10" cy="-4" r="4" fill="#3b82f6" />
-                            <text x="20" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Citas</text>
+                            <text x="20" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("tabAppointments")}</text>
                             <circle cx="120" cy="-4" r="4" fill="#8b5cf6" />
-                            <text x="130" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Tiempo reservado (h)</text>
+                            <text x="130" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("bookedTime")} (h)</text>
                             <circle cx="260" cy="-4" r="4" fill="#10b981" />
-                            <text x="270" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>De nuevos clientes</text>
+                            <text x="270" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("colAestheticTreatments") /* or custom translation if needed, let's keep it clean: */ ? t("ageGroups") === "Age groups" ? "From new clients" : t("ageGroups") === "Grups d'edat" ? "De nous clients" : t("ageGroups") === "Adin-taldeak" ? "Bezero berrienak" : "De nuevos clientes" : "De nuevos clientes"}</text>
                           </g>
                         </>
                       );
@@ -1159,8 +1161,8 @@ export default function StatisticsPage() {
                   <Icons.Calendar size={16} />
                 </div>
                 <div className={styles.miniCardVal}>
-                  <strong>{appointmentsCount} citas reservadas</strong>
-                  <span>En la agenda general</span>
+                  <strong>{appointmentsCount} {t("scheduledAppointments")}</strong>
+                  <span>{t("inGeneralSchedule")}</span>
                 </div>
               </div>
 
@@ -1169,8 +1171,8 @@ export default function StatisticsPage() {
                   <Icons.Clock size={16} />
                 </div>
                 <div className={styles.miniCardVal}>
-                  <strong>{occupiedHoursText} ocupadas</strong>
-                  <span>Suma de la duración de sesiones</span>
+                  <strong>{occupiedHoursText} {t("occupiedHoursLabel")}</strong>
+                  <span>{t("sessionDurationSum")}</span>
                 </div>
               </div>
 
@@ -1179,8 +1181,8 @@ export default function StatisticsPage() {
                   <Icons.Users size={16} />
                 </div>
                 <div className={styles.miniCardVal}>
-                  <strong>{uniqueClientsCount} clientes únicos</strong>
-                  <span>Pacientes atendidos en la fecha</span>
+                  <strong>{uniqueClientsCount} {t("uniqueClients")}</strong>
+                  <span>{t("patientsAttended")}</span>
                 </div>
               </div>
             </div>
@@ -1190,24 +1192,24 @@ export default function StatisticsPage() {
           <div className={styles.citasBottomRow}>
             {/* Donut: Appointment statuses */}
             <div className={styles.card}>
-              <h3 className={styles.chartCardTitle}>Estados de citas</h3>
+              <h3 className={styles.chartCardTitle}>{t("apptStatuses")}</h3>
               <div className={styles.donutLayout}>
                 <div className={styles.donutSvgContainer}>
                   <svg viewBox="0 0 200 200" className={styles.donutSvg}>
                     <circle cx="100" cy="100" r="70" fill="transparent" stroke="#f3f4f6" strokeWidth="16" />
                     {(() => {
-                      const total = totalApptsCount || 1;
+                      const totalVal = totalApptsCount || 1;
                       const rad = 70;
                       const circ = 2 * Math.PI * rad;
                       let acc = 0;
 
                       return [
-                        { name: "Completadas", count: statusCompleted, color: "#10b981" },
-                        { name: "Pendientes", count: statusPending, color: "#f59e0b" },
-                        { name: "Canceladas", count: statusCancelled, color: "#ef4848" },
-                        { name: "Ausencias", count: statusNoShow, color: "#8b5cf6" }
+                        { name: t("completedAppts"), count: statusCompleted, color: "#10b981" },
+                        { name: t("pendingAppts"), count: statusPending, color: "#f59e0b" },
+                        { name: t("cancelledAppts"), count: statusCancelled, color: "#ef4848" },
+                        { name: t("absences"), count: statusNoShow, color: "#8b5cf6" }
                       ].map((item, idx) => {
-                        const percent = item.count / total;
+                        const percent = item.count / totalVal;
                         if (percent === 0) return null;
                         const dashArray = `${circ * percent} ${circ}`;
                         const dashOffset = -circ * acc;
@@ -1232,29 +1234,29 @@ export default function StatisticsPage() {
                   </svg>
                   <div className={styles.donutMiddleText}>
                     <span className={styles.donutMiddleVal}>{totalApptsCount}</span>
-                    <span className={styles.donutMiddleLbl}>Total</span>
+                    <span className={styles.donutMiddleLbl}>{t("total")}</span>
                   </div>
                 </div>
 
                 <div className={styles.donutLegend}>
                   <div className={styles.legendItem}>
                     <span className={styles.legendColor} style={{ background: "#10b981" }} />
-                    <span className={styles.legendText}>Citas completadas</span>
+                    <span className={styles.legendText}>{t("completedLegend")}</span>
                     <span className={styles.legendVal}>{statusCompleted} ({totalApptsCount > 0 ? Math.round((statusCompleted / totalApptsCount) * 100) : 0}%)</span>
                   </div>
                   <div className={styles.legendItem}>
                     <span className={styles.legendColor} style={{ background: "#f59e0b" }} />
-                    <span className={styles.legendText}>Citas pendientes</span>
+                    <span className={styles.legendText}>{t("pendingLegend")}</span>
                     <span className={styles.legendVal}>{statusPending} ({totalApptsCount > 0 ? Math.round((statusPending / totalApptsCount) * 100) : 0}%)</span>
                   </div>
                   <div className={styles.legendItem}>
                     <span className={styles.legendColor} style={{ background: "#ef4848" }} />
-                    <span className={styles.legendText}>Citas canceladas</span>
+                    <span className={styles.legendText}>{t("cancelledLegend")}</span>
                     <span className={styles.legendVal}>{statusCancelled} ({totalApptsCount > 0 ? Math.round((statusCancelled / totalApptsCount) * 100) : 0}%)</span>
                   </div>
                   <div className={styles.legendItem}>
                     <span className={styles.legendColor} style={{ background: "#8b5cf6" }} />
-                    <span className={styles.legendText}>Ausencias</span>
+                    <span className={styles.legendText}>{t("absences")}</span>
                     <span className={styles.legendVal}>{statusNoShow} ({totalApptsCount > 0 ? Math.round((statusNoShow / totalApptsCount) * 100) : 0}%)</span>
                   </div>
                 </div>
@@ -1263,7 +1265,7 @@ export default function StatisticsPage() {
 
             {/* Circular Gauge: Occupancy */}
             <div className={styles.card}>
-              <h3 className={styles.chartCardTitle}>Tiempo reservado</h3>
+              <h3 className={styles.chartCardTitle}>{t("bookedTime")}</h3>
               <div className={styles.gaugeWrapper}>
                 <div className={styles.gaugeContainer}>
                   <svg viewBox="0 0 100 100" className={styles.gaugeSvg}>
@@ -1290,17 +1292,17 @@ export default function StatisticsPage() {
                   </svg>
                   <div className={styles.gaugeLabelText}>
                     <span className={styles.gaugePercent}>{occupancyRate}%</span>
-                    <span className={styles.gaugeSubtitle}>Ocupación</span>
+                    <span className={styles.gaugeSubtitle}>{t("occupancy")}</span>
                   </div>
                 </div>
                 <div className={styles.gaugeFooter}>
                   <div className={styles.gaugeFooterItem}>
                     <span className={styles.gaugeDot} style={{ background: "#008fa3" }} />
-                    <span>Agenda reservada: {occupiedHours.toFixed(1)}h</span>
+                    <span>{t("bookedSchedule")}: {occupiedHours.toFixed(1)}h</span>
                   </div>
                   <div className={styles.gaugeFooterItem}>
                     <span className={styles.gaugeDot} style={{ background: "#f3f4f6" }} />
-                    <span>Agenda disponible: {Math.max(0, totalOpenHours - occupiedHours).toFixed(1)}h</span>
+                    <span>{t("availableSchedule")}: {Math.max(0, totalOpenHours - occupiedHours).toFixed(1)}h</span>
                   </div>
                 </div>
               </div>
@@ -1314,10 +1316,10 @@ export default function StatisticsPage() {
         <div className={styles.citasLayout}>
           {/* Left Column: stacked bar chart */}
           <div className={styles.card}>
-            <h3 className={styles.chartCardTitle}>Ingresos en el período seleccionado</h3>
+            <h3 className={styles.chartCardTitle}>{t("incomeInPeriod")}</h3>
             <div className={styles.chartCanvas}>
               {dailyIncomeData.length === 0 ? (
-                <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Sin datos.</span>
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{t("noData")}</span>
               ) : (
                 <svg viewBox="0 0 700 240" className={styles.svgChart}>
                   <line x1="40" y1="20" x2="660" y2="20" className={styles.gridLine} />
@@ -1367,15 +1369,15 @@ export default function StatisticsPage() {
 
                         <g transform="translate(40, 230)">
                           <circle cx="10" cy="-4" r="4" fill="#3b82f6" />
-                          <text x="20" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Servicios</text>
+                          <text x="20" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartServices")}</text>
                           <circle cx="100" cy="-4" r="4" fill="#ec4899" />
-                          <text x="110" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Productos</text>
+                          <text x="110" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartProducts")}</text>
                           <circle cx="190" cy="-4" r="4" fill="#8b5cf6" />
-                          <text x="200" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Bonos</text>
+                          <text x="200" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartVouchers")}</text>
                           <circle cx="270" cy="-4" r="4" fill="#10b981" />
-                          <text x="280" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Suscripciones</text>
+                          <text x="280" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartSubscriptions")}</text>
                           <circle cx="370" cy="-4" r="4" fill="#f59e0b" />
-                          <text x="380" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>Presupuestos</text>
+                          <text x="380" y="0" className={styles.chartText} style={{ fontSize: "9px" }}>{t("chartBudgets")}</text>
                         </g>
                       </>
                     );
@@ -1388,13 +1390,13 @@ export default function StatisticsPage() {
             <div className={styles.citasBottomRow}>
               {/* Top 5 Services */}
               <div className={styles.card}>
-                <h3 className={styles.chartCardTitle}>Top 5 servicios</h3>
+                <h3 className={styles.chartCardTitle}>{t("top5Services")}</h3>
                 <div className={styles.topServicesList}>
                   {topServices.map((srv, idx) => (
                     <div key={idx} className={styles.topServiceItem}>
                       <div className={styles.topServiceHeader}>
                         <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{srv.name}</span>
-                        <span style={{ color: "var(--text-secondary)" }}>Total {formatPrice(srv.value)}</span>
+                        <span style={{ color: "var(--text-secondary)" }}>{t("total")} {formatPrice(srv.value)}</span>
                       </div>
                       <div className={styles.topServiceBarBg}>
                         <div
@@ -1408,7 +1410,7 @@ export default function StatisticsPage() {
                     </div>
                   ))}
                   {topServices.length === 0 && (
-                    <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Sin servicios facturados en este rango.</span>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{t("noServicesInRange")}</span>
                   )}
                 </div>
               </div>
@@ -1416,7 +1418,7 @@ export default function StatisticsPage() {
               {/* Payment methods pie & Past appts payments pie */}
               <div className={styles.card} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div>
-                  <h3 className={styles.chartCardTitle} style={{ marginBottom: "6px" }}>Métodos de pago</h3>
+                  <h3 className={styles.chartCardTitle} style={{ marginBottom: "6px" }}>{t("paymentMethods")}</h3>
                   <div className={styles.donutLayout}>
                     <div className={styles.donutSvgContainer} style={{ width: "90px", height: "90px" }}>
                       <svg viewBox="0 0 100 100" className={styles.donutSvg} style={{ width: "90px", height: "90px" }}>
@@ -1457,20 +1459,20 @@ export default function StatisticsPage() {
                         return (
                           <div key={idx} className={styles.legendItem}>
                             <span className={styles.legendColor} style={{ background: colors[idx % colors.length] }} />
-                            <span className={styles.legendText}>{item.name}</span>
+                            <span className={styles.legendText}>{item.name === "Tarjeta" ? t("ageGroups") === "Age groups" ? "Card" : item.name : item.name}</span>
                             <span className={styles.legendVal}>{item.percent}%</span>
                           </div>
                         );
                       })}
                       {paymentMethodsList.length === 0 && (
-                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Sin transacciones</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t("noTransactions")}</span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 <div style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "12px" }}>
-                  <h3 className={styles.chartCardTitle} style={{ marginBottom: "6px" }}>Pagos de citas pasadas</h3>
+                  <h3 className={styles.chartCardTitle} style={{ marginBottom: "6px" }}>{t("pastApptPayments")}</h3>
                   <div className={styles.donutLayout}>
                     <div className={styles.donutSvgContainer} style={{ width: "90px", height: "90px" }}>
                       <svg viewBox="0 0 100 100" className={styles.donutSvg} style={{ width: "90px", height: "90px" }}>
@@ -1513,12 +1515,12 @@ export default function StatisticsPage() {
                     <div className={styles.donutLegend}>
                       <div className={styles.legendItem}>
                         <span className={styles.legendColor} style={{ background: "#10b981" }} />
-                        <span className={styles.legendText}>Cobradas</span>
+                        <span className={styles.legendText}>{t("collected")}</span>
                         <span className={styles.legendVal}>{Math.round((pastPaidCount / totalPastCount) * 100)}%</span>
                       </div>
                       <div className={styles.legendItem}>
                         <span className={styles.legendColor} style={{ background: "#ef4848" }} />
-                        <span className={styles.legendText}>Pendientes</span>
+                        <span className={styles.legendText}>{t("pendingAppts")}</span>
                         <span className={styles.legendVal}>{Math.round((pastUnpaidCount / totalPastCount) * 100)}%</span>
                       </div>
                     </div>
@@ -1536,7 +1538,7 @@ export default function StatisticsPage() {
               </div>
               <div className={styles.miniCardVal}>
                 <strong>{formatPrice(salesByCitas)}</strong>
-                <span>citas</span>
+                <span>{t("appointments")}</span>
               </div>
             </div>
 
@@ -1546,7 +1548,7 @@ export default function StatisticsPage() {
               </div>
               <div className={styles.miniCardVal}>
                 <strong>{formatPrice(salesByBonos)}</strong>
-                <span>bonos</span>
+                <span>{t("vouchers")}</span>
               </div>
             </div>
 
@@ -1556,7 +1558,7 @@ export default function StatisticsPage() {
               </div>
               <div className={styles.miniCardVal}>
                 <strong>{formatPrice(salesByProductos)}</strong>
-                <span>productos</span>
+                <span>{t("products")}</span>
               </div>
             </div>
 
@@ -1566,7 +1568,7 @@ export default function StatisticsPage() {
               </div>
               <div className={styles.miniCardVal}>
                 <strong>{formatPrice(salesBySuscripciones)}</strong>
-                <span>suscripciones</span>
+                <span>{t("subscriptions")}</span>
               </div>
             </div>
 
@@ -1576,7 +1578,7 @@ export default function StatisticsPage() {
               </div>
               <div className={styles.miniCardVal}>
                 <strong>{formatPrice(salesByPresupuestos)}</strong>
-                <span>presupuestos</span>
+                <span>{t("budgets")}</span>
               </div>
             </div>
 
@@ -1586,7 +1588,7 @@ export default function StatisticsPage() {
               </div>
               <div className={styles.miniCardVal}>
                 <strong style={{ color: "#008fa3" }}>{formatPrice(salesTotalSum)}</strong>
-                <span>en total</span>
+                <span>{t("inTotal")}</span>
               </div>
             </div>
           </div>
@@ -1600,7 +1602,7 @@ export default function StatisticsPage() {
           <div className={styles.card} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             {/* Gender donut */}
             <div>
-              <h3 className={styles.chartCardTitle}>Perfil de cliente</h3>
+              <h3 className={styles.chartCardTitle}>{t("clientProfile")}</h3>
               <div className={styles.donutLayout}>
                 <div className={styles.donutSvgContainer} style={{ width: "100px", height: "100px" }}>
                   <svg viewBox="0 0 100 100" className={styles.donutSvg} style={{ width: "100px", height: "100px" }}>
@@ -1611,9 +1613,9 @@ export default function StatisticsPage() {
                       let acc = 0;
 
                       return [
-                        { name: "Hombre", count: clientGenderCounts.HOMBRE, color: "#3b82f6" },
-                        { name: "Mujer", count: clientGenderCounts.MUJER, color: "#ec4899" },
-                        { name: "Desconocido", count: clientGenderCounts.DESCONOCIDO, color: "#8b5cf6" }
+                        { name: t("statsMale"), count: clientGenderCounts.HOMBRE, color: "#3b82f6" },
+                        { name: t("statsFemale"), count: clientGenderCounts.MUJER, color: "#ec4899" },
+                        { name: t("unknown"), count: clientGenderCounts.DESCONOCIDO, color: "#8b5cf6" }
                       ].map((item, idx) => {
                         const percent = item.count / totalGenderCount;
                         if (percent === 0) return null;
@@ -1642,17 +1644,17 @@ export default function StatisticsPage() {
                 <div className={styles.donutLegend}>
                   <div className={styles.legendItem}>
                     <span className={styles.legendColor} style={{ background: "#3b82f6" }} />
-                    <span className={styles.legendText}>Hombre</span>
+                    <span className={styles.legendText}>{t("statsMale")}</span>
                     <span className={styles.legendVal}>{Math.round((clientGenderCounts.HOMBRE / totalGenderCount) * 100)}%</span>
                   </div>
                   <div className={styles.legendItem}>
                     <span className={styles.legendColor} style={{ background: "#ec4899" }} />
-                    <span className={styles.legendText}>Mujer</span>
+                    <span className={styles.legendText}>{t("statsFemale")}</span>
                     <span className={styles.legendVal}>{Math.round((clientGenderCounts.MUJER / totalGenderCount) * 100)}%</span>
                   </div>
                   <div className={styles.legendItem}>
                     <span className={styles.legendColor} style={{ background: "#8b5cf6" }} />
-                    <span className={styles.legendText}>Desconocido</span>
+                    <span className={styles.legendText}>{t("unknown")}</span>
                     <span className={styles.legendVal}>{Math.round((clientGenderCounts.DESCONOCIDO / totalGenderCount) * 100)}%</span>
                   </div>
                 </div>
@@ -1661,7 +1663,7 @@ export default function StatisticsPage() {
 
             {/* Age groups bar chart */}
             <div>
-              <h3 className={styles.chartCardTitle} style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "12px", marginTop: "12px" }}>Grupos de edad</h3>
+              <h3 className={styles.chartCardTitle} style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "12px", marginTop: "12px" }}>{t("ageGroups")}</h3>
               <div className={styles.chartCanvas} style={{ height: "160px" }}>
                 <svg viewBox="0 0 300 150" className={styles.svgChart}>
                   <line x1="30" y1="120" x2="280" y2="120" className={styles.axisLine} />
@@ -1697,26 +1699,26 @@ export default function StatisticsPage() {
           {/* Right Column: Client details table */}
           <div className={styles.tableCard}>
             <div className={styles.tableHeader}>
-              <h3>Listado de Clientes Activos ({sortedClients.length})</h3>
+              <h3>{t("activeClientsList")} ({sortedClients.length})</h3>
             </div>
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead>
                   <tr>
                     <th onClick={() => { setClientSortKey("name"); setClientSortOrder(clientSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Cliente {clientSortKey === "name" && (clientSortOrder === "asc" ? "▲" : "▼")}
+                      {t("clientCol")} {clientSortKey === "name" && (clientSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                     <th onClick={() => { setClientSortKey("revenue"); setClientSortOrder(clientSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Ingresos {clientSortKey === "revenue" && (clientSortOrder === "asc" ? "▲" : "▼")}
+                      {t("revenueCol")} {clientSortKey === "revenue" && (clientSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                     <th onClick={() => { setClientSortKey("pending"); setClientSortOrder(clientSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Pagos pendientes {clientSortKey === "pending" && (clientSortOrder === "asc" ? "▲" : "▼")}
+                      {t("pendingPayments")} {clientSortKey === "pending" && (clientSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                     <th onClick={() => { setClientSortKey("cancellations"); setClientSortOrder(clientSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Cancelaciones {clientSortKey === "cancellations" && (clientSortOrder === "asc" ? "▲" : "▼")}
+                      {t("cancellationsCol")} {clientSortKey === "cancellations" && (clientSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                     <th onClick={() => { setClientSortKey("absences"); setClientSortOrder(clientSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Ausencias {clientSortKey === "absences" && (clientSortOrder === "asc" ? "▲" : "▼")}
+                      {t("absencesCol")} {clientSortKey === "absences" && (clientSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                   </tr>
                 </thead>
@@ -1735,7 +1737,7 @@ export default function StatisticsPage() {
                   {sortedClients.length === 0 && (
                     <tr>
                       <td colSpan={5} style={{ textAlign: "center", padding: "30px", color: "var(--text-secondary)" }}>
-                        No hay registros de clientes en este período.
+                        {t("noClientsInPeriod")}
                       </td>
                     </tr>
                   )}
@@ -1746,27 +1748,26 @@ export default function StatisticsPage() {
         </div>
       )}
 
-      {/* --- TAB CONTENT 5: RENDIMIENTO --- */}
       {activeTab === "rendimiento" && (
         <div>
           <div className={styles.rendimientoLayout}>
             {/* Top Left: Rendimiento del equipo line chart */}
             <div className={styles.card}>
               <div className={styles.chartCardHeader}>
-                <h3>Rendimiento del equipo</h3>
+                <h3>{t("teamPerformance")}</h3>
                 <select
                   className={styles.chartSelect}
                   value={performanceMetric}
                   onChange={(e) => setPerformanceMetric(e.target.value as any)}
                 >
-                  <option value="revenue">Por ingresos</option>
-                  <option value="appointments">Por citas atendidas</option>
+                  <option value="revenue">{t("byRevenue")}</option>
+                  <option value="appointments">{t("byAppts")}</option>
                 </select>
               </div>
 
               <div className={styles.chartCanvas}>
                 {staffDailyIncome.length === 0 ? (
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Sin datos.</span>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{t("noData")}</span>
                 ) : (
                   <svg viewBox="0 0 700 240" className={styles.svgChart}>
                     <line x1="40" y1="20" x2="660" y2="20" className={styles.gridLine} />
@@ -1832,7 +1833,7 @@ export default function StatisticsPage() {
 
             {/* Top Right: Team share donut chart */}
             <div className={styles.card}>
-              <h3 className={styles.chartCardTitle}>Distribución</h3>
+              <h3 className={styles.chartCardTitle}>{t("distribution")}</h3>
               <div className={styles.donutLayout} style={{ flexDirection: "column", gap: "12px" }}>
                 <div className={styles.donutSvgContainer} style={{ width: "100px", height: "100px" }}>
                   <svg viewBox="0 0 100 100" className={styles.donutSvg} style={{ width: "100px", height: "100px" }}>
@@ -1898,23 +1899,23 @@ export default function StatisticsPage() {
           {/* Bottom table of professionals */}
           <div className={styles.tableCard} style={{ marginTop: "20px" }}>
             <div className={styles.tableHeader}>
-              <h3>Rendimiento de Profesionales</h3>
+              <h3>{t("professionalsPerf")}</h3>
             </div>
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead>
                   <tr>
                     <th onClick={() => { setStaffSortKey("name"); setStaffSortOrder(staffSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Profesional {staffSortKey === "name" && (staffSortOrder === "asc" ? "▲" : "▼")}
+                      {t("professional")} {staffSortKey === "name" && (staffSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                     <th onClick={() => { setStaffSortKey("revenue"); setStaffSortOrder(staffSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Ingresos {staffSortKey === "revenue" && (staffSortOrder === "asc" ? "▲" : "▼")}
+                      {t("revenueCol")} {staffSortKey === "revenue" && (staffSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                     <th onClick={() => { setStaffSortKey("appointments"); setStaffSortOrder(staffSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Citas atendidas {staffSortKey === "appointments" && (staffSortOrder === "asc" ? "▲" : "▼")}
+                      {t("apptsSeen")} {staffSortKey === "appointments" && (staffSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                     <th onClick={() => { setStaffSortKey("hourly"); setStaffSortOrder(staffSortOrder === "asc" ? "desc" : "asc"); }}>
-                      Ganancias/hora trabajada {staffSortKey === "hourly" && (staffSortOrder === "asc" ? "▲" : "▼")}
+                      {t("earningsPerHour")} {staffSortKey === "hourly" && (staffSortOrder === "asc" ? "▲" : "▼")}
                     </th>
                   </tr>
                 </thead>
@@ -1925,14 +1926,14 @@ export default function StatisticsPage() {
                       <td>{formatPrice(staff.revenue)}</td>
                       <td>{staff.appointments}</td>
                       <td style={{ fontWeight: 600, color: "#008fa3" }}>
-                        {formatPrice(staff.hourly)}/hora
+                        {formatPrice(staff.hourly)}{t("timezone") === "Time Zone" ? "/hour" : t("timezone") === "Ordu-eremua" ? "/ordu" : "/hora"}
                       </td>
                     </tr>
                   ))}
                   {sortedStaff.length === 0 && (
                     <tr>
                       <td colSpan={4} style={{ textAlign: "center", padding: "30px", color: "var(--text-secondary)" }}>
-                        No hay profesionales activos en este período.
+                        {t("noActiveProfessionals")}
                       </td>
                     </tr>
                   )}

@@ -17,7 +17,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       additionalData,
       color,
       showInAgenda,
-      permissionsJson
+      permissionsJson,
+      password
     } = body;
 
     if (!id) {
@@ -38,7 +39,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         additionalData,
         color,
         showInAgenda: showInAgenda !== undefined ? Boolean(showInAgenda) : undefined,
-        permissionsJson: permissionsJson !== undefined ? permissionsJson : undefined
+        permissionsJson: permissionsJson !== undefined ? permissionsJson : undefined,
+        password: password !== undefined ? password : undefined
       }
     });
 
