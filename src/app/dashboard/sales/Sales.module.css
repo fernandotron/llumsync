@@ -914,17 +914,17 @@
 
 .pickerInputsRow {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .calendarsBlock {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 4px;
+  margin-bottom: 6px;
   background: var(--bg-input);
-  padding: 16px;
+  padding: 6px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
 }
@@ -933,18 +933,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 
 .navArrow {
   background: transparent;
   border: none;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 0 10px;
-  height: 28px;
+  padding: 0 8px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -958,7 +958,7 @@
 }
 
 .calendarMonthLabel {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
   width: 45%;
@@ -967,13 +967,13 @@
 
 .gridsContainer {
   display: flex;
-  gap: 24px;
+  gap: 12px;
 }
 
 @media (max-width: 600px) {
   .gridsContainer {
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
   }
 }
 
@@ -981,17 +981,17 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .weekHeaders {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   text-align: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .weekHeaderCell {
@@ -1001,14 +1001,14 @@
 .calendarDaysGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px 2px;
+  gap: 1px 1px;
 }
 
 .dayCell {
   background: transparent;
   border: none;
   aspect-ratio: 1;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
@@ -1017,7 +1017,7 @@
   align-items: center;
   justify-content: center;
   transition: background-color 0.15s, color 0.15s;
-  padding: 6px;
+  padding: 2px;
 }
 
 .dayCell:hover {
@@ -1060,18 +1060,18 @@
 .pickerFooter {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
   border-top: 1px solid var(--border-color);
-  padding-top: 16px;
+  padding-top: 8px;
 }
 
 .btnCancel {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  padding: 8px 16px;
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -1086,9 +1086,9 @@
   background: var(--accent);
   border: 1px solid transparent;
   color: #ffffff;
-  padding: 8px 16px;
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -2619,4 +2619,183 @@
     width: 100% !important;
   }
 }
+
+/* Cascade Filter Popover */
+.cascadeFilterPopover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 200;
+  margin-top: 8px;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  display: flex;
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(var(--glass-blur));
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+}
+
+.cascadeFilterLeftCol {
+  width: 230px;
+  background: var(--bg-panel-solid);
+  border-right: 1px solid var(--border-color);
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 500px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.cascadeFilterItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.cascadeFilterItem:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.cascadeFilterItemActive {
+  background: var(--primary-light) !important;
+  color: var(--primary) !important;
+  font-weight: 600;
+}
+
+.cascadeFilterRightCol {
+  padding: 16px 20px;
+  min-height: 250px;
+  max-height: 500px;
+  overflow-y: auto;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.subFilterTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #008fa3;
+  margin-top: 0;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subFilterSearchWrapper {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.subFilterSearchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.subFilterSearchInput {
+  width: 100%;
+  padding: 8px 10px 8px 32px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.subFilterCheckboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.subFilterCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.subFilterCheckboxLabel input {
+  cursor: pointer;
+}
+
+.subFilterCloseBtn {
+  margin-top: auto;
+  align-self: flex-end;
+  background: #009bb3;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.subFilterCloseBtn:hover {
+  background: #007e92;
+}
+
+/* Styled filter tag badges */
+.filterTagBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.filterTagBadge button {
+  background: transparent;
+  border: none;
+  color: #0369a1;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-left: 2px;
+}
+
+.filterTagBadge button:hover {
+  color: #0284c7;
+}
+
 

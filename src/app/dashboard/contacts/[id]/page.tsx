@@ -1723,11 +1723,6 @@ export default function ClientDetailPage() {
             <strong>Condiciones de Aceptación:</strong> Los precios indicados incluyen los impuestos aplicables. En caso de aprobación del presente presupuesto, se habilitará como saldo monedero CLIFAV para el consumo y cobro directo de sus citas agendadas de forma automática.
           </div>
 
-          <div class="signatures">
-            <div class="signature-box">Firma del Profesional</div>
-            <div class="signature-box">Firma de Conformidad del Paciente</div>
-          </div>
-
           <script>
             window.onload = function() {
               window.print();
@@ -2540,6 +2535,20 @@ export default function ClientDetailPage() {
                               /\[Campo_firma_digital\]/i.test(generatedDocContent) ||
                               generatedDocContent.toLowerCase().includes('firma_digital') ||
                               generatedDocContent.toLowerCase().includes('signature.digital');
+
+  const showPatientSignatureBox = !hasDigitalSignature && (
+    /\[Campo_firma_ordinaria\]/i.test(generatedDocContent) ||
+    generatedDocContent.toLowerCase().includes('firma_ordinaria') ||
+    generatedDocContent.toLowerCase().includes('signature.client') ||
+    /data-type=["']?ordinary["']?/i.test(generatedDocContent)
+  );
+
+  const showDoctorSignatureBox = !hasDigitalSignature && (
+    /\[Campo_firma_certificada\]/i.test(generatedDocContent) ||
+    generatedDocContent.toLowerCase().includes('firma_certificada') ||
+    generatedDocContent.toLowerCase().includes('signature.certified') ||
+    /data-type=["']?certified["']?/i.test(generatedDocContent)
+  );
 
   return (
     <div className={styles.container}>
@@ -3862,11 +3871,11 @@ export default function ClientDetailPage() {
                           />
 
                           {/* Interactive Signatures Box Grid */}
-                          {!hasDigitalSignature && (
+                          {(showPatientSignatureBox || showDoctorSignatureBox) && (
                             <div 
                               style={{ 
                                 display: "grid", 
-                                gridTemplateColumns: "1fr 1fr", 
+                                gridTemplateColumns: (showPatientSignatureBox && showDoctorSignatureBox) ? "1fr 1fr" : "1fr", 
                                 gap: "32px", 
                                 marginTop: "48px", 
                                 borderTop: "1px solid #e2e8f0", 
@@ -3874,76 +3883,80 @@ export default function ClientDetailPage() {
                               }}
                             >
                               {/* Patient Sign block */}
-                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>FIRMA DEL PACIENTE</span>
-                                <div 
-                                  onClick={() => {
-                                    setActiveSignee("patient");
-                                    setShowSignModal(true);
-                                  }}
-                                  style={{
-                                    border: "1px solid #cbd5e1",
-                                    borderRadius: "8px",
-                                    width: "220px",
-                                    height: "120px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    cursor: "pointer",
-                                    background: "#f8fafc",
-                                    transition: "all 0.2s",
-                                    overflow: "hidden"
-                                  }}
-                                >
-                                  {patientSignature ? (
-                                    <img src={patientSignature} style={{ maxHeight: "100px", maxWidth: "200px", display: "block" }} alt="Firma Paciente" />
-                                  ) : (
-                                    <div style={{ textAlign: "center", color: "#94a3b8" }}>
-                                      <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ display: "block", margin: "0 auto 4px" }}>
-                                        <path d="M12 20h9"/>
-                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                                      </svg>
-                                      <span style={{ fontSize: "10px", fontWeight: 600 }}>Haga clic para firmar</span>
-                                    </div>
-                                  )}
+                              {showPatientSignatureBox && (
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>FIRMA DEL PACIENTE</span>
+                                  <div 
+                                    onClick={() => {
+                                      setActiveSignee("patient");
+                                      setShowSignModal(true);
+                                    }}
+                                    style={{
+                                      border: "1px solid #cbd5e1",
+                                      borderRadius: "8px",
+                                      width: "220px",
+                                      height: "120px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      cursor: "pointer",
+                                      background: "#f8fafc",
+                                      transition: "all 0.2s",
+                                      overflow: "hidden"
+                                    }}
+                                  >
+                                    {patientSignature ? (
+                                      <img src={patientSignature} style={{ maxHeight: "100px", maxWidth: "200px", display: "block" }} alt="Firma Paciente" />
+                                    ) : (
+                                      <div style={{ textAlign: "center", color: "#94a3b8" }}>
+                                        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ display: "block", margin: "0 auto 4px" }}>
+                                          <path d="M12 20h9"/>
+                                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                        </svg>
+                                        <span style={{ fontSize: "10px", fontWeight: 600 }}>Haga clic para firmar</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
 
                               {/* Doctor Sign block */}
-                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>FIRMA MÉDICO</span>
-                                <div 
-                                  onClick={() => {
-                                    setActiveSignee("doctor");
-                                    setShowSignModal(true);
-                                  }}
-                                  style={{
-                                    border: "1px solid #cbd5e1",
-                                    borderRadius: "8px",
-                                    width: "220px",
-                                    height: "120px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    cursor: "pointer",
-                                    background: "#f8fafc",
-                                    transition: "all 0.2s",
-                                    overflow: "hidden"
-                                  }}
-                                >
-                                  {doctorSignature ? (
-                                    <img src={doctorSignature} style={{ maxHeight: "100px", maxWidth: "200px", display: "block" }} alt="Firma Médico" />
-                                  ) : (
-                                    <div style={{ textAlign: "center", color: "#94a3b8" }}>
-                                      <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ display: "block", margin: "0 auto 4px" }}>
-                                        <path d="M12 20h9"/>
-                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                                      </svg>
-                                      <span style={{ fontSize: "10px", fontWeight: 600 }}>Haga clic para firmar</span>
-                                    </div>
-                                  )}
+                              {showDoctorSignatureBox && (
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>FIRMA MÉDICO</span>
+                                  <div 
+                                    onClick={() => {
+                                      setActiveSignee("doctor");
+                                      setShowSignModal(true);
+                                    }}
+                                    style={{
+                                      border: "1px solid #cbd5e1",
+                                      borderRadius: "8px",
+                                      width: "220px",
+                                      height: "120px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      cursor: "pointer",
+                                      background: "#f8fafc",
+                                      transition: "all 0.2s",
+                                      overflow: "hidden"
+                                    }}
+                                  >
+                                    {doctorSignature ? (
+                                      <img src={doctorSignature} style={{ maxHeight: "100px", maxWidth: "200px", display: "block" }} alt="Firma Médico" />
+                                    ) : (
+                                      <div style={{ textAlign: "center", color: "#94a3b8" }}>
+                                        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ display: "block", margin: "0 auto 4px" }}>
+                                          <path d="M12 20h9"/>
+                                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                        </svg>
+                                        <span style={{ fontSize: "10px", fontWeight: 600 }}>Haga clic para firmar</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                           )}
 

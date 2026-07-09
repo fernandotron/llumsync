@@ -2521,7 +2521,13 @@ export default function AgendaPage() {
 
             return (
               <div key={staff.id} className={styles.staffColumn}>
-                <div className={styles.staffColumnHeader} style={quitarNombreSemanal ? { justifyContent: "center", gap: 0 } : { display: "flex", alignItems: "center", gap: "8px" }}>
+                <div 
+                  className={styles.staffColumnHeader} 
+                  style={quitarNombreSemanal 
+                    ? { display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 0 } 
+                    : { display: "flex", flexDirection: "row", alignItems: "center", gap: "8px", justifyContent: "flex-start", padding: "0 12px" }
+                  }
+                >
                   <div className={styles.staffMiniAvatar} style={{ width: "30px", height: "30px", fontSize: "12px", flexShrink: 0, backgroundColor: staff.color || "#3b82f6" }}>
                     {`${staff.name} ${staff.lastName || ""}`
                       .trim()
@@ -2532,12 +2538,9 @@ export default function AgendaPage() {
                       .toUpperCase()}
                   </div>
                   {!quitarNombreSemanal && (
-                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                      <span className={styles.staffName} style={{ display: "block" }}>{staff.name} {staff.lastName || ""}</span>
-                      <span className={styles.staffRole} style={{ display: "block" }}>
-                        {staff.role === "ADMIN" ? "Directora" : staff.role === "DOCTOR" ? "Médico/Fisio" : "Terapeuta"}
-                      </span>
-                    </div>
+                    <span className={styles.staffName} style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {staff.name} {staff.lastName || ""}
+                    </span>
                   )}
                 </div>
 

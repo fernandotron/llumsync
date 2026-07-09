@@ -123,8 +123,9 @@ export default function LoginPage() {
 
   const initializeGoogleAuth = () => {
     if (typeof window !== "undefined" && (window as any).google) {
+      const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "619688463085-9abm5uk9e44188qk8co8sn44cqhtf7aa.apps.googleusercontent.com";
       (window as any).google.accounts.id.initialize({
-        client_id: "619688463085-9abm5uk9e44188qk8co8sn44cqhtf7aa.apps.googleusercontent.com",
+        client_id: googleClientId,
         callback: handleGoogleAuthCallback,
       });
       renderGoogleButtons();

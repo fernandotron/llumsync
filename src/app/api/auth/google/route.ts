@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const payload = JSON.parse(payloadJson);
 
     // Verify audience matches our Client ID
-    const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "619688463085-9abm5uk9e44188qk8co8sn44cqhtf7aa.apps.googleusercontent.com";
+    const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "619688463085-9abm5uk9e44188qk8co8sn44cqhtf7aa.apps.googleusercontent.com";
     if (payload.aud !== GOOGLE_CLIENT_ID) {
       return NextResponse.json({ error: "Error de verificación de cliente Google" }, { status: 400 });
     }

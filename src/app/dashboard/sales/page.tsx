@@ -563,6 +563,43 @@ export default function SalesPage() {
 
   // Search & Toggles
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("TODOS");
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
+  const [selectedDirecciones, setSelectedDirecciones] = useState<string[]>([]);
+  const [selectedEmpleados, setSelectedEmpleados] = useState<string[]>([]);
+  const [selectedTipos, setSelectedTipos] = useState<string[]>([]);
+  const [selectedEstadosPago, setSelectedEstadosPago] = useState<string[]>([]);
+  const [selectedEstadosCita, setSelectedEstadosCita] = useState<string[]>([]);
+  const [selectedMetodosPago, setSelectedMetodosPago] = useState<string[]>([]);
+  const [selectedFacturado, setSelectedFacturado] = useState<string[]>([]);
+  const [selectedServicios, setSelectedServicios] = useState<string[]>([]);
+  const [selectedEtiquetas, setSelectedEtiquetas] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<{ name: string; color: string }[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("clifav_available_tags");
+      if (saved) {
+        try {
+          setAvailableTags(JSON.parse(saved));
+        } catch (e) {
+          console.error("Error parsing clifav_available_tags:", e);
+        }
+      }
+    }
+  }, []);
+
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState<string>("");
+
+  const [clientSearchText, setClientSearchText] = useState("");
+  const [direccionSearchText, setDireccionSearchText] = useState("");
+  const [empleadoSearchText, setEmpleadoSearchText] = useState("");
+  const [servicioSearchText, setServicioSearchText] = useState("");
+  const [tagSearchText, setTagSearchText] = useState("");
+
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [activeFilterOption, setActiveFilterOption] = useState<string>("fechaArticulos");
+
   const [verBaseImponible, setVerBaseImponible] = useState(false);
   const [verBonosDevengo, setVerBonosDevengo] = useState(false);
 
@@ -883,6 +920,7 @@ export default function SalesPage() {
     function handleClickOutside(event: MouseEvent) {
       if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
         setShowDatePicker(false);
+        setShowFilterDropdown(false);
       }
       if (columnSelectorRef.current && !columnSelectorRef.current.contains(event.target as Node)) {
         setShowColumnDropdown(false);
@@ -3218,6 +3256,39 @@ export default function SalesPage() {
       .filter((item) => {
         if (dateFilterStart && item.fechaRaw < dateFilterStart) return false;
         if (dateFilterEnd && item.fechaRaw > dateFilterEnd) return false;
+        if (statusFilter !== "TODOS" && item.estado !== statusFilter) return false;
+
+        // Cascade filters
+        if (selectedClients.length > 0 && !selectedClients.includes(item.cliente)) return false;
+        if (selectedDirecciones.length > 0 && !selectedDirecciones.includes(item.consulta)) return false;
+        if (selectedEmpleados.length > 0 && !selectedEmpleados.includes(item.empleado)) return false;
+        if (selectedTipos.length > 0 && !selectedTipos.includes(item.tipo)) return false;
+        if (selectedEstadosPago.length > 0 && !selectedEstadosPago.includes(item.estado)) return false;
+        if (selectedMetodosPago.length > 0 && !selectedMetodosPago.some(m => item.metodoPago.toLowerCase().includes(m.toLowerCase()))) return false;
+        if (selectedFacturado.length > 0) {
+          const isFacturado = item.factura === "Si" ? "Si" : "No";
+          if (!selectedFacturado.includes(isFacturado)) return false;
+        }
+        if (selectedServicios.length > 0 && !selectedServicios.includes(item.detalle)) return false;
+        if (invoiceSearchQuery && !item.nuV.toLowerCase().includes(invoiceSearchQuery.toLowerCase())) return false;
+
+        if (selectedEstadosCita.length > 0) {
+          if (!item.id.startsWith("db-app-")) return false;
+          const appId = item.id.replace("db-app-", "");
+          const appt = appointments.find(a => a.id === appId);
+          if (!appt || !selectedEstadosCita.includes(appt.status)) return false;
+        }
+
+        if (selectedEtiquetas.length > 0) {
+          if (!item.id.startsWith("db-app-")) return false;
+          const appId = item.id.replace("db-app-", "");
+          const appt = appointments.find(a => a.id === appId);
+          if (!appt || !appt.tags) return false;
+          const appTags = appt.tags.split(",").map((t: string) => t.split(":")[0].trim().toLowerCase());
+          const match = selectedEtiquetas.some(t => appTags.includes(t.toLowerCase()));
+          if (!match) return false;
+        }
+
         if (searchQuery) {
           const s = searchQuery.toLowerCase();
           return (
@@ -3410,6 +3481,21 @@ export default function SalesPage() {
       .filter((item) => {
         if (dateFilterStart && item.fechaRaw < dateFilterStart) return false;
         if (dateFilterEnd && item.fechaRaw > dateFilterEnd) return false;
+        if (statusFilter !== "TODOS" && item.estadoPago !== statusFilter) return false;
+
+        // Cascade filters
+        if (selectedClients.length > 0 && !selectedClients.includes(item.cliente)) return false;
+        if (selectedDirecciones.length > 0 && !selectedDirecciones.includes(item.ciudad)) return false;
+        if (selectedTipos.length > 0 && !selectedTipos.includes(item.tipo)) return false;
+        if (selectedEstadosPago.length > 0 && !selectedEstadosPago.includes(item.estadoPago)) return false;
+        if (selectedMetodosPago.length > 0 && !selectedMetodosPago.some(m => item.metodoPago.toLowerCase().includes(m.toLowerCase()))) return false;
+        if (selectedFacturado.length > 0) {
+          const hasInv = item.refFac !== "-";
+          const isFacturado = hasInv ? "Si" : "No";
+          if (!selectedFacturado.includes(isFacturado)) return false;
+        }
+        if (invoiceSearchQuery && !item.refFac.toLowerCase().includes(invoiceSearchQuery.toLowerCase())) return false;
+
         if (searchQuery) {
           return item.refFac.toLowerCase().includes(searchQuery.toLowerCase()) || item.cliente.toLowerCase().includes(searchQuery.toLowerCase());
         }
@@ -6140,53 +6226,26 @@ export default function SalesPage() {
             type="button"
             className={styles.filterBtn}
             onClick={() => {
-              if (dateFilterStart) {
-                setPickerStart(dateFilterStart);
-                setTempStartInput(formatDateToInput(dateFilterStart));
-                setCalendarMonth(new Date(dateFilterStart.getFullYear(), dateFilterStart.getMonth(), 1));
-              } else {
-                setPickerStart(null);
-                setTempStartInput("");
-              }
-              if (dateFilterEnd) {
-                setPickerEnd(dateFilterEnd);
-                setTempEndInput(formatDateToInput(dateFilterEnd));
-              } else {
-                setPickerEnd(null);
-                setTempEndInput("");
-              }
-              setShowDatePicker(!showDatePicker);
+              setShowFilterDropdown(!showFilterDropdown);
             }}
+            style={showFilterDropdown ? { borderColor: "#009bb3", color: "#009bb3" } : undefined}
           >
             <Icons.Filter size={16} />
             <span>Filtrar</span>
           </button>
 
-          <div
-            className={styles.dateRangeTag}
-            style={{ cursor: "pointer" }}
-            onClick={() => {
-              if (dateFilterStart) {
-                setPickerStart(dateFilterStart);
-                setTempStartInput(formatDateToInput(dateFilterStart));
-                setCalendarMonth(new Date(dateFilterStart.getFullYear(), dateFilterStart.getMonth(), 1));
-              } else {
-                setPickerStart(null);
-                setTempStartInput("");
-              }
-              if (dateFilterEnd) {
-                setPickerEnd(dateFilterEnd);
-                setTempEndInput(formatDateToInput(dateFilterEnd));
-              } else {
-                setPickerEnd(null);
-                setTempEndInput("");
-              }
-              setShowDatePicker(!showDatePicker);
-            }}
-          >
-            <Icons.Calendar size={14} />
-            <span>FECHA: {getFilterText()}</span>
-            {dateFilterStart && dateFilterEnd && (
+          {/* ACTIVE FILTER BADGES */}
+          {dateFilterStart && dateFilterEnd && (
+            <div
+              className={styles.filterTagBadge}
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                setShowFilterDropdown(true);
+                setActiveFilterOption(activeTab === "facturas" ? "fechaPagos" : "fechaArticulos");
+              }}
+            >
+              <Icons.Calendar size={12} />
+              <span>FECHA: {getFilterText()}</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -6200,178 +6259,800 @@ export default function SalesPage() {
               >
                 ×
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Custom Date Picker Popover */}
-          {showDatePicker && (
-            <div className={styles.datePickerPopover}>
-              <div className="form-group" style={{ marginBottom: "16px" }}>
-                <label className="form-label" style={{ fontWeight: 600, color: "var(--text-secondary)", fontSize: "13px" }}>Rango de fechas</label>
-                <select
-                  className="input select"
-                  value={pickerPreset}
-                  onChange={(e) => handlePresetChange(e.target.value)}
-                  style={{ width: "100%" }}
-                >
-                  <option value="hoy">Hoy</option>
-                  <option value="ayer">Ayer</option>
-                  <option value="ultimos_7">Últimos 7 días</option>
-                  <option value="ultimos_30">Últimos 30 días</option>
-                  <option value="ultimos_90">Últimos 90 días</option>
-                  <option value="esta_semana">Esta semana</option>
-                  <option value="este_mes">Este mes</option>
-                  <option value="mes_anterior">Mes anterior</option>
-                  <option value="semana_fecha">Semana a fecha</option>
-                  <option value="mes_fecha">Mes a fecha</option>
-                  <option value="personalizado">Personalizado</option>
-                  <option value="octubre_2025">Octubre 1-15, 2025 (Demo)</option>
-                  <option value="junio_2026">Junio 1-22, 2026 (Demo)</option>
-                </select>
+          {selectedClients.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.Users size={12} />
+              <span>CLIENTE: {selectedClients.length === 1 ? selectedClients[0] : `${selectedClients.length} selec.`}</span>
+              <button onClick={() => setSelectedClients([])}>×</button>
+            </div>
+          )}
+
+          {selectedDirecciones.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.MapPin size={12} />
+              <span>DIRECCIÓN: {selectedDirecciones.length === 1 ? selectedDirecciones[0] : `${selectedDirecciones.length} selec.`}</span>
+              <button onClick={() => setSelectedDirecciones([])}>×</button>
+            </div>
+          )}
+
+          {selectedEmpleados.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.Users size={12} />
+              <span>EMPLEADO: {selectedEmpleados.length === 1 ? selectedEmpleados[0] : `${selectedEmpleados.length} selec.`}</span>
+              <button onClick={() => setSelectedEmpleados([])}>×</button>
+            </div>
+          )}
+
+          {selectedTipos.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.Settings size={12} />
+              <span>TIPO: {selectedTipos.join(", ")}</span>
+              <button onClick={() => setSelectedTipos([])}>×</button>
+            </div>
+          )}
+
+          {selectedEstadosPago.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.DollarCircle size={12} />
+              <span>ESTADO PAGO: {selectedEstadosPago.length === 1 ? selectedEstadosPago[0] : `${selectedEstadosPago.length} selec.`}</span>
+              <button onClick={() => setSelectedEstadosPago([])}>×</button>
+            </div>
+          )}
+
+          {selectedEstadosCita.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.Calendar size={12} />
+              <span>ESTADO CITA: {selectedEstadosCita.length === 1 ? (selectedEstadosCita[0] === "COMPLETED" ? "Completada" : selectedEstadosCita[0] === "PENDING" ? "Pendiente" : "Confirmada") : `${selectedEstadosCita.length} selec.`}</span>
+              <button onClick={() => setSelectedEstadosCita([])}>×</button>
+            </div>
+          )}
+
+          {selectedMetodosPago.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.DollarCircle size={12} />
+              <span>MÉTODO: {selectedMetodosPago.join(", ")}</span>
+              <button onClick={() => setSelectedMetodosPago([])}>×</button>
+            </div>
+          )}
+
+          {selectedFacturado.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.FileText size={12} />
+              <span>FACTURADO: {selectedFacturado.join(", ")}</span>
+              <button onClick={() => setSelectedFacturado([])}>×</button>
+            </div>
+          )}
+
+          {selectedServicios.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.Settings size={12} />
+              <span>SERVICIOS: {selectedServicios.length === 1 ? selectedServicios[0] : `${selectedServicios.length} selec.`}</span>
+              <button onClick={() => setSelectedServicios([])}>×</button>
+            </div>
+          )}
+
+          {selectedEtiquetas.length > 0 && (
+            <div className={styles.filterTagBadge}>
+              <Icons.Settings size={12} />
+              <span>ETIQUETAS: {selectedEtiquetas.join(", ")}</span>
+              <button onClick={() => setSelectedEtiquetas([])}>×</button>
+            </div>
+          )}
+
+          {invoiceSearchQuery && (
+            <div className={styles.filterTagBadge}>
+              <Icons.Search size={12} />
+              <span>FACTURA: {invoiceSearchQuery}</span>
+              <button onClick={() => setInvoiceSearchQuery("")}>×</button>
+            </div>
+          )}
+
+          {/* Cascade Filter Popover */}
+          {showFilterDropdown && (
+            <div className={styles.cascadeFilterPopover}>
+              {/* Left Column: Menu list */}
+              <div className={styles.cascadeFilterLeftCol}>
+                {[
+                  { key: "fechaArticulos", label: "Fecha(Artículos)", icon: <Icons.Calendar size={16} /> },
+                  { key: "fechaPagos", label: "Fecha (Pagos)", icon: <Icons.Calendar size={16} /> },
+                  { key: "cliente", label: "Cliente", icon: <Icons.Users size={16} /> },
+                  { key: "direccion", label: "Dirección", icon: <Icons.MapPin size={16} /> },
+                  { key: "empleado", label: "Empleado", icon: <Icons.Users size={16} /> },
+                  { key: "tipo", label: "Tipo", icon: <Icons.Settings size={16} /> },
+                  { key: "etiquetas", label: "Etiquetas de cita", icon: <Icons.Settings size={16} /> },
+                  { key: "estadoPago", label: "Estado de pago", icon: <Icons.DollarCircle size={16} /> },
+                  { key: "estadoCita", label: "Estado de cita", icon: <Icons.Calendar size={16} /> },
+                  { key: "metodoPago", label: "Método de pago", icon: <Icons.DollarCircle size={16} /> },
+                  { key: "facturado", label: "Facturado", icon: <Icons.FileText size={16} /> },
+                  { key: "servicios", label: "Servicios", icon: <Icons.Settings size={16} /> },
+                  { key: "buscarFactura", label: "Buscar factura", icon: <Icons.Search size={16} /> }
+                ].map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    className={`${styles.cascadeFilterItem} ${activeFilterOption === opt.key ? styles.cascadeFilterItemActive : ""}`}
+                    onClick={() => setActiveFilterOption(opt.key)}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {opt.icon}
+                      {opt.label}
+                    </span>
+                    <Icons.ChevronRight size={14} style={{ opacity: 0.6 }} />
+                  </button>
+                ))}
               </div>
 
-              {/* Dual Calendar View (Visible for Custom / Personalizado) */}
-              {pickerPreset === "personalizado" && (
-                <div>
-                  {/* Date text inputs row */}
-                  <div className={styles.pickerInputsRow}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Inicio</label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="DD-MM-YYYY"
-                        value={tempStartInput}
-                        onChange={(e) => handleStartInputChange(e.target.value)}
-                      />
-                    </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label" style={{ fontSize: "12px", color: "var(--text-muted)" }}>Final</label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="DD-MM-YYYY"
-                        value={tempEndInput}
-                        onChange={(e) => handleEndInputChange(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dual Calendar Grids */}
-                  <div className={styles.calendarsBlock}>
-                    {/* Navigation Bar */}
-                    <div className={styles.calendarNav}>
-                      <button type="button" className={styles.navArrow} onClick={handlePrevMonths}>
-                        ‹
-                      </button>
-                      <strong className={styles.calendarMonthLabel}>{getMonthHeaderLabel(calendarMonth)}</strong>
-                      <strong className={styles.calendarMonthLabel}>
-                        {getMonthHeaderLabel(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
-                      </strong>
-                      <button type="button" className={styles.navArrow} onClick={handleNextMonths}>
-                        ›
-                      </button>
+              {/* Right Column: Sub-menu filter content */}
+              <div
+                className={styles.cascadeFilterRightCol}
+                style={{
+                  width: (activeFilterOption === "fechaArticulos" || activeFilterOption === "fechaPagos") ? "620px" : "320px"
+                }}
+              >
+                {/* 1. Date Range picker (Fecha Artículos & Fecha Pagos) */}
+                {(activeFilterOption === "fechaArticulos" || activeFilterOption === "fechaPagos") && (
+                  <div>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Calendar size={16} />
+                      {activeFilterOption === "fechaArticulos" ? "Fecha(Artículos)" : "Fecha (Pagos)"}
+                    </h3>
+                    <div className="form-group" style={{ marginBottom: "8px" }}>
+                      <label className="form-label" style={{ fontWeight: 600, color: "var(--text-secondary)", fontSize: "11px", marginBottom: "4px" }}>Rango de fechas</label>
+                      <select
+                        className="input select"
+                        value={pickerPreset}
+                        onChange={(e) => handlePresetChange(e.target.value)}
+                        style={{ width: "100%", height: "28px", padding: "2px 8px", fontSize: "12px" }}
+                      >
+                        <option value="hoy">Hoy</option>
+                        <option value="ayer">Ayer</option>
+                        <option value="ultimos_7">Últimos 7 días</option>
+                        <option value="ultimos_30">Últimos 30 días</option>
+                        <option value="ultimos_90">Últimos 90 días</option>
+                        <option value="esta_semana">Esta semana</option>
+                        <option value="este_mes">Este mes</option>
+                        <option value="mes_anterior">Mes anterior</option>
+                        <option value="semana_fecha">Semana a fecha</option>
+                        <option value="mes_fecha">Mes a fecha</option>
+                        <option value="personalizado">Personalizado</option>
+                        <option value="octubre_2025">Octubre 1-15, 2025 (Demo)</option>
+                        <option value="junio_2026">Junio 1-22, 2026 (Demo)</option>
+                      </select>
                     </div>
 
-                    {/* Grids Body */}
-                    <div className={styles.gridsContainer}>
-                      {/* Left Month Calendar */}
-                      <div className={styles.calendarCol}>
-                        <div className={styles.weekHeaders}>
-                          {["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"].map((day) => (
-                            <span key={day} className={styles.weekHeaderCell}>{day}</span>
-                          ))}
+                    {pickerPreset === "personalizado" && (
+                      <div>
+                        <div className={styles.pickerInputsRow}>
+                          <div className="form-group" style={{ flex: 1, marginBottom: "4px" }}>
+                            <label className="form-label" style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>Inicio</label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="DD-MM-YYYY"
+                              value={tempStartInput}
+                              onChange={(e) => handleStartInputChange(e.target.value)}
+                              style={{ height: "28px", padding: "2px 8px", fontSize: "12px", width: "100%" }}
+                            />
+                          </div>
+                          <div className="form-group" style={{ flex: 1, marginBottom: "4px" }}>
+                            <label className="form-label" style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>Final</label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="DD-MM-YYYY"
+                              value={tempEndInput}
+                              onChange={(e) => handleEndInputChange(e.target.value)}
+                              style={{ height: "28px", padding: "2px 8px", fontSize: "12px", width: "100%" }}
+                            />
+                          </div>
                         </div>
-                        <div className={styles.calendarDaysGrid}>
-                          {getCalendarGridDays(calendarMonth).map(({ date, isMuted }, idx) => {
-                            const isStart = isSameDay(date, pickerStart);
-                            const isEnd = isSameDay(date, pickerEnd);
-                            const inRange = isDateInRange(date);
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                className={`${styles.dayCell} ${isMuted ? styles.dayCellMuted : ""} ${isStart ? styles.dayCellActiveStart : ""} ${isEnd ? styles.dayCellActiveEnd : ""} ${inRange ? styles.dayCellInRange : ""}`}
-                                onClick={() => handleDayClick(date)}
-                              >
-                                {date.getDate()}
-                              </button>
-                            );
-                          })}
+
+                        <div className={styles.calendarsBlock}>
+                          <div className={styles.calendarNav}>
+                            <button type="button" className={styles.navArrow} onClick={handlePrevMonths}>
+                              ‹
+                            </button>
+                            <strong className={styles.calendarMonthLabel}>{getMonthHeaderLabel(calendarMonth)}</strong>
+                            <strong className={styles.calendarMonthLabel}>
+                              {getMonthHeaderLabel(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+                            </strong>
+                            <button type="button" className={styles.navArrow} onClick={handleNextMonths}>
+                              ›
+                            </button>
+                          </div>
+
+                          <div className={styles.gridsContainer}>
+                            <div className={styles.calendarCol}>
+                              <div className={styles.weekHeaders}>
+                                {["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"].map((day) => (
+                                  <span key={day} className={styles.weekHeaderCell}>{day}</span>
+                                ))}
+                              </div>
+                              <div className={styles.calendarDaysGrid}>
+                                {getCalendarGridDays(calendarMonth).map(({ date, isMuted }, idx) => {
+                                  const isStart = isSameDay(date, pickerStart);
+                                  const isEnd = isSameDay(date, pickerEnd);
+                                  const inRange = isDateInRange(date);
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      className={`${styles.dayCell} ${isMuted ? styles.dayCellMuted : ""} ${isStart ? styles.dayCellActiveStart : ""} ${isEnd ? styles.dayCellActiveEnd : ""} ${inRange ? styles.dayCellInRange : ""}`}
+                                      onClick={() => handleDayClick(date)}
+                                    >
+                                      {date.getDate()}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className={styles.calendarCol}>
+                              <div className={styles.weekHeaders}>
+                                {["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"].map((day) => (
+                                  <span key={day} className={styles.weekHeaderCell}>{day}</span>
+                                ))}
+                              </div>
+                              <div className={styles.calendarDaysGrid}>
+                                {getCalendarGridDays(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)).map(({ date, isMuted }, idx) => {
+                                  const isStart = isSameDay(date, pickerStart);
+                                  const isEnd = isSameDay(date, pickerEnd);
+                                  const inRange = isDateInRange(date);
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      className={`${styles.dayCell} ${isMuted ? styles.dayCellMuted : ""} ${isStart ? styles.dayCellActiveStart : ""} ${isEnd ? styles.dayCellActiveEnd : ""} ${inRange ? styles.dayCellInRange : ""}`}
+                                      onClick={() => handleDayClick(date)}
+                                    >
+                                      {date.getDate()}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
+                    )}
 
-                      {/* Right Month Calendar */}
-                      <div className={styles.calendarCol}>
-                        <div className={styles.weekHeaders}>
-                          {["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"].map((day) => (
-                            <span key={day} className={styles.weekHeaderCell}>{day}</span>
-                          ))}
-                        </div>
-                        <div className={styles.calendarDaysGrid}>
-                          {getCalendarGridDays(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)).map(({ date, isMuted }, idx) => {
-                            const isStart = isSameDay(date, pickerStart);
-                            const isEnd = isSameDay(date, pickerEnd);
-                            const inRange = isDateInRange(date);
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                className={`${styles.dayCell} ${isMuted ? styles.dayCellMuted : ""} ${isStart ? styles.dayCellActiveStart : ""} ${isEnd ? styles.dayCellActiveEnd : ""} ${inRange ? styles.dayCellInRange : ""}`}
-                                onClick={() => handleDayClick(date)}
-                              >
-                                {date.getDate()}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                    <div className={styles.pickerFooter} style={{ marginTop: "8px" }}>
+                      <button
+                        type="button"
+                        className={styles.btnCancel}
+                        onClick={() => {
+                          setShowFilterDropdown(false);
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.btnApply}
+                        onClick={() => {
+                          if (pickerStart && pickerEnd && pickerEnd < pickerStart) {
+                            alert("La fecha final no puede ser anterior a la fecha de inicio.");
+                            return;
+                          }
+                          setDateFilterStart(pickerStart);
+                          setDateFilterEnd(pickerEnd);
+                          setShowFilterDropdown(false);
+                        }}
+                      >
+                        Aplicar
+                      </button>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Buttons Footer */}
-              <div className={styles.pickerFooter}>
-                <button
-                  type="button"
-                  className={styles.btnCancel}
-                  onClick={() => {
-                    setShowDatePicker(false);
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className={styles.btnApply}
-                  onClick={() => {
-                    if (pickerStart && pickerEnd && pickerEnd < pickerStart) {
-                      alert("La fecha final no puede ser anterior a la fecha de inicio.");
-                      return;
-                    }
-                    setDateFilterStart(pickerStart);
-                    setDateFilterEnd(pickerEnd);
-                    setShowDatePicker(false);
-                  }}
-                >
-                  Aplicar
-                </button>
+                {/* 2. Client filter */}
+                {activeFilterOption === "cliente" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Users size={16} />
+                      Cliente
+                    </h3>
+                    <div className={styles.subFilterSearchWrapper}>
+                      <Icons.Search size={14} className={styles.subFilterSearchIcon} />
+                      <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className={styles.subFilterSearchInput}
+                        value={clientSearchText}
+                        onChange={(e) => setClientSearchText(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.subFilterCheckboxList}>
+                      {[...new Set(clients.map(c => `${c.firstName} ${c.lastName || ""}`.trim()).filter(Boolean))].sort()
+                        .filter(name => name.toLowerCase().includes(clientSearchText.toLowerCase()))
+                        .map(name => {
+                          const isChecked = selectedClients.includes(name);
+                          return (
+                            <label key={name} className={styles.subFilterCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedClients(selectedClients.filter(c => c !== name));
+                                  } else {
+                                    setSelectedClients([...selectedClients, name]);
+                                  }
+                                }}
+                              />
+                              <span>{name}</span>
+                            </label>
+                          );
+                        })
+                      }
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 3. Address/Dirección filter */}
+                {activeFilterOption === "direccion" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.MapPin size={16} />
+                      Dirección
+                    </h3>
+                    <div className={styles.subFilterSearchWrapper}>
+                      <Icons.Search size={14} className={styles.subFilterSearchIcon} />
+                      <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className={styles.subFilterSearchInput}
+                        value={direccionSearchText}
+                        onChange={(e) => setDireccionSearchText(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.subFilterCheckboxList}>
+                      {["Medicina Estética del Mediterráneo", activeClinic?.name || "Clifav Central"].filter(Boolean).sort()
+                        .filter(name => name.toLowerCase().includes(direccionSearchText.toLowerCase()))
+                        .map(name => {
+                          const isChecked = selectedDirecciones.includes(name);
+                          return (
+                            <label key={name} className={styles.subFilterCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedDirecciones(selectedDirecciones.filter(d => d !== name));
+                                  } else {
+                                    setSelectedDirecciones([...selectedDirecciones, name]);
+                                  }
+                                }}
+                              />
+                              <span>{name}</span>
+                            </label>
+                          );
+                        })
+                      }
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 4. Employee filter */}
+                {activeFilterOption === "empleado" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Users size={16} />
+                      Empleado
+                    </h3>
+                    <div className={styles.subFilterSearchWrapper}>
+                      <Icons.Search size={14} className={styles.subFilterSearchIcon} />
+                      <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className={styles.subFilterSearchInput}
+                        value={empleadoSearchText}
+                        onChange={(e) => setEmpleadoSearchText(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.subFilterCheckboxList}>
+                      {[...new Set(appointments.map(a => a.user?.name).concat(salesHistory.map(s => "Recepción")).filter(Boolean))].sort()
+                        .filter(name => name.toLowerCase().includes(empleadoSearchText.toLowerCase()))
+                        .map(name => {
+                          const isChecked = selectedEmpleados.includes(name);
+                          return (
+                            <label key={name} className={styles.subFilterCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedEmpleados(selectedEmpleados.filter(e => e !== name));
+                                  } else {
+                                    setSelectedEmpleados([...selectedEmpleados, name]);
+                                  }
+                                }}
+                              />
+                              <span>{name}</span>
+                            </label>
+                          );
+                        })
+                      }
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 5. Tipo filter */}
+                {activeFilterOption === "tipo" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Settings size={16} />
+                      Tipo
+                    </h3>
+                    <div className={styles.subFilterCheckboxList}>
+                      {["Servicio", "Producto"].map(type => {
+                        const isChecked = selectedTipos.includes(type);
+                        return (
+                          <label key={type} className={styles.subFilterCheckboxLabel}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedTipos(selectedTipos.filter(t => t !== type));
+                                } else {
+                                  setSelectedTipos([...selectedTipos, type]);
+                                }
+                              }}
+                            />
+                            <span>{type}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 6. Etiquetas filter */}
+                {activeFilterOption === "etiquetas" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Settings size={16} />
+                      Etiquetas de cita
+                    </h3>
+                    <div className={styles.subFilterSearchWrapper}>
+                      <Icons.Search size={14} className={styles.subFilterSearchIcon} />
+                      <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className={styles.subFilterSearchInput}
+                        value={tagSearchText}
+                        onChange={(e) => setTagSearchText(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.subFilterCheckboxList}>
+                      {availableTags
+                        .filter(tag => tag.name.toLowerCase().includes(tagSearchText.toLowerCase()))
+                        .map(tag => {
+                          const isChecked = selectedEtiquetas.includes(tag.name);
+                          return (
+                            <label key={tag.name} className={styles.subFilterCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedEtiquetas(selectedEtiquetas.filter(t => t !== tag.name));
+                                  } else {
+                                    setSelectedEtiquetas([...selectedEtiquetas, tag.name]);
+                                  }
+                                }}
+                              />
+                              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span style={{
+                                  display: "inline-block",
+                                  width: "10px",
+                                  height: "10px",
+                                  borderRadius: "50%",
+                                  backgroundColor: tag.color || "gray"
+                                }} />
+                                {tag.name}
+                              </span>
+                            </label>
+                          );
+                        })
+                      }
+                      {availableTags.length === 0 && (
+                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>No hay etiquetas disponibles</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 7. Estado de pago filter */}
+                {activeFilterOption === "estadoPago" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.DollarCircle size={16} />
+                      Estado de pago
+                    </h3>
+                    <div className={styles.subFilterCheckboxList}>
+                      {[
+                        { val: "PAGADO", label: "Pagado" },
+                        { val: "PENDIENTE", label: "No pagado / Pendiente" },
+                        { val: "PAGO PARCIAL", label: "Pago parcial" },
+                        { val: "GRATUITO", label: "Gratuito" }
+                      ].map(st => {
+                        const isChecked = selectedEstadosPago.includes(st.val);
+                        return (
+                          <label key={st.val} className={styles.subFilterCheckboxLabel}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedEstadosPago(selectedEstadosPago.filter(e => e !== st.val));
+                                } else {
+                                  setSelectedEstadosPago([...selectedEstadosPago, st.val]);
+                                }
+                              }}
+                            />
+                            <span>{st.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 8. Estado de cita filter */}
+                {activeFilterOption === "estadoCita" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Calendar size={16} />
+                      Estado de cita
+                    </h3>
+                    <div className={styles.subFilterCheckboxList}>
+                      {[
+                        { val: "PENDING", label: "Pendiente" },
+                        { val: "CONFIRMED", label: "Confirmada" },
+                        { val: "COMPLETED", label: "Completada" },
+                        { val: "CANCELLED", label: "Cancelada" }
+                      ].map(st => {
+                        const isChecked = selectedEstadosCita.includes(st.val);
+                        return (
+                          <label key={st.val} className={styles.subFilterCheckboxLabel}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedEstadosCita(selectedEstadosCita.filter(e => e !== st.val));
+                                } else {
+                                  setSelectedEstadosCita([...selectedEstadosCita, st.val]);
+                                }
+                              }}
+                            />
+                            <span>{st.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 9. Método de pago filter */}
+                {activeFilterOption === "metodoPago" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.DollarCircle size={16} />
+                      Método de pago
+                    </h3>
+                    <div className={styles.subFilterCheckboxList}>
+                      {["Efectivo", "Tarjeta", "Transferencia", "Bono", "Monedero"].map(method => {
+                        const isChecked = selectedMetodosPago.includes(method);
+                        return (
+                          <label key={method} className={styles.subFilterCheckboxLabel}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedMetodosPago(selectedMetodosPago.filter(m => m !== method));
+                                } else {
+                                  setSelectedMetodosPago([...selectedMetodosPago, method]);
+                                }
+                              }}
+                            />
+                            <span>{method}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 10. Facturado filter */}
+                {activeFilterOption === "facturado" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.FileText size={16} />
+                      Facturado
+                    </h3>
+                    <div className={styles.subFilterCheckboxList}>
+                      {[
+                        { val: "Si", label: "Facturado (Sí)" },
+                        { val: "No", label: "No facturado (No)" }
+                      ].map(f => {
+                        const isChecked = selectedFacturado.includes(f.val);
+                        return (
+                          <label key={f.val} className={styles.subFilterCheckboxLabel}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedFacturado(selectedFacturado.filter(v => v !== f.val));
+                                } else {
+                                  setSelectedFacturado([...selectedFacturado, f.val]);
+                                }
+                              }}
+                            />
+                            <span>{f.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 11. Servicios filter */}
+                {activeFilterOption === "servicios" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Settings size={16} />
+                      Servicios
+                    </h3>
+                    <div className={styles.subFilterSearchWrapper}>
+                      <Icons.Search size={14} className={styles.subFilterSearchIcon} />
+                      <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className={styles.subFilterSearchInput}
+                        value={servicioSearchText}
+                        onChange={(e) => setServicioSearchText(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.subFilterCheckboxList}>
+                      {services.map(s => s.name).sort()
+                        .filter(name => name.toLowerCase().includes(servicioSearchText.toLowerCase()))
+                        .map(name => {
+                          const isChecked = selectedServicios.includes(name);
+                          return (
+                            <label key={name} className={styles.subFilterCheckboxLabel}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setSelectedServicios(selectedServicios.filter(s => s !== name));
+                                  } else {
+                                    setSelectedServicios([...selectedServicios, name]);
+                                  }
+                                }}
+                              />
+                              <span>{name}</span>
+                            </label>
+                          );
+                        })
+                      }
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
+
+                {/* 12. Buscar factura filter */}
+                {activeFilterOption === "buscarFactura" && (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <h3 className={styles.subFilterTitle}>
+                      <Icons.Search size={16} />
+                      Buscar factura
+                    </h3>
+                    <div className="form-group" style={{ marginBottom: "16px" }}>
+                      <input
+                        type="text"
+                        placeholder="Introduce nº de factura..."
+                        className="input"
+                        value={invoiceSearchQuery}
+                        onChange={(e) => setInvoiceSearchQuery(e.target.value)}
+                        style={{ width: "100%", padding: "10px", fontSize: "13px" }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.subFilterCloseBtn}
+                      onClick={() => setShowFilterDropdown(false)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {activeTab !== "resumen" && (
+          {activeTab === "ingresos_gastos" && (
             <input
               type="text"
               className={styles.searchInput}
-              placeholder={
-                activeTab === "facturas"
-                  ? "Número de Factura o Cliente..."
-                  : activeTab === "ingresos_gastos"
-                  ? "Concepto..."
-                  : "Buscar cliente o detalle..."
-              }
+              placeholder="Concepto..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -6498,30 +7179,7 @@ export default function SalesPage() {
               );
             })()}
 
-            {/* Toggle switches */}
-            <div className={styles.togglesRow}>
-              <label className={styles.switchLabel}>
-                <input
-                  type="checkbox"
-                  className={styles.switchInput}
-                  checked={verBaseImponible}
-                  onChange={(e) => setVerBaseImponible(e.target.checked)}
-                />
-                <span className={styles.switchSlider}></span>
-                <span>Ver Importes Por Base Imponible</span>
-              </label>
 
-              <label className={styles.switchLabel}>
-                <input
-                  type="checkbox"
-                  className={styles.switchInput}
-                  checked={verBonosDevengo}
-                  onChange={(e) => setVerBonosDevengo(e.target.checked)}
-                />
-                <span className={styles.switchSlider}></span>
-                <span>Ver Bonos Por Devengo</span>
-              </label>
-            </div>
 
             {/* Articles List Table */}
             <div className={styles.tableWrapper} style={{ overflowX: "auto" }}>
