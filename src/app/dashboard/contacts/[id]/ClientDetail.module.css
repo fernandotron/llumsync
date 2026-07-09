@@ -2399,4 +2399,334 @@
   }
 }
 
+/* ══════════════════════════════════════
+   CREATE CLIENT DRAWER (right side panel)
+   ══════════════════════════════════════ */
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(5px) !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: stretch !important;
+}
+
+.drawerPanel {
+  width: 520px;
+  max-width: 95vw;
+  height: 100%;
+  background: var(--bg-panel-solid);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.2);
+  animation: slideInRight 0.22s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.drawerTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.drawerCloseBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.drawerCloseBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+.drawerTabs {
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.drawerTab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.drawerTabActive {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.drawerTab:hover:not(.drawerTabActive) {
+  color: var(--text-primary);
+}
+
+.drawerForm {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.drawerScrollBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawerSectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 14px;
+  margin-top: 4px;
+}
+
+.drawerGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.drawerField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.drawerLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.drawerInput {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.drawerInput:focus {
+  border-color: var(--primary);
+}
+
+.drawerInput::placeholder {
+  color: var(--text-muted);
+}
+
+.drawerSelect {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.drawerSelect:focus {
+  border-color: var(--primary);
+}
+
+.drawerTextarea {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.drawerTextarea:focus {
+  border-color: var(--primary);
+}
+
+.drawerInputFlag {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.drawerInputFlag:focus-within {
+  border-color: var(--primary);
+}
+
+.drawerFlag {
+  padding: 0 8px 0 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.drawerInputFlagInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 9px 10px 9px 2px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  min-width: 0;
+}
+
+.drawerInputFlagInput::placeholder {
+  color: var(--text-muted);
+}
+
+.drawerSwitchGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.drawerSwitchRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.drawerSwitchLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.drawerToggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-color);
+  transition: background 0.2s;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.drawerToggleOn {
+  background: var(--primary);
+}
+
+.drawerToggleThumb {
+  position: absolute;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.drawerToggleOn .drawerToggleThumb {
+  transform: translateX(16px);
+}
+
+.drawerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background: var(--bg-panel-solid);
+}
+
+.drawerCancelBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.drawerCancelBtn:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.drawerSaveBtn {
+  background: var(--primary);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 26px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.drawerSaveBtn:hover {
+  opacity: 0.88;
+}
+
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
@@ -5909,8 +5910,8 @@ export default function ClientDetailPage() {
       </div>
 
       {/* BUDGET CREATION/EDITION MODAL */}
-      {showBudgetModal && (
-        <div className={styles.modalOverlay} style={{ zIndex: 1000 }}>
+      {showBudgetModal && typeof window !== "undefined" && createPortal(
+        <div className={styles.modalOverlay} style={{ zIndex: 10000 }}>
           <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", display: "flex", flexDirection: "column", padding: 0 }}>
             <div className={styles.modalHeader} style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-color)" }}>
               <h2>{budgetModalTitle}</h2>
@@ -6174,7 +6175,8 @@ export default function ClientDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
 
@@ -6656,91 +6658,104 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {/* CREATE NEW CLIENT SIDEBAR MODAL */}
-      {showCreateModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "600px" }}>
-            <div className={styles.modalHeader}>
-              <h2>Crear Nuevo Contacto</h2>
-              <button onClick={() => setShowCreateModal(false)} className={styles.closeBtn}>
-                <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
+      {/* CREATE NEW CLIENT SIDEBAR DRAWER - portal so it covers full viewport */}
+      {showCreateModal && typeof window !== "undefined" && createPortal(
+        <div className={styles.drawerOverlay} onClick={() => setShowCreateModal(false)}>
+          <div className={styles.drawerPanel} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.drawerHeader}>
+              <h2 className={styles.drawerTitle}>Crear cliente</h2>
+              <button className={styles.drawerCloseBtn} onClick={() => setShowCreateModal(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             </div>
 
-            <form onSubmit={handleCreateContact} className={styles.modalForm}>
-              <div className="form-group">
-                <label className="form-label">Nombre *</label>
-                <input 
-                  type="text" 
-                  className="input"
-                  value={createFirstName}
-                  onChange={(e) => setCreateFirstName(e.target.value)}
-                  required 
-                />
+            <form onSubmit={handleCreateContact} className={styles.drawerForm}>
+              <div className={styles.drawerScrollBody}>
+                <p className={styles.drawerSectionTitle}>Datos generales</p>
+                
+                <div className={styles.drawerGrid2}>
+                  <div className={styles.drawerField}>
+                    <label className={styles.drawerLabel}>Nombre *</label>
+                    <input 
+                      type="text" 
+                      className={styles.drawerInput}
+                      value={createFirstName}
+                      onChange={(e) => setCreateFirstName(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  
+                  <div className={styles.drawerField}>
+                    <label className={styles.drawerLabel}>Apellidos *</label>
+                    <input 
+                      type="text" 
+                      className={styles.drawerInput}
+                      value={createLastName}
+                      onChange={(e) => setCreateLastName(e.target.value)}
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.drawerGrid2}>
+                  <div className={styles.drawerField}>
+                    <label className={styles.drawerLabel}>Fecha de nacimiento</label>
+                    <input 
+                      type="date" 
+                      className={styles.drawerInput}
+                      value={createBirthDate}
+                      onChange={(e) => setCreateBirthDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className={styles.drawerField}>
+                    <label className={styles.drawerLabel}>DNI/NIF</label>
+                    <input 
+                      type="text" 
+                      className={styles.drawerInput}
+                      value={createDniNif}
+                      onChange={(e) => setCreateDniNif(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.drawerGrid2}>
+                  <div className={styles.drawerField}>
+                    <label className={styles.drawerLabel}>Número de teléfono</label>
+                    <input 
+                      type="text" 
+                      className={styles.drawerInput}
+                      value={createPhone}
+                      onChange={(e) => setCreatePhone(e.target.value)}
+                    />
+                  </div>
+
+                  <div className={styles.drawerField}>
+                    <label className={styles.drawerLabel}>Email</label>
+                    <input 
+                      type="email" 
+                      className={styles.drawerInput}
+                      value={createEmail}
+                      onChange={(e) => setCreateEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Apellidos *</label>
-                <input 
-                  type="text" 
-                  className="input"
-                  value={createLastName}
-                  onChange={(e) => setCreateLastName(e.target.value)}
-                  required 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Teléfono</label>
-                <input 
-                  type="text" 
-                  className="input"
-                  value={createPhone}
-                  onChange={(e) => setCreatePhone(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input 
-                  type="email" 
-                  className="input"
-                  value={createEmail}
-                  onChange={(e) => setCreateEmail(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">DNI / NIF</label>
-                <input 
-                  type="text" 
-                  className="input"
-                  value={createDniNif}
-                  onChange={(e) => setCreateDniNif(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Fecha de Nacimiento</label>
-                <input 
-                  type="date" 
-                  className="input"
-                  value={createBirthDate}
-                  onChange={(e) => setCreateBirthDate(e.target.value)}
-                />
-              </div>
-
-              <div className={styles.modalActions}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+              <div className={styles.drawerFooter}>
+                <button type="button" className={styles.drawerCancelBtn} onClick={() => setShowCreateModal(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Crear Cliente
+                <button type="submit" className={styles.drawerSaveBtn}>
+                  Guardar
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* SIGNATURE METHOD SELECTION MODAL */}

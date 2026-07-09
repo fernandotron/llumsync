@@ -5917,7 +5917,7 @@ export default function AgendaPage() {
       )}
 
       {/* CHOOSE OPTION MODAL */}
-      {showOptionModal && (
+      {showOptionModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => setShowOptionModal(false)}>
           <div className={`${styles.optionModalContent} glass fade-in`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -5963,11 +5963,12 @@ export default function AgendaPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* CREATE TIME BLOCK MODAL */}
-      {showBlockModal && (
+      {showBlockModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => setShowBlockModal(false)}>
           <div className={`${styles.blockModalContent} glass fade-in`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -6200,11 +6201,12 @@ export default function AgendaPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* VIEW/EDIT TIME BLOCK DETAIL MODAL */}
-      {showBlockDetailModal && selectedTimeBlock && (
+      {showBlockDetailModal && selectedTimeBlock && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => setShowBlockDetailModal(false)}>
           <div className={`${styles.blockModalContent} glass fade-in`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -6303,7 +6305,8 @@ export default function AgendaPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* OPTIONS SIDEBAR DRAWER — rendered via Portal to cover the full viewport */}
