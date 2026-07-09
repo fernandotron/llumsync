@@ -11,11 +11,8 @@ import { getCountryConfig } from "@/lib/countries";
 // Date range helpers
 const getMonthToDateRange = () => {
   const now = new Date();
-  // Default to June 2026 for demo data if current year is near, else current month
-  const year = now.getFullYear() >= 2026 ? 2026 : now.getFullYear();
-  const month = now.getFullYear() >= 2026 ? 5 : now.getMonth(); // 5 = June
-  const start = new Date(year, month, 1, 0, 0, 0, 0);
-  const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   return { start, end };
 };
 
