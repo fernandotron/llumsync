@@ -2092,3 +2092,12 @@
   }
 }
 
+.mobileBackBtn {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobileBackBtn {
+    display: flex !important;
+  }
+}
