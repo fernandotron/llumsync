@@ -50,9 +50,9 @@ export default function AccountPage() {
   // Subscription users count
   const [activeUsersCount, setActiveUsersCount] = useState(6);
 
-  // Sales (Clinic Invoices) list
-  const [clinicSales, setClinicSales] = useState<any[]>([]);
-  const [loadingSales, setLoadingSales] = useState(false);
+  // Subscription Invoices list (issued by llumsync to this account)
+  const [subscriptionInvoices, setSubscriptionInvoices] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
 
   // Status indicators
   const [loading, setLoading] = useState(false);
@@ -117,17 +117,12 @@ export default function AccountPage() {
         })
         .catch((err) => console.error(err));
 
-      // 3. Fetch sales for invoice history
-      setLoadingSales(true);
-      fetch(`/api/sales?clinicId=${activeClinic.id}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data)) {
-            setClinicSales(data);
-          }
-        })
-        .catch((err) => console.error(err))
-        .finally(() => setLoadingSales(false));
+      // 3. Fetch subscription invoices (currently empty since no charges have been made)
+      setLoadingInvoices(true);
+      setTimeout(() => {
+        setSubscriptionInvoices([]);
+        setLoadingInvoices(false);
+      }, 100);
     }
   }, [activeClinic]);
 
@@ -640,9 +635,9 @@ export default function AccountPage() {
                   {t("invoiceHistoryDesc")}
                 </p>
               </div>
-              {loadingSales ? (
+              {loadingInvoices ? (
                 <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>{t("loadingInvoices")}</div>
-              ) : clinicSales.length === 0 ? (
+              ) : subscriptionInvoices.length === 0 ? (
                 <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px", border: "1px dashed var(--border-color)", borderRadius: "8px" }}>
                   {t("noInvoices")}
                 </div>
@@ -659,7 +654,7 @@ export default function AccountPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {clinicSales.map((sale) => {
+                    {subscriptionInvoices.map((sale) => {
                       let concept = t("invoiceDefaultConcept");
                       try {
                         const items = JSON.parse(sale.itemsJson);

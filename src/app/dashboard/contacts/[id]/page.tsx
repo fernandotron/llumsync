@@ -108,6 +108,7 @@ interface Sale {
   total: number;
   paymentMethod: string;
   createdAt: string;
+  itemsJson?: string;
 }
 
 interface SignedDocument {
@@ -1447,6 +1448,40 @@ export default function ClientDetailPage() {
       console.error(err);
       alert("Error de red al intentar enviar el correo.");
     }
+  };
+
+  const getVoucherPaymentInfo = (voucherId: string) => {
+    if (!client || !client.sales) return { isPaid: false, isPartial: false, nuV: null, saleId: null };
+
+    const matchingSales = client.sales.filter((sale) => {
+      try {
+        const items = JSON.parse(sale.itemsJson || "[]");
+        return items.some((i: any) => 
+          i.id === `db-voucher-${voucherId}` || 
+          i.id === `voucher-${voucherId}` || 
+          i.id === voucherId
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+    const voucherPrice = client.vouchers.find(v => v.id === voucherId)?.price || 0;
+
+    const isPaid = voucherPrice > 0 && totalPaid >= voucherPrice;
+    const isPartial = totalPaid > 0 && totalPaid < voucherPrice;
+
+    const latestSale = matchingSales.length > 0
+      ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
+      : null;
+
+    return {
+      isPaid,
+      isPartial,
+      nuV: latestSale?.invoiceNumber || null,
+      saleId: latestSale?.id || null
+    };
   };
 
   // Client Voucher Association Handlers
@@ -5682,63 +5717,100 @@ export default function ClientDetailPage() {
                               </div>
 
                               <div className={styles.voucherCardBody}>
-                                <div className={styles.voucherSessionsInfo}>
-                                  <span className={styles.sessionsLabel}>Sesiones restantes:</span>
-                                  <strong className={styles.sessionsValue}>{voucher.remainingSessions} / {voucher.sessions}</strong>
-                                </div>
+                                {(() => {
+                                  const paymentInfo = getVoucherPaymentInfo(voucher.id);
+                                  return (
+                                    <>
+                                      <div className={styles.voucherSessionsInfo}>
+                                        <span className={styles.sessionsLabel}>Sesiones restantes:</span>
+                                        <strong className={styles.sessionsValue}>{voucher.remainingSessions} / {voucher.sessions}</strong>
+                                      </div>
 
-                                <div className={styles.voucherExpirationInfo}>
-                                  <span>Caducidad:</span>
-                                  {voucher.expirationDate ? (
-                                    <span style={{ color: isExpired ? "var(--danger)" : "inherit", fontWeight: isExpired ? "bold" : "normal" }}>
-                                      {isExpired ? "Expirado el " : "Caduca el "}{new Date(voucher.expirationDate).toLocaleDateString("es-ES")}
-                                    </span>
-                                  ) : (
-                                    <span>Sin caducidad</span>
-                                  )}
-                                </div>
+                                      <div className={styles.voucherExpirationInfo}>
+                                        <span>Caducidad:</span>
+                                        {voucher.expirationDate ? (
+                                          <span style={{ color: isExpired ? "var(--danger)" : "inherit", fontWeight: isExpired ? "bold" : "normal" }}>
+                                            {isExpired ? "Expirado el " : "Caduca el "}{new Date(voucher.expirationDate).toLocaleDateString("es-ES")}
+                                          </span>
+                                        ) : (
+                                          <span>Sin caducidad</span>
+                                        )}
+                                      </div>
 
-                                {/* Progress bar */}
-                                <div className={styles.voucherProgressBarBg} style={{ backgroundColor: "var(--bg-input)", height: "8px", borderRadius: "4px", margin: "12px 0", overflow: "hidden" }}>
-                                  <div 
-                                    className={styles.voucherProgressBarFill} 
-                                    style={{ 
-                                      backgroundColor: isExpired ? "var(--border-color)" : "var(--primary)", 
-                                      width: `${(voucher.remainingSessions / voucher.sessions) * 100}%`,
-                                      height: "100%",
-                                      transition: "width 0.3s ease"
-                                    }} 
-                                  />
-                                </div>
+                                      <div className={styles.voucherExpirationInfo} style={{ marginTop: "4px" }}>
+                                        <span>Estado de pago:</span>
+                                        <span style={{ 
+                                          fontWeight: "bold",
+                                          color: paymentInfo.isPaid ? "#10b981" : paymentInfo.isPartial ? "#f59e0b" : "var(--danger)"
+                                        }}>
+                                          {paymentInfo.isPaid ? " Pagado" : paymentInfo.isPartial ? " Pago parcial" : " No pagado"}
+                                        </span>
+                                      </div>
 
-                                {/* Shared clients list */}
-                                {voucher.sharedClientIds && voucher.sharedClientIds.split(",").filter(Boolean).length > 0 && (
-                                  <div style={{ marginBottom: "10px", padding: "8px", background: "rgba(139,92,246,0.06)", borderRadius: "6px", border: "1px solid rgba(139,92,246,0.2)" }}>
-                                    <div style={{ fontSize: "11px", fontWeight: 600, color: "#8b5cf6", marginBottom: "4px" }}>Compartido con:</div>
-                                    <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                                      {voucher.sharedClientIds.split(",").filter(Boolean).length} persona(s)
-                                    </div>
-                                  </div>
-                                )}
+                                      {/* Progress bar */}
+                                      <div className={styles.voucherProgressBarBg} style={{ backgroundColor: "var(--bg-input)", height: "8px", borderRadius: "4px", margin: "12px 0", overflow: "hidden" }}>
+                                        <div 
+                                          className={styles.voucherProgressBarFill} 
+                                          style={{ 
+                                            backgroundColor: isExpired ? "var(--border-color)" : "var(--primary)", 
+                                            width: `${(voucher.remainingSessions / voucher.sessions) * 100}%`,
+                                            height: "100%",
+                                            transition: "width 0.3s ease"
+                                          }} 
+                                        />
+                                      </div>
 
-                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                  <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    style={{ width: "100%", padding: "8px 12px", fontSize: "13px" }}
-                                    disabled={voucher.remainingSessions <= 0 || isExpired}
-                                    onClick={() => handleConsumeVoucherSession(voucher.id)}
-                                  >
-                                    Consumir sesión
-                                  </button>
-                                  <Link
-                                    href={`/dashboard/sales?clientId=${id}&clientVoucherId=${voucher.id}`}
-                                    className="btn btn-secondary"
-                                    style={{ width: "100%", padding: "8px 12px", fontSize: "13px", display: "inline-flex", justifyContent: "center", alignItems: "center" }}
-                                  >
-                                    Finalizar compra
-                                  </Link>
-                                </div>
+                                      {/* Shared clients list */}
+                                      {voucher.sharedClientIds && voucher.sharedClientIds.split(",").filter(Boolean).length > 0 && (
+                                        <div style={{ marginBottom: "10px", padding: "8px", background: "rgba(139,92,246,0.06)", borderRadius: "6px", border: "1px solid rgba(139,92,246,0.2)" }}>
+                                          <div style={{ fontSize: "11px", fontWeight: 600, color: "#8b5cf6", marginBottom: "4px" }}>Compartido con:</div>
+                                          <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                                            {voucher.sharedClientIds.split(",").filter(Boolean).length} persona(s)
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        <button
+                                          type="button"
+                                          className="btn btn-primary"
+                                          style={{ width: "100%", padding: "8px 12px", fontSize: "13px" }}
+                                          disabled={voucher.remainingSessions <= 0 || isExpired}
+                                          onClick={() => handleConsumeVoucherSession(voucher.id)}
+                                        >
+                                          Consumir sesión
+                                        </button>
+                                        {paymentInfo.isPaid ? (
+                                          <Link
+                                            href={`/dashboard/sales?saleId=${paymentInfo.saleId}`}
+                                            className="btn btn-secondary"
+                                            style={{ 
+                                              width: "100%", 
+                                              padding: "8px 12px", 
+                                              fontSize: "13px", 
+                                              display: "inline-flex", 
+                                              justifyContent: "center", 
+                                              alignItems: "center",
+                                              backgroundColor: "var(--primary)",
+                                              borderColor: "var(--primary)",
+                                              color: "#ffffff"
+                                            }}
+                                          >
+                                            Ver Venta
+                                          </Link>
+                                        ) : (
+                                          <Link
+                                            href={`/dashboard/sales?clientId=${id}&clientVoucherId=${voucher.id}`}
+                                            className="btn btn-secondary"
+                                            style={{ width: "100%", padding: "8px 12px", fontSize: "13px", display: "inline-flex", justifyContent: "center", alignItems: "center" }}
+                                          >
+                                            Finalizar compra
+                                          </Link>
+                                        )}
+                                      </div>
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                           );

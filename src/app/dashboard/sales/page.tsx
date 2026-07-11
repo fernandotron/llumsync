@@ -727,6 +727,7 @@ export default function SalesPage() {
   const [showVoucherSelectionModal, setShowVoucherSelectionModal] = useState(false);
   const [selectedCheckoutVoucherId, setSelectedCheckoutVoucherId] = useState("");
   const [selectedClientVouchers, setSelectedClientVouchers] = useState<any[]>([]);
+  const [clientVouchers, setClientVouchers] = useState<any[]>([]);
 
   // Budget payment states
   const [clientBudgetsWithBalance, setClientBudgetsWithBalance] = useState<any[]>([]);
@@ -739,6 +740,92 @@ export default function SalesPage() {
 
   // Active fiscal profile for invoice rendering
   const [activeFiscalProfile, setActiveFiscalProfile] = useState<any | null>(null);
+
+  // States for Fiscal Profile setup modal
+  const [fiscalEntityType, setFiscalEntityType] = useState("Empresa");
+  const [fiscalComercialName, setFiscalComercialName] = useState("");
+  const [fiscalNif, setFiscalNif] = useState("");
+  const [fiscalAddress, setFiscalAddress] = useState("");
+  const [fiscalMunicipality, setFiscalMunicipality] = useState("");
+  const [fiscalPostalCode, setFiscalPostalCode] = useState("");
+  const [showFiscalSetupModal, setShowFiscalSetupModal] = useState(false);
+  const [isSavingFiscal, setIsSavingFiscal] = useState(false);
+
+  // Helper to check if fiscal profile is missing crucial fields
+  const isFiscalProfileMissing = !activeFiscalProfile || 
+    !activeFiscalProfile.comercialName?.trim() || 
+    !activeFiscalProfile.nif?.trim() || 
+    !activeFiscalProfile.address?.trim() || 
+    !activeFiscalProfile.municipality?.trim() || 
+    !activeFiscalProfile.postalCode?.trim();
+
+  // Save/Update fiscal profile from setup modal
+  const handleSaveFiscalProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!activeClinic) return;
+
+    if (
+      !fiscalComercialName.trim() || 
+      !fiscalNif.trim() || 
+      !fiscalAddress.trim() || 
+      !fiscalMunicipality.trim() || 
+      !fiscalPostalCode.trim()
+    ) {
+      alert("Por favor, rellene todos los campos obligatorios.");
+      return;
+    }
+
+    setIsSavingFiscal(true);
+    try {
+      const isUpdate = !!activeFiscalProfile;
+      const url = isUpdate ? `/api/fiscal-profiles/${activeFiscalProfile.id}` : `/api/fiscal-profiles`;
+      const method = isUpdate ? "PUT" : "POST";
+
+      const payload: any = {
+        entityType: fiscalEntityType,
+        comercialName: fiscalComercialName.trim(),
+        nif: fiscalNif.trim(),
+        address: fiscalAddress.trim(),
+        municipality: fiscalMunicipality.trim(),
+        postalCode: fiscalPostalCode.trim(),
+      };
+
+      if (!isUpdate) {
+        payload.clinicId = activeClinic.id;
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setActiveFiscalProfile(data);
+        setShowFiscalSetupModal(false);
+      } else {
+        throw new Error("Failed to save fiscal profile");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar los datos fiscales.");
+    } finally {
+      setIsSavingFiscal(false);
+    }
+  };
+
+  const handleCancelFiscalSetup = () => {
+    setShowFiscalSetupModal(false);
+    setSelectedItemForPayment(null);
+  };
+
+  // Auto-open fiscal profile setup modal if payment selection is active and fiscal data is missing
+  useEffect(() => {
+    if (selectedItemForPayment && isFiscalProfileMissing) {
+      setShowFiscalSetupModal(true);
+    }
+  }, [selectedItemForPayment, activeFiscalProfile]);
 
   // Redirect to agenda if has no sales permissions at all, or set initial allowed tab
   useEffect(() => {
@@ -990,7 +1077,7 @@ export default function SalesPage() {
     setLoading(true);
 
     try {
-      const [clientsRes, servicesRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes] = await Promise.all([
+      const [clientsRes, servicesRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes, clientVouchersRes] = await Promise.all([
         fetch(`/api/clients?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/services?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/sales?clinicId=${activeClinic.id}`, { cache: "no-store" }),
@@ -998,6 +1085,7 @@ export default function SalesPage() {
         fetch(`/api/movements?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/budgets?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/fiscal-profiles?clinicId=${activeClinic.id}`, { cache: "no-store" }),
+        fetch(`/api/client-vouchers?clinicId=${activeClinic.id}`, { cache: "no-store" }),
       ]);
 
       const clientsData = await clientsRes.json();
@@ -1026,8 +1114,26 @@ export default function SalesPage() {
 
       const fiscalData = await fiscalRes.json();
       if (Array.isArray(fiscalData) && fiscalData.length > 0) {
-        setActiveFiscalProfile(fiscalData[0]);
+        const profile = fiscalData[0];
+        setActiveFiscalProfile(profile);
+        setFiscalEntityType(profile.entityType || "Empresa");
+        setFiscalComercialName(profile.comercialName || "");
+        setFiscalNif(profile.nif || "");
+        setFiscalAddress(profile.address || "");
+        setFiscalMunicipality(profile.municipality || "");
+        setFiscalPostalCode(profile.postalCode || "");
+      } else {
+        setActiveFiscalProfile(null);
+        setFiscalEntityType("Empresa");
+        setFiscalComercialName("");
+        setFiscalNif("");
+        setFiscalAddress("");
+        setFiscalMunicipality("");
+        setFiscalPostalCode("");
       }
+
+      const clientVouchersData = await clientVouchersRes.json();
+      if (Array.isArray(clientVouchersData)) setClientVouchers(clientVouchersData);
 
       setLoading(false);
     } catch (err) {
@@ -1064,6 +1170,17 @@ export default function SalesPage() {
           }
         } catch {}
 
+        // Check if there is an associated voucher in our DB list
+        let voucher = null;
+        try {
+          const items = JSON.parse(sale.itemsJson || "[]");
+          const voucherItem = items.find((i: any) => i.id && (i.id.startsWith("db-voucher-") || i.id.startsWith("voucher-")));
+          if (voucherItem) {
+            const voucherId = voucherItem.id.replace("db-voucher-", "").replace("voucher-", "");
+            voucher = clientVouchers.find((v: any) => v.id === voucherId);
+          }
+        } catch {}
+
         if (appt) {
           const clientObj = clients.find((c: any) => c.id === appt.clientId);
           const appDate = new Date(appt.start);
@@ -1092,6 +1209,73 @@ export default function SalesPage() {
             irpf: 0,
             total: appt.service?.price || 0,
             pagado: appt.service?.price || 0,
+          });
+          return;
+        } else if (voucher) {
+          const clientObj = clients.find((c: any) => c.id === voucher.clientId);
+          const cvDate = new Date(voucher.createdAt);
+          const cvIdx = clientVouchers.findIndex(v => v.id === voucher.id);
+
+          // Find all database sales that belong to this client voucher
+          const matchingSales = salesHistory.filter((s) => {
+            try {
+              const itemsArr = JSON.parse(s.itemsJson || "[]");
+              return itemsArr.some((i: any) => i.id === `db-voucher-${voucher.id}` || i.id === `voucher-${voucher.id}` || i.id === voucher.id);
+            } catch {
+              return false;
+            }
+          });
+
+          const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+          const voucherPrice = voucher.price || 0;
+
+          let resolvedEstado = "PENDIENTE";
+          if (voucherPrice === 0) {
+            resolvedEstado = "GRATUITO";
+          } else if (totalPaid >= voucherPrice) {
+            resolvedEstado = "PAGADO";
+          } else if (totalPaid > 0) {
+            resolvedEstado = "PAGO PARCIAL";
+          }
+
+          const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
+          const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
+
+          const latestSale = matchingSales.length > 0
+            ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
+            : null;
+          const resolvedFechaPago = latestSale ? new Date(latestSale.createdAt).toLocaleDateString("es-ES") : "-";
+
+          const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
+          const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
+
+          const cvNumber = cvIdx !== -1 ? cvIdx : 0;
+
+          setSelectedItemForPayment({
+            id: `db-voucher-${voucher.id}`,
+            refMov: `#${700 + cvNumber}`,
+            nuV: resolvedNuV === "-" ? `#${200 + cvNumber}` : resolvedNuV,
+            fecha: cvDate.toLocaleDateString("es-ES"),
+            fechaRaw: cvDate,
+            hora: "-",
+            tipo: "Bono",
+            detalle: voucher.name || "Bono de Sesiones",
+            clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
+            cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
+            clientId: voucher.clientId,
+            dni: clientObj?.dniNif || "-",
+            empleado: "Recepción",
+            consulta: activeClinic?.name || "",
+            estado: resolvedEstado,
+            metodoPago: resolvedMetodo,
+            fechaPago: resolvedFechaPago,
+            price: voucherPrice,
+            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+            precio: voucherPrice,
+            iva: 0.00,
+            irpf: 0.00,
+            total: voucherPrice,
+            pagado: resolvedEstado === "PAGADO" ? voucherPrice : totalPaid,
           });
           return;
         } else {
@@ -1225,7 +1409,7 @@ export default function SalesPage() {
       total: appt.service?.price || 0,
       pagado: 0,
     });
-  }, [loading, appointments, clients, salesHistory, activeClinic]);
+  }, [loading, appointments, clients, salesHistory, activeClinic, clientVouchers]);
 
   // Load existing partial payments from database sales history for the selected checkout item
   useEffect(() => {
@@ -1269,37 +1453,82 @@ export default function SalesPage() {
     const urlAppointmentId = params.get("appointmentId");
     const urlClientVoucherId = params.get("clientVoucherId");
 
-    if (urlClientId && urlClientVoucherId) {
-      const matchClient = clients.find((c) => c.id === urlClientId);
-      if (matchClient) {
-        setSelectedClientId(urlClientId);
-        setShowPosDrawer(true);
-        
-        fetch(`/api/clients/${urlClientId}/vouchers`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (Array.isArray(data)) {
-              const cv = data.find((v) => v.id === urlClientVoucherId);
-              if (cv) {
-                const newItem: CartItem = {
-                  id: `voucher-${cv.id}`,
-                  name: `Bono: ${cv.name}`,
-                  type: "service",
-                  price: cv.price,
-                  quantity: 1,
-                };
-                setCart([newItem]);
-              }
-            }
-          })
-          .catch((err) => console.error("Error fetching voucher details for checkout:", err));
+    // 1. If clientVoucherId is present, open checkout view directly as setSelectedItemForPayment
+    if (urlClientVoucherId && clientVouchers.length > 0) {
+      const cv = clientVouchers.find((v) => v.id === urlClientVoucherId);
+      if (cv) {
+        setShowPosDrawer(false);
+        const clientObj = clients.find((c) => c.id === cv.clientId);
+        const cvDate = new Date(cv.createdAt);
 
+        // Find all database sales that belong to this client voucher
+        const matchingSales = salesHistory.filter((sale) => {
+          try {
+            const itemsArr = JSON.parse(sale.itemsJson || "[]");
+            return itemsArr.some((i: any) => i.id === `db-voucher-${cv.id}` || i.id === `voucher-${cv.id}` || i.id === cv.id);
+          } catch (e) {
+            return false;
+          }
+        });
+
+        const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+        const voucherPrice = cv.price || 0;
+
+        let resolvedEstado = "PENDIENTE";
+        if (voucherPrice === 0) {
+          resolvedEstado = "GRATUITO";
+        } else if (totalPaid >= voucherPrice) {
+          resolvedEstado = "PAGADO";
+        } else if (totalPaid > 0) {
+          resolvedEstado = "PAGO PARCIAL";
+        }
+
+        const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
+        const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
+
+        const latestSale = matchingSales.length > 0
+          ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
+          : null;
+        const resolvedFechaPago = latestSale ? new Date(latestSale.createdAt).toLocaleDateString("es-ES") : "-";
+
+        const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
+        const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
+
+        const checkoutItem: ArticleItem = {
+          id: `db-voucher-${cv.id}`,
+          refMov: `#${cv.id.substring(0, 4).toUpperCase()}`,
+          nuV: resolvedNuV,
+          fecha: cvDate.toLocaleDateString("es-ES"),
+          fechaRaw: cvDate,
+          hora: "-",
+          tipo: "Bono",
+          detalle: cv.name || "Bono de Sesiones",
+          clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
+          cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
+          clientId: cv.clientId,
+          dni: clientObj?.dniNif || "-",
+          empleado: "Recepción",
+          consulta: activeClinic?.name || "Clifav Central",
+          estado: resolvedEstado,
+          metodoPago: resolvedMetodo,
+          fechaPago: resolvedFechaPago,
+          price: voucherPrice,
+          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+          precio: voucherPrice,
+          iva: 0.00,
+          irpf: 0.00,
+          total: voucherPrice,
+          pagado: resolvedEstado === "PAGADO" ? voucherPrice : totalPaid,
+        };
+
+        setSelectedItemForPayment(checkoutItem);
+        // Clean URL params without reload
         window.history.replaceState({}, "", "/dashboard/sales");
         return;
       }
     }
 
-    // If appointmentId present, open checkout view directly
+    // 2. If appointmentId present, open checkout view directly
     if (urlAppointmentId && urlClientId && urlServiceId) {
       const matchClient = clients.find((c) => c.id === urlClientId);
       const matchService = services.find((s) => s.id === urlServiceId);
@@ -1365,7 +1594,7 @@ export default function SalesPage() {
         }
       }
     }
-  }, [clients, services]);
+  }, [clients, services, clientVouchers, salesHistory, activeClinic]);
 
   const handleServiceChange = (serviceId: string) => {
     setSelectedServiceId(serviceId);
@@ -1613,6 +1842,11 @@ export default function SalesPage() {
       return;
     }
     if (!activeClinic) return;
+
+    if (isFiscalProfileMissing) {
+      setShowFiscalSetupModal(true);
+      return;
+    }
 
     const payload = {
       clientId: selectedClientId,
@@ -3049,9 +3283,17 @@ export default function SalesPage() {
       const itemsArr = JSON.parse(sale.itemsJson || "[]");
 
       itemsArr.forEach((item: any, itemIdx: number) => {
-        // Skip pushing as a separate row if this sale belongs to a database appointment,
-        // since the appointment row itself handles showing the unified payment status
-        if (item.id && (item.id.startsWith("db-app-") || appointments.some(a => a.id === item.id))) {
+        // Skip pushing as a separate row if this sale belongs to a database appointment or client voucher,
+        // since their respective rows handle showing the unified payment status
+        if (
+          item.id && (
+            item.id.startsWith("db-app-") ||
+            appointments.some(a => a.id === item.id) ||
+            item.id.startsWith("db-voucher-") ||
+            item.id.startsWith("voucher-") ||
+            clientVouchers.some(v => v.id === item.id || `db-voucher-${v.id}` === item.id || `voucher-${v.id}` === item.id)
+          )
+        ) {
           return;
         }
 
@@ -3154,6 +3396,76 @@ export default function SalesPage() {
       });
     });
 
+    // Merge real database client vouchers
+    clientVouchers.forEach((cv, cvIdx) => {
+      const cvDate = new Date(cv.createdAt);
+
+      // Find all database sales that belong to this client voucher
+      const matchingSales = salesHistory.filter((sale) => {
+        try {
+          const itemsArr = JSON.parse(sale.itemsJson || "[]");
+          return itemsArr.some((i: any) => i.id === `db-voucher-${cv.id}` || i.id === `voucher-${cv.id}` || i.id === cv.id);
+        } catch (e) {
+          return false;
+        }
+      });
+
+      const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+      const voucherPrice = cv.price || 0;
+
+      let resolvedEstado = "PENDIENTE";
+      if (voucherPrice === 0) {
+        resolvedEstado = "GRATUITO";
+      } else if (totalPaid >= voucherPrice) {
+        resolvedEstado = "PAGADO";
+      } else if (totalPaid > 0) {
+        resolvedEstado = "PAGO PARCIAL";
+      }
+
+      // Format payment methods used
+      const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
+      const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
+
+      // Date of latest payment
+      const latestSale = matchingSales.length > 0
+        ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
+        : null;
+      const resolvedFechaPago = latestSale
+        ? new Date(latestSale.createdAt).toLocaleDateString("es-ES")
+        : "-";
+
+      // Get invoice number(s) if paid or partially paid
+      const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
+      const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
+
+      items.push({
+        id: `db-voucher-${cv.id}`,
+        refMov: `#${700 + cvIdx}`,
+        nuV: `#${200 + cvIdx}`,
+        fecha: cvDate.toLocaleDateString("es-ES"),
+        fechaRaw: cvDate,
+        hora: "-",
+        tipo: "Bono",
+        detalle: cv.name || "Bono de Sesiones",
+        clientNumber: `#${cv.client?.clientNumber || 400 + cvIdx}`,
+        cliente: `${cv.client?.firstName || ""} ${cv.client?.lastName || ""}`,
+        clientId: cv.client?.id,
+        dni: cv.client?.dniNif || "-",
+        empleado: "Recepción",
+        consulta: activeClinic?.name || "Clifav Central",
+        estado: resolvedEstado,
+        metodoPago: resolvedMetodo,
+        fechaPago: resolvedFechaPago,
+        price: voucherPrice,
+        factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+        precio: voucherPrice,
+        iva: 0.00,
+        irpf: 0.00,
+        total: voucherPrice,
+        pagado: resolvedEstado === "PAGADO" ? voucherPrice : totalPaid,
+      });
+    });
+
     // Map items to dynamically resolve clientIds and apply overrides
     const resolvedItems = items.map((item, idx) => {
       // 1. Resolve clientId if missing by matching client name
@@ -3186,7 +3498,7 @@ export default function SalesPage() {
       if (resolvedEstado === "PAGADO") {
         if (resolvedNuV === "-") {
           // Try to find a matching sale
-          const cleanId = item.id.replace("db-sale-item-", "").replace("db-app-", "");
+          const cleanId = item.id.replace("db-sale-item-", "").replace("db-app-", "").replace("db-voucher-", "");
           const matchingSale = salesHistory.find((s) => {
             if (s.id === cleanId) return true;
             try {
@@ -3225,7 +3537,7 @@ export default function SalesPage() {
         pagadoVal = 0;
       } else {
         // PAGO PARCIAL
-        const cleanId = item.id.replace("db-sale-item-", "").replace("db-app-", "");
+        const cleanId = item.id.replace("db-sale-item-", "").replace("db-app-", "").replace("db-voucher-", "");
         const matchingSales = salesHistory.filter((s) => {
           try {
             const itemsArr = JSON.parse(s.itemsJson || "[]");
@@ -3609,6 +3921,8 @@ export default function SalesPage() {
     const appointmentsCount = list.filter((i) => i.tipo === "Servicio").length;
     const productsSum = list.filter((i) => i.tipo === "Producto").reduce((sum, item) => sum + item.price, 0);
     const productsCount = list.filter((i) => i.tipo === "Producto").length;
+    const bonosSum = list.filter((i) => i.tipo === "Bono").reduce((sum, item) => sum + item.price, 0);
+    const bonosCount = list.filter((i) => i.tipo === "Bono").length;
 
     return {
       volumenNegocio: totalVolume,
@@ -3616,6 +3930,8 @@ export default function SalesPage() {
       citasCount: appointmentsCount,
       productosSum: productsSum,
       productosCount: productsCount,
+      bonosSum: bonosSum,
+      bonosCount: bonosCount,
     };
   };
 
@@ -6711,7 +7027,7 @@ export default function SalesPage() {
                       Tipo
                     </h3>
                     <div className={styles.subFilterCheckboxList}>
-                      {["Servicio", "Producto"].map(type => {
+                      {["Servicio", "Producto", "Bono"].map(type => {
                         const isChecked = selectedTipos.includes(type);
                         return (
                           <label key={type} className={styles.subFilterCheckboxLabel}>
@@ -7166,7 +7482,7 @@ export default function SalesPage() {
                     {t("appointments")}: <span>{formatPrice(stats.citasSum)} ({stats.citasCount})</span>
                   </div>
                   <div className={styles.metricItem}>
-                    {t("vouchers")}: <span>{formatPrice(0)} (0)</span>
+                    {t("vouchers")}: <span>{formatPrice(stats.bonosSum)} ({stats.bonosCount})</span>
                   </div>
                   <div className={styles.metricItem}>
                     {t("products")}: <span>{formatPrice(stats.productosSum)} ({stats.productosCount})</span>
@@ -8201,6 +8517,233 @@ export default function SalesPage() {
                 Ir a Configuración
               </Link>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Configuración de Datos Fiscales ─────────────────── */}
+      {showFiscalSetupModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "rgba(15, 23, 42, 0.45)",
+            backdropFilter: "blur(12px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--bg-card)",
+              borderRadius: "20px",
+              padding: "40px",
+              maxWidth: "520px",
+              width: "100%",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.4)",
+              border: "1px solid var(--border-color)",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Ambient Background Gradient for Premium look */}
+            <div style={{
+              position: "absolute",
+              top: "-50px",
+              right: "-50px",
+              width: "150px",
+              height: "150px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%)",
+              pointerEvents: "none",
+            }} />
+            
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+              <div style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "14px",
+                background: "linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05))",
+                border: "1px solid rgba(99, 102, 241, 0.25)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#6366f1",
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "20px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
+                  Datos Fiscales Requeridos
+                </h3>
+                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                  Es obligatorio rellenar los datos del centro para poder cobrar citas.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveFiscalProfile} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Tipo de Entidad
+                </label>
+                <div style={{ display: "flex", gap: "8px", background: "var(--bg-input)", padding: "4px", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+                  {(["Empresa", "Particular"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFiscalEntityType(type)}
+                      style={{
+                        flex: 1,
+                        padding: "8px 12px",
+                        border: "none",
+                        borderRadius: "8px",
+                        background: fiscalEntityType === type ? "var(--primary)" : "transparent",
+                        color: fiscalEntityType === type ? "#ffffff" : "var(--text-secondary)",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      {type === "Empresa" ? "Empresa / Sociedad" : "Autónomo / Particular"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Nombre Comercial / Razón Social <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Clínica Dental Central S.L."
+                  value={fiscalComercialName}
+                  onChange={(e) => setFiscalComercialName(e.target.value)}
+                  className="input"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", fontSize: "14px" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  NIF / CIF <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: B12345678"
+                  value={fiscalNif}
+                  onChange={(e) => setFiscalNif(e.target.value)}
+                  className="input"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", fontSize: "14px" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                  Dirección Fiscal <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Calle, número, piso, puerta"
+                  value={fiscalAddress}
+                  onChange={(e) => setFiscalAddress(e.target.value)}
+                  className="input"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", fontSize: "14px" }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                    Municipio / Ciudad <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Alicante"
+                    value={fiscalMunicipality}
+                    onChange={(e) => setFiscalMunicipality(e.target.value)}
+                    className="input"
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", fontSize: "14px" }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)" }}>
+                    Código Postal <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: 03001"
+                    value={fiscalPostalCode}
+                    onChange={(e) => setFiscalPostalCode(e.target.value)}
+                    className="input"
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", fontSize: "14px" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
+                <button
+                  type="button"
+                  onClick={handleCancelFiscalSetup}
+                  style={{
+                    padding: "11px 20px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border-color)",
+                    background: "transparent",
+                    color: "var(--text-primary)",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingFiscal}
+                  style={{
+                    padding: "11px 24px",
+                    borderRadius: "10px",
+                    border: "none",
+                    background: "linear-gradient(135deg, var(--primary), #4f46e5)",
+                    color: "#ffffff",
+                    cursor: isSavingFiscal ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    boxShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  {isSavingFiscal ? (
+                    <>
+                      <div style={{ width: 14, height: 14, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Guardar y Continuar</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

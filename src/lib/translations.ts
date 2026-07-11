@@ -81,9 +81,9 @@ const translations: Record<string, Record<string, string>> = {
 
     // Billing — Invoice history section
     invoiceHistoryTitle: "Histórico de facturas",
-    invoiceHistoryDesc: "Facturas emitidas por la clínica, ordenadas de más reciente a más antigua",
+    invoiceHistoryDesc: "Facturas de tu suscripción en llumsync, ordenadas de más reciente a más antigua",
     loadingInvoices: "Cargando facturas...",
-    noInvoices: "No hay facturas emitidas para este centro.",
+    noInvoices: "No hay facturas de suscripción emitidas.",
     invoiceNumber: "Número",
     invoiceDate: "Fecha emisión",
     invoiceConcept: "Concepto",
@@ -411,9 +411,9 @@ const translations: Record<string, Record<string, string>> = {
 
     // Billing — Invoice history section
     invoiceHistoryTitle: "Històric de factures",
-    invoiceHistoryDesc: "Factures emeses per la clínica, ordenades de més recent a més antiga",
+    invoiceHistoryDesc: "Factures de la teva subscripció a llumsync, ordenades de més recent a més antiga",
     loadingInvoices: "Carregant factures...",
-    noInvoices: "No hi ha factures emeses per a aquest centre.",
+    noInvoices: "No hi ha factures de subscripció emeses.",
     invoiceNumber: "Número",
     invoiceDate: "Data emissió",
     invoiceConcept: "Concepte",
@@ -741,9 +741,9 @@ const translations: Record<string, Record<string, string>> = {
 
     // Billing — Invoice history section
     invoiceHistoryTitle: "Invoice history",
-    invoiceHistoryDesc: "Invoices issued by the clinic, ordered from most recent to oldest",
+    invoiceHistoryDesc: "Invoices issued for your llumsync subscription, ordered from most recent to oldest",
     loadingInvoices: "Loading invoices...",
-    noInvoices: "No invoices issued for this clinic.",
+    noInvoices: "No subscription invoices have been issued yet.",
     invoiceNumber: "Number",
     invoiceDate: "Issue date",
     invoiceConcept: "Concept",
@@ -1071,9 +1071,9 @@ const translations: Record<string, Record<string, string>> = {
 
     // Billing — Invoice history section
     invoiceHistoryTitle: "Fakturen historiala",
-    invoiceHistoryDesc: "Klinikak egindako fakturak, berrienetik zaharrenera ordenatuta",
+    invoiceHistoryDesc: "Zure llumsync harpidetzagatik jaitsitako fakturak, berrienetik zaharrenera ordenatuta",
     loadingInvoices: "Fakturak kargatzen...",
-    noInvoices: "Ez dago faktura bat ere zentro honentzat.",
+    noInvoices: "Ez dago harpidetza fakturarik emanda.",
     invoiceNumber: "Zenbakia",
     invoiceDate: "Igorpen data",
     invoiceConcept: "Kontzeptua",
