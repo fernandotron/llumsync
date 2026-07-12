@@ -978,7 +978,17 @@ export default function SalesPage() {
     setIsEditingTaxInline(false);
 
     if (selectedItemForPayment) {
-      setCheckoutItems([selectedItemForPayment]);
+      if (selectedItemForPayment.checkoutGroupId) {
+        const allArticles = getArticlesList();
+        const grouped = allArticles.filter(item => item.checkoutGroupId === selectedItemForPayment.checkoutGroupId);
+        if (grouped.length > 0) {
+          setCheckoutItems(grouped);
+        } else {
+          setCheckoutItems([selectedItemForPayment]);
+        }
+      } else {
+        setCheckoutItems([selectedItemForPayment]);
+      }
       let initialIva = 0;
       if (selectedItemForPayment.id.startsWith("db-app-")) {
         const appId = selectedItemForPayment.id.replace("db-app-", "");
@@ -3136,7 +3146,7 @@ export default function SalesPage() {
   // ----------------------------------------------------
   // LIST GENERATORS & AGGREGATIONS
   // ----------------------------------------------------
-  const getArticlesList = (): ArticleItem[] => {
+  function getArticlesList(): ArticleItem[] {
     const isMockClinic = activeClinic && (activeClinic.id === "1941b619-8ead-4388-91f4-aedd9100a7e9" || activeClinic.id === "6fe5ca72-4169-48da-94a2-79196efbe581");
     let items: ArticleItem[] = isMockClinic ? [...MOCK_ARTICULOS] : [];
     if (!isMockClinic) {
@@ -6229,6 +6239,7 @@ export default function SalesPage() {
                           irpf: 0,
                           total: srv.price,
                           pagado: 0,
+                          checkoutGroupId: selectedItemForPayment.checkoutGroupId,
                         };
                         setCheckoutItems([...checkoutItems, newArticleItem]);
                         setSelectedServiceId("");
