@@ -1287,7 +1287,7 @@ export default function SalesPage() {
       }
     }
 
-    if (urlClientId) {
+    if (urlClientId && !urlAppointmentId && !urlClientVoucherId && !params.get("saleId")) {
       const matchClient = clients.find((c) => c.id === urlClientId);
       if (matchClient) {
         setSelectedClientId(urlClientId);
