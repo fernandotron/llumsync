@@ -10,6 +10,8 @@ import { hasPermission } from "@/lib/permissions";
 import styles from "./ClientDetail.module.css";
 import { getCountryConfig } from "@/lib/countries";
 import { translate } from "@/lib/translations";
+import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
+import { CameraCaptureModal } from "@/components/CameraCaptureModal";
 
 interface Client {
   id: string;
@@ -64,7 +66,8 @@ interface Client {
   vouchers: ClientVoucher[];
   files: ClientFile[];
   allowedUsers?: { id: string }[];
-  clinic: { name: string; address: string; defaultWhatsappMode?: string };
+  clinic: { name: string; address: string; logo?: string; defaultWhatsappMode?: string };
+  photos: any[];
 }
 
 interface ClientVoucher {
@@ -176,7 +179,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   
   // Design active tabs: "general" | "documents" | "forms" | "medical" | "permissions" | "billing"
-  const [activeTab, setActiveTab] = useState<"general" | "documents" | "forms" | "medical" | "permissions" | "billing" | "budgets">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "documents" | "forms" | "medical" | "permissions" | "billing" | "budgets" | "photos">("general");
 
   // Redirect forbidden tabs back to general
   useEffect(() => {
@@ -206,6 +209,29 @@ export default function ClientDetailPage() {
   // Left Sidebar Clients list
   const [sidebarClients, setSidebarClients] = useState<Client[]>([]);
   const [sidebarSearch, setSidebarSearch] = useState("");
+
+  // Photos State Declarations
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [photoType, setPhotoType] = useState<"BEFORE" | "AFTER">("BEFORE");
+  const [photoAngle, setPhotoAngle] = useState("Frente");
+  const [customAngleInput, setCustomAngleInput] = useState("");
+  const [photoAppointmentId, setPhotoAppointmentId] = useState("");
+  const [photoDescription, setPhotoDescription] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [compareBeforePhoto, setCompareBeforePhoto] = useState<string | null>(null);
+  const [compareAfterPhoto, setCompareAfterPhoto] = useState<string | null>(null);
+  const [isComparingOpen, setIsComparingOpen] = useState(false);
+  const [expandedAppointments, setExpandedAppointments] = useState<Record<string, boolean>>({});
+  const [isMobile, setIsMobile] = useState(false);
+  const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Options Dropdown State
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
@@ -1341,6 +1367,430 @@ export default function ClientDetailPage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // Photo Upload & Capture Handlers
+  const handlePhotoUpload = async (file: File) => {
+    if (!file) return;
+    setUploadingPhoto(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", photoType);
+    const selectedAngle = photoAngle === "Otro" ? customAngleInput : photoAngle;
+    formData.append("angle", selectedAngle || "Frente");
+    if (photoAppointmentId) {
+      formData.append("appointmentId", photoAppointmentId);
+    }
+    if (photoDescription) {
+      formData.append("description", photoDescription);
+    }
+
+    try {
+      const res = await fetch(`/api/clients/${id}/photos`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error al subir la foto");
+      }
+      
+      // Reset inputs
+      setPhotoDescription("");
+      setPhotoAppointmentId("");
+      setCustomAngleInput("");
+      setPhotoAngle("Frente");
+      
+      // Reload client details to get updated photos list
+      fetchClientDetails();
+      alert("Foto guardada con éxito");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Error al subir la foto.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePhotoUpload(file);
+    }
+  };
+
+  const handlePhotoDelete = async (photoId: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta foto?")) return;
+    try {
+      const res = await fetch(`/api/clients/${id}/photos?photoId=${photoId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchClientDetails();
+      } else {
+        alert("Error al eliminar la foto");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handlePrintCollage = (app: any, appPhotos: any[], angles: string[]) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const dateStr = new Date(app.start).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const clientName = `${client?.firstName} ${client?.lastName}`;
+    const clientDni = client?.dniNif ? `DNI: ${client.dniNif}` : "";
+    const clientNum = client?.clientNumber ? `Nº Paciente: ${client.clientNumber}` : "";
+
+    // Generate comparison pages HTML
+    let comparisonPagesHtml = "";
+    
+    angles.forEach((angle, index) => {
+      const anglePhotos = appPhotos.filter((p: any) => (p.angle || "Frente") === angle);
+      const beforePhoto = anglePhotos.find((p: any) => p.type === "BEFORE");
+      const afterPhoto = anglePhotos.find((p: any) => p.type === "AFTER");
+
+      if (!beforePhoto && !afterPhoto) return;
+
+      comparisonPagesHtml += `
+        <div class="page">
+          <!-- Header Area -->
+          <div class="pdf-header">
+            <div class="header-left">
+              ${client?.clinic?.logo ? `<img class="clinic-logo" src="${client.clinic.logo}" alt="Logo" />` : `<div class="logo-fallback">${(client?.clinic?.name || 'C').charAt(0).toUpperCase()}</div>`}
+              <div class="clinic-details">
+                <span class="clinic-name">${client?.clinic?.name || "Clínica"}</span>
+                <span class="clinic-address">${client?.clinic?.address || ""}</span>
+              </div>
+            </div>
+            <div class="header-right">
+              <span class="report-title">Reporte Fotográfico</span>
+              <span class="report-meta">Fecha de Sesión: ${dateStr}</span>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="header-divider"></div>
+
+          <!-- Patient Information -->
+          <div class="patient-card">
+            <h4 class="patient-card-title">Datos del Paciente</h4>
+            <div class="patient-grid">
+              <div><strong>Paciente:</strong> ${clientName}</div>
+              <div><strong>${clientNum}</strong></div>
+              <div><strong>${clientDni}</strong></div>
+              <div><strong>Tratamiento:</strong> ${app.service?.name || "Tratamiento"}</div>
+            </div>
+          </div>
+
+          <!-- Section title for Angle -->
+          <h2 class="angle-title">Comparación de Ángulo: ${angle}</h2>
+
+          <!-- Photos Side by Side -->
+          <div class="collage-grid">
+            <!-- Antes Container -->
+            <div class="photo-container">
+              <div class="photo-label before-label">Antes (Before)</div>
+              ${beforePhoto ? `
+                <div class="img-wrapper">
+                  <img src="${beforePhoto.photoUrl}" alt="Antes" />
+                </div>
+                <div class="photo-caption">${beforePhoto.description || "Sin descripción"}</div>
+              ` : `
+                <div class="empty-photo">
+                  <span>Sin foto registrada</span>
+                </div>
+              `}
+            </div>
+
+            <!-- Después Container -->
+            <div class="photo-container">
+              <div class="photo-label after-label">Después (After)</div>
+              ${afterPhoto ? `
+                <div class="img-wrapper">
+                  <img src="${afterPhoto.photoUrl}" alt="Después" />
+                </div>
+                <div class="photo-caption">${afterPhoto.description || "Sin descripción"}</div>
+              ` : `
+                <div class="empty-photo">
+                  <span>Sin foto registrada</span>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <!-- Footer Area -->
+          <div class="pdf-footer">
+            <span>Clifav - Gestión y Seguimiento de Pacientes</span>
+            <span>Ángulo ${index + 1} de ${angles.length}</span>
+          </div>
+        </div>
+      `;
+    });
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Collage Antes y Después - ${clientName}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+            
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+              margin: 0;
+              padding: 0;
+              color: #0f172a;
+              background-color: #f8fafc;
+            }
+
+            .page {
+              background-color: #ffffff;
+              width: 210mm;
+              height: 297mm;
+              box-sizing: border-box;
+              padding: 20mm;
+              margin: 0 auto 10mm;
+              position: relative;
+              display: flex;
+              flex-direction: column;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+              page-break-after: always;
+            }
+
+            @media print {
+              body {
+                background-color: transparent;
+              }
+              .page {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+                height: 100%;
+                page-break-after: always;
+                page-break-inside: avoid;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+
+            /* Header styling */
+            .pdf-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+            }
+
+            .header-left {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+            }
+
+            .clinic-logo {
+              max-height: 48px;
+              max-width: 100px;
+              object-fit: contain;
+            }
+
+            .logo-fallback {
+              width: 44px;
+              height: 44px;
+              border-radius: 50%;
+              background: #006687;
+              color: #ffffff;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-weight: 800;
+              font-size: 20px;
+            }
+
+            .clinic-details {
+              display: flex;
+              flex-direction: column;
+            }
+
+            .clinic-name {
+              font-weight: 800;
+              font-size: 16px;
+              color: #0f172a;
+            }
+
+            .clinic-address {
+              font-size: 11px;
+              color: #64748b;
+            }
+
+            .header-right {
+              text-align: right;
+              display: flex;
+              flex-direction: column;
+            }
+
+            .report-title {
+              font-weight: 800;
+              font-size: 15px;
+              color: #006687;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+
+            .report-meta {
+              font-size: 11px;
+              color: #64748b;
+              margin-top: 2px;
+            }
+
+            .header-divider {
+              height: 2px;
+              background: linear-gradient(90deg, #006687, #38bdf8);
+              border-radius: 2px;
+              margin-bottom: 16px;
+            }
+
+            /* Patient Card styling */
+            .patient-card {
+              background-color: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 12px 16px;
+              margin-bottom: 20px;
+            }
+
+            .patient-card-title {
+              margin: 0 0 6px 0;
+              font-size: 11px;
+              font-weight: 800;
+              color: #006687;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+
+            .patient-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 6px 16px;
+              font-size: 12px;
+            }
+
+            .angle-title {
+              font-size: 14px;
+              font-weight: 700;
+              color: #0f172a;
+              margin: 0 0 16px 0;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 6px;
+            }
+
+            /* Collage grid side by side */
+            .collage-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              flex: 1;
+              min-height: 0; /* Important for flex child */
+              margin-bottom: 20px;
+            }
+
+            .photo-container {
+              display: flex;
+              flex-direction: column;
+              background-color: #f8fafc;
+              border: 1px solid #cbd5e1;
+              border-radius: 12px;
+              overflow: hidden;
+              padding: 12px;
+            }
+
+            .photo-label {
+              font-size: 11px;
+              font-weight: 800;
+              text-align: center;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              padding: 4px 8px;
+              border-radius: 6px;
+              margin-bottom: 12px;
+            }
+
+            .before-label {
+              background-color: #fee2e2;
+              color: #991b1b;
+            }
+
+            .after-label {
+              background-color: #dcfce7;
+              color: #166534;
+            }
+
+            .img-wrapper {
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+              border-radius: 8px;
+              background-color: #ffffff;
+              border: 1px solid #e2e8f0;
+              max-height: 380px;
+            }
+
+            .img-wrapper img {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+            }
+
+            .empty-photo {
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 1.5px dashed #cbd5e1;
+              border-radius: 8px;
+              background-color: #ffffff;
+              color: #94a3b8;
+              font-size: 13px;
+              font-weight: 600;
+            }
+
+            .photo-caption {
+              font-size: 11px;
+              color: #64748b;
+              text-align: center;
+              margin-top: 8px;
+              font-style: italic;
+            }
+
+            /* Footer styling */
+            .pdf-footer {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 10px;
+              color: #94a3b8;
+              border-top: 1px solid #f1f5f9;
+              padding-top: 8px;
+              margin-top: auto;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="no-print" style="position: sticky; top: 0; background: #ffffff; border-bottom: 1px solid #cbd5e1; padding: 12px 24px; display: flex; justify-content: flex-end; z-index: 9999;">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #006687; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0, 102, 135, 0.2);">
+              <span>🖨️ Imprimir / Guardar como PDF</span>
+            </button>
+          </div>
+          ${comparisonPagesHtml}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleDownloadDoc = (doc: any) => {
@@ -3068,6 +3518,12 @@ export default function ClientDetailPage() {
               {t("tabBudgetsClient")}
             </button>
           )}
+          <button 
+            className={`${styles.tabBtn} ${activeTab === "photos" ? styles.tabBtnActive : ""}`}
+            onClick={() => setActiveTab("photos")}
+          >
+            {t("Antes y Después")}
+          </button>
         </div>
 
 
@@ -6224,6 +6680,518 @@ export default function ClientDetailPage() {
               )}
             </div>
           )}
+          {/* TAB 8: Fotos Antes/Después */}
+          {activeTab === "photos" && (
+            <div className={styles.documentsPanel} style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "24px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 2fr", gap: "32px", alignItems: "start" }}>
+                
+                {/* COLUMNA IZQUIERDA: CONTROLES DE SUBIDA Y SELECTORES */}
+                <div style={{ display: "flex", flexDirection: "column", gap: isMobile && !isFormExpanded ? "0px" : "20px", background: "#f8fafc", padding: "20px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                  <div
+                    onClick={() => isMobile && setIsFormExpanded(!isFormExpanded)}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      cursor: isMobile ? "pointer" : "default",
+                      userSelect: "none"
+                    }}
+                  >
+                    <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#006687", margin: 0 }}>
+                      Añadir Nueva Foto
+                    </h3>
+                    {isMobile && (
+                      <span style={{ fontSize: "12px", color: "#006687", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
+                        {isFormExpanded ? "Contraer" : "Configurar y Añadir"}
+                        {isFormExpanded ? <Icons.ChevronDown size={16} /> : <Icons.ChevronRight size={16} />}
+                      </span>
+                    )}
+                  </div>
+
+                  {(!isMobile || isFormExpanded) && (
+                    <>
+                      {/* Selector Antes/Después */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Tipo de Foto</label>
+                        <div style={{ display: "flex", gap: "10px" }}>
+                          <button
+                            type="button"
+                            onClick={() => setPhotoType("BEFORE")}
+                            style={{
+                              flex: 1,
+                              padding: "10px",
+                              borderRadius: "8px",
+                              border: photoType === "BEFORE" ? "2px solid #006687" : "1px solid #cbd5e1",
+                              background: photoType === "BEFORE" ? "rgba(0, 102, 135, 0.08)" : "#ffffff",
+                              color: photoType === "BEFORE" ? "#006687" : "#475569",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            Antes (Before)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPhotoType("AFTER")}
+                            style={{
+                              flex: 1,
+                              padding: "10px",
+                              borderRadius: "8px",
+                              border: photoType === "AFTER" ? "2px solid #006687" : "1px solid #cbd5e1",
+                              background: photoType === "AFTER" ? "rgba(0, 102, 135, 0.08)" : "#ffffff",
+                              color: photoType === "AFTER" ? "#006687" : "#475569",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            Después (After)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Selector de Ángulo */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Ángulo / Perspectiva</label>
+                        <select
+                          value={photoAngle}
+                          onChange={(e) => setPhotoAngle(e.target.value)}
+                          style={{
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "13px",
+                            background: "#ffffff",
+                            outline: "none"
+                          }}
+                        >
+                          <option value="Frente">Frente</option>
+                          <option value="Perfil Izquierdo">Perfil Izquierdo</option>
+                          <option value="Perfil Derecho">Perfil Derecho</option>
+                          <option value="Otro">Otro ángulo...</option>
+                        </select>
+                        {photoAngle === "Otro" && (
+                          <input
+                            type="text"
+                            placeholder="Especifica el ángulo (ej: 45 grados)"
+                            value={customAngleInput}
+                            onChange={(e) => setCustomAngleInput(e.target.value)}
+                            style={{
+                              padding: "10px",
+                              borderRadius: "8px",
+                              border: "1px solid #cbd5e1",
+                              fontSize: "13px",
+                              outline: "none",
+                              marginTop: "6px"
+                            }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Relación con Cita */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Vincular a Cita (Opcional)</label>
+                        <select
+                          value={photoAppointmentId}
+                          onChange={(e) => setPhotoAppointmentId(e.target.value)}
+                          style={{
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "13px",
+                            background: "#ffffff",
+                            outline: "none"
+                          }}
+                        >
+                          <option value="">-- No vincular a ninguna cita --</option>
+                          {client.appointments?.map((app: any) => {
+                            const dateStr = new Date(app.start).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                            return (
+                              <option key={app.id} value={app.id}>
+                                {dateStr} - {app.service?.name}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* Descripción */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Descripción / Nota</label>
+                        <input
+                          type="text"
+                          placeholder="Ej. Vista lateral izquierda, sesión 1..."
+                          value={photoDescription}
+                          onChange={(e) => setPhotoDescription(e.target.value)}
+                          style={{
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "13px",
+                            outline: "none"
+                          }}
+                        />
+                      </div>
+
+                      {/* Acciones de Subida */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "10px" }}>
+                        <button
+                          type="button"
+                          disabled={uploadingPhoto}
+                          onClick={() => setIsCameraModalOpen(true)}
+                          style={{
+                            padding: "12px",
+                            borderRadius: "8px",
+                            border: "none",
+                            background: "#006687",
+                            color: "#ffffff",
+                            fontWeight: 600,
+                            fontSize: "13px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            boxShadow: "0 4px 6px -1px rgba(0, 102, 135, 0.2)"
+                          }}
+                        >
+                          <Icons.Camera size={16} />
+                          <span>Hacer Foto</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={uploadingPhoto}
+                          onClick={() => photoInputRef.current?.click()}
+                          style={{
+                            padding: "12px",
+                            borderRadius: "8px",
+                            border: "1px solid #006687",
+                            background: "#ffffff",
+                            color: "#006687",
+                            fontWeight: 600,
+                            fontSize: "13px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px"
+                          }}
+                        >
+                          <Icons.Image size={16} />
+                          <span>Subir Foto</span>
+                        </button>
+                        
+                        <input
+                          type="file"
+                          ref={photoInputRef}
+                          onChange={handlePhotoFileChange}
+                          accept="image/*"
+                          style={{ display: "none" }}
+                        />
+                      </div>
+                      {uploadingPhoto && <span style={{ fontSize: "12px", color: "#64748b", textAlign: "center" }}>Subiendo imagen...</span>}
+
+                      {/* PANEL COMPARADOR MANUAL */}
+                      <div style={{ borderTop: "1px solid #cbd5e1", paddingTop: "20px", marginTop: "10px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b", margin: 0 }}>
+                          Comparación Manual
+                        </h4>
+                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
+                          Selecciona una foto de Antes y otra de Después para compararlas en el slider deslizante.
+                        </p>
+                        <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                          <div style={{ flex: 1, height: "60px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", background: "#ffffff" }}>
+                            {compareBeforePhoto ? (
+                              <>
+                                <img src={compareBeforePhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                <button onClick={() => setCompareBeforePhoto(null)} style={{ position: "absolute", top: 2, right: 2, background: "rgba(15,23,42,0.6)", border: "none", color: "#ffffff", borderRadius: "50%", width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", cursor: "pointer" }}>✕</button>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>Antes</span>
+                            )}
+                          </div>
+                          <div style={{ flex: 1, height: "60px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", background: "#ffffff" }}>
+                            {compareAfterPhoto ? (
+                              <>
+                                <img src={compareAfterPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                <button onClick={() => setCompareAfterPhoto(null)} style={{ position: "absolute", top: 2, right: 2, background: "rgba(15,23,42,0.6)", border: "none", color: "#ffffff", borderRadius: "50%", width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", cursor: "pointer" }}>✕</button>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>Después</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!compareBeforePhoto || !compareAfterPhoto}
+                          onClick={() => setIsComparingOpen(true)}
+                          style={{
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "none",
+                            background: (!compareBeforePhoto || !compareAfterPhoto) ? "#cbd5e1" : "#0f172a",
+                            color: "#ffffff",
+                            fontWeight: 600,
+                            fontSize: "13px",
+                            cursor: (!compareBeforePhoto || !compareAfterPhoto) ? "not-allowed" : "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px"
+                          }}
+                        >
+                          <Icons.Columns size={16} />
+                          <span>Comparar Fotos</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* COLUMNA DERECHA: HISTORIAL DE FOTOS POR SESIÓN */}
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#006687", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    Historial de Sesiones y Fotos
+                  </h3>
+
+                  {(!client.photos || client.photos.length === 0) ? (
+                    <div style={{ padding: "40px", border: "2px dashed #cbd5e1", borderRadius: "12px", textAlign: "center", color: "#64748b" }}>
+                      <Icons.Image size={40} style={{ color: "#94a3b8", marginBottom: "12px", display: "inline-block" }} />
+                      <p style={{ margin: 0, fontWeight: 600 }}>No hay fotos registradas para este paciente.</p>
+                      <p style={{ margin: "4px 0 0", fontSize: "13px" }}>Usa la columna izquierda para tomar o adjuntar fotos de antes y después.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                      
+                      {/* Agrupación por Cita/Sesión (Ordenadas de más recientes a antiguas, colapsables) */}
+                      {(() => {
+                        const sortedApps = [...(client.appointments || [])].sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
+                        return sortedApps.map((app: any) => {
+                          const appPhotos = client.photos.filter((p: any) => p.appointmentId === app.id);
+                          if (appPhotos.length === 0) return null;
+
+                          const angles = Array.from(new Set(appPhotos.map((p: any) => p.angle || "Frente")));
+                          const dateStr = new Date(app.start).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+                          const isExpanded = !!expandedAppointments[app.id];
+
+                          return (
+                            <div
+                              key={app.id}
+                              style={{
+                                background: "#ffffff",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "12px",
+                                padding: "16px",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: isExpanded ? "16px" : "0px",
+                                transition: "all 0.2s"
+                              }}
+                            >
+                              {/* Session Header (Clickable to Collapse/Expand) */}
+                              <div
+                                onClick={() => setExpandedAppointments(prev => ({ ...prev, [app.id]: !prev[app.id] }))}
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  borderBottom: isExpanded ? "1px solid #f1f5f9" : "none",
+                                  paddingBottom: isExpanded ? "10px" : "0px",
+                                  cursor: "pointer",
+                                  userSelect: "none"
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  {isExpanded ? <Icons.ChevronDown size={18} style={{ color: "#006687" }} /> : <Icons.ChevronRight size={18} style={{ color: "#94a3b8" }} />}
+                                  <span style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
+                                    {app.service?.name}
+                                  </span>
+                                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                                    {dateStr}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: "11px", color: "#006687", fontWeight: 600 }}>
+                                  {isExpanded ? "Contraer" : `Ver fotos (${appPhotos.length})`}
+                                </span>
+                              </div>
+
+                              {/* Loop through unique angles only if expanded */}
+                              {isExpanded && angles.map((angle) => {
+                                const anglePhotos = appPhotos.filter((p: any) => (p.angle || "Frente") === angle);
+                                const beforePhoto = anglePhotos.find((p: any) => p.type === "BEFORE");
+                                const afterPhoto = anglePhotos.find((p: any) => p.type === "AFTER");
+
+                                return (
+                                  <div key={angle} style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#006687" }}>
+                                        Ángulo: {angle}
+                                      </span>
+                                      {beforePhoto && afterPhoto && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Avoid collapsing the card
+                                            setCompareBeforePhoto(beforePhoto.photoUrl);
+                                            setCompareAfterPhoto(afterPhoto.photoUrl);
+                                            setIsComparingOpen(true);
+                                          }}
+                                          style={{
+                                            padding: "4px 10px",
+                                            borderRadius: "6px",
+                                            border: "none",
+                                            background: "rgba(0, 102, 135, 0.1)",
+                                            color: "#006687",
+                                            fontSize: "11px",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "4px"
+                                          }}
+                                        >
+                                          <Icons.Columns size={12} />
+                                          <span>Deslizar Comparador</span>
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                                      {/* Antes */}
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Antes</span>
+                                        {beforePhoto ? (
+                                          <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                            <img src={beforePhoto.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.6)", color: "#ffffff", padding: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                              <span style={{ fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
+                                                {beforePhoto.description || "Sin descripción"}
+                                              </span>
+                                              <div style={{ display: "flex", gap: "4px" }}>
+                                                <button onClick={(e) => { e.stopPropagation(); setCompareBeforePhoto(beforePhoto.photoUrl); }} title="Seleccionar para comparar" style={{ background: "none", border: "none", color: "#38bdf8", cursor: "pointer", padding: "2px" }}><Icons.Plus size={14} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handlePhotoDelete(beforePhoto.id); }} title="Eliminar foto" style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", padding: "2px" }}><Icons.Trash size={14} /></button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div style={{ height: "80px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", cursor: "pointer", background: "#ffffff" }} onClick={(e) => { e.stopPropagation(); setPhotoType("BEFORE"); setPhotoAngle(angle); setPhotoAppointmentId(app.id); photoInputRef.current?.click(); }}>
+                                            <Icons.Plus size={14} style={{ color: "#94a3b8" }} />
+                                            <span style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 600 }}>Añadir Antes</span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Después */}
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Después</span>
+                                        {afterPhoto ? (
+                                          <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                            <img src={afterPhoto.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.6)", color: "#ffffff", padding: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                              <span style={{ fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
+                                                {afterPhoto.description || "Sin descripción"}
+                                              </span>
+                                              <div style={{ display: "flex", gap: "4px" }}>
+                                                <button onClick={(e) => { e.stopPropagation(); setCompareAfterPhoto(afterPhoto.photoUrl); }} title="Seleccionar para comparar" style={{ background: "none", border: "none", color: "#38bdf8", cursor: "pointer", padding: "2px" }}><Icons.Plus size={14} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handlePhotoDelete(afterPhoto.id); }} title="Eliminar foto" style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", padding: "2px" }}><Icons.Trash size={14} /></button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div style={{ height: "80px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", cursor: "pointer", background: "#ffffff" }} onClick={(e) => { e.stopPropagation(); setPhotoType("AFTER"); setPhotoAngle(angle); setPhotoAppointmentId(app.id); photoInputRef.current?.click(); }}>
+                                            <Icons.Plus size={14} style={{ color: "#94a3b8" }} />
+                                            <span style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 600 }}>Añadir Después</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {isExpanded && (
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePrintCollage(app, appPhotos, angles);
+                                    }}
+                                    style={{
+                                      padding: "6px 14px",
+                                      borderRadius: "6px",
+                                      border: "none",
+                                      background: "#006687",
+                                      color: "#ffffff",
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "6px"
+                                    }}
+                                  >
+                                    <Icons.Columns size={14} />
+                                    <span>Generar Reporte / Collage PDF</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+
+                      {/* Fotos sueltas (sin vincular a cita) */}
+                      {(() => {
+                        const loosePhotos = client.photos.filter((p: any) => !p.appointmentId);
+                        if (loosePhotos.length === 0) return null;
+
+                        return (
+                          <div
+                            style={{
+                              background: "#ffffff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              padding: "16px",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                            }}
+                          >
+                            <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#475569", margin: "0 0 12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "8px" }}>
+                              Otras Fotos (Sin Cita Vinculada)
+                            </h4>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "12px" }}>
+                              {loosePhotos.map((photo: any) => (
+                                <div key={photo.id} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                  <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                    <img src={photo.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    <span style={{ position: "absolute", top: 4, left: 4, background: photo.type === "BEFORE" ? "#0f172a" : "#006687", color: "#ffffff", fontSize: "9px", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }}>
+                                      {photo.type === "BEFORE" ? "ANTES" : "DESPUÉS"}
+                                    </span>
+                                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.6)", color: "#ffffff", padding: "4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                      <span style={{ fontSize: "9px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} title={`${photo.angle || "Frente"}: ${photo.description || ""}`}>
+                                        {photo.angle || "Frente"}: {photo.description || "Foto"}
+                                      </span>
+                                      <div style={{ display: "flex", gap: "4px" }}>
+                                        <button onClick={() => photo.type === "BEFORE" ? setCompareBeforePhoto(photo.photoUrl) : setCompareAfterPhoto(photo.photoUrl)} title="Seleccionar para comparar" style={{ background: "none", border: "none", color: "#38bdf8", cursor: "pointer", padding: "1px" }}><Icons.Plus size={12} /></button>
+                                        <button onClick={() => handlePhotoDelete(photo.id)} title="Eliminar foto" style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", padding: "1px" }}><Icons.Trash size={12} /></button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -8058,6 +9026,67 @@ export default function ClientDetailPage() {
           </div>
         </div>
       )}
+
+      {/* COMPARADOR SLIDER MODAL */}
+      {isComparingOpen && compareBeforePhoto && compareAfterPhoto && typeof window !== "undefined" && createPortal(
+        <div
+          onClick={() => setIsComparingOpen(false)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.85)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            padding: "24px"
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "800px",
+              backgroundColor: "#ffffff",
+              borderRadius: "16px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column"
+            }}
+          >
+            <div style={{ padding: "16px 24px", borderBottom: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0f172a" }}>Comparación de Antes y Después</h3>
+              <button 
+                onClick={() => setIsComparingOpen(false)}
+                style={{ background: "none", border: "none", fontSize: "18px", color: "#64748b", cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: "24px", backgroundColor: "#f8fafc" }}>
+              <BeforeAfterSlider
+                beforeUrl={compareBeforePhoto}
+                afterUrl={compareAfterPhoto}
+                height="450px"
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* CÁMARA MODAL */}
+      <CameraCaptureModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handlePhotoUpload}
+      />
     </div>
   );
 }

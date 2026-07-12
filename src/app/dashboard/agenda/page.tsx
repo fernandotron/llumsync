@@ -8,6 +8,8 @@ import { translate } from "@/lib/translations";
 import { hasPermission, canDeleteAppointment, canCreateOrEditAppointment } from "@/lib/permissions";
 import styles from "./Agenda.module.css";
 import { getCountryConfig } from "@/lib/countries";
+import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
+import { CameraCaptureModal } from "@/components/CameraCaptureModal";
 
 interface Service {
   id: string;
@@ -892,12 +894,22 @@ export default function AgendaPage() {
   const [formPatBic, setFormPatBic] = useState("");
 
   // Edit/View modal custom states
-  const [editModalTab, setEditModalTab] = useState<"datos" | "bonos" | "citas" | "seguimientos" | "historial">("datos");
+  const [editModalTab, setEditModalTab] = useState<"datos" | "bonos" | "citas" | "seguimientos" | "historial" | "fotos">("datos");
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [isEditingApp, setIsEditingApp] = useState(false);
   const [editPatReceivesReminders, setEditPatReceivesReminders] = useState(true);
   const [citasSubTab, setCitasSubTab] = useState<"pasadas" | "futuras">("pasadas");
+
+  // Photo states for selected appointment
+  const agendaPhotoInputRef = useRef<HTMLInputElement>(null);
+  const [appointmentPhotos, setAppointmentPhotos] = useState<any[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [isAgendaCameraOpen, setIsAgendaCameraOpen] = useState(false);
+  const [agendaPhotoType, setAgendaPhotoType] = useState<"BEFORE" | "AFTER">("BEFORE");
+  const [agendaPhotoAngle, setAgendaPhotoAngle] = useState("Frente");
+  const [agendaCustomAngle, setAgendaCustomAngle] = useState("");
+  const [uploadingAgendaPhoto, setUploadingAgendaPhoto] = useState(false);
 
   // Vouchers displayed in appointment info panel (tab "bonos")
   const [appointmentClientVouchers, setAppointmentClientVouchers] = useState<any[]>([]);
@@ -1682,6 +1694,17 @@ export default function AgendaPage() {
       .catch((err) => console.error("Error loading appointment logs:", err))
       .finally(() => setLoadingLogs(false));
 
+    // Load appointment photos
+    setAppointmentPhotos([]);
+    setLoadingPhotos(true);
+    fetch(`/api/clients/${app.clientId}/photos?appointmentId=${app.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setAppointmentPhotos(data);
+      })
+      .catch((err) => console.error("Error loading appointment photos:", err))
+      .finally(() => setLoadingPhotos(false));
+
     setShowEditModal(true);
   };
 
@@ -1707,6 +1730,77 @@ export default function AgendaPage() {
       }
     } catch (err) {
       console.error("Error toggling reminders:", err);
+    }
+  };
+
+  // Photo handlers for Agenda Appointment Drawer
+  const handleAgendaPhotoUpload = async (file: File) => {
+    if (!file || !selectedAppointment) return;
+    setUploadingAgendaPhoto(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", agendaPhotoType);
+    const selectedAngle = agendaPhotoAngle === "Otro" ? agendaCustomAngle : agendaPhotoAngle;
+    formData.append("angle", selectedAngle || "Frente");
+    formData.append("appointmentId", selectedAppointment.id);
+    formData.append("description", agendaPhotoType === "BEFORE" ? "Antes" : "Después");
+
+    try {
+      const res = await fetch(`/api/clients/${selectedAppointment.clientId}/photos`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error al subir la foto");
+      }
+
+      // Reset angle inputs
+      setAgendaCustomAngle("");
+      setAgendaPhotoAngle("Frente");
+
+      // Reload appointment photos
+      const updatedPhotosRes = await fetch(`/api/clients/${selectedAppointment.clientId}/photos?appointmentId=${selectedAppointment.id}`);
+      const updatedPhotos = await updatedPhotosRes.json();
+      if (Array.isArray(updatedPhotos)) {
+        setAppointmentPhotos(updatedPhotos);
+      }
+      alert("Foto guardada con éxito");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Error al subir la foto.");
+    } finally {
+      setUploadingAgendaPhoto(false);
+    }
+  };
+
+  const handleAgendaPhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleAgendaPhotoUpload(file);
+    }
+  };
+
+  const handleAgendaPhotoDelete = async (photoId: string) => {
+    if (!selectedAppointment || !window.confirm("¿Estás seguro de que deseas eliminar esta foto?")) return;
+    try {
+      const res = await fetch(`/api/clients/${selectedAppointment.clientId}/photos?photoId=${photoId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        // Reload photos
+        const updatedPhotosRes = await fetch(`/api/clients/${selectedAppointment.clientId}/photos?appointmentId=${selectedAppointment.id}`);
+        const updatedPhotos = await updatedPhotosRes.json();
+        if (Array.isArray(updatedPhotos)) {
+          setAppointmentPhotos(updatedPhotos);
+        }
+      } else {
+        alert("Error al eliminar la foto");
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -5060,6 +5154,13 @@ export default function AgendaPage() {
                       >
                         Historial
                       </button>
+                      <button
+                        type="button"
+                        className={`${styles.drawerTabBtn} ${editModalTab === "fotos" ? styles.drawerTabBtnActive : ""}`}
+                        onClick={() => setEditModalTab("fotos")}
+                      >
+                        Fotos
+                      </button>
                     </div>
                   )}
                 </div>
@@ -6562,6 +6663,286 @@ export default function AgendaPage() {
                           })}
                         </div>
                       )}
+                    </div>
+                  )}
+                  {editModalTab === "fotos" && (
+                    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px", height: "100%", overflowY: "auto" }}>
+                      
+                      {/* Selector de Ángulo en Agenda */}
+                      <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "10px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Ángulo / Perspectiva Activa</label>
+                        <div style={{ display: "flex", gap: "10px" }}>
+                          <select
+                            value={agendaPhotoAngle}
+                            onChange={(e) => setAgendaPhotoAngle(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: "8px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #cbd5e1",
+                              fontSize: "13px",
+                              background: "#ffffff",
+                              outline: "none"
+                            }}
+                          >
+                            <option value="Frente">Frente (Frontal)</option>
+                            <option value="Perfil Izquierdo">Perfil Izquierdo</option>
+                            <option value="Perfil Derecho">Perfil Derecho</option>
+                            <option value="Otro">Otro ángulo...</option>
+                          </select>
+                          
+                          {agendaPhotoAngle === "Otro" && (
+                            <input
+                              type="text"
+                              placeholder="Ej: 45 grados"
+                              value={agendaCustomAngle}
+                              onChange={(e) => setAgendaCustomAngle(e.target.value)}
+                              style={{
+                                flex: 1,
+                                padding: "8px 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #cbd5e1",
+                                fontSize: "13px",
+                                outline: "none"
+                              }}
+                            />
+                          )}
+                        </div>
+
+                        {/* Listado de ángulos con fotos registradas */}
+                        {(() => {
+                          const registeredAngles = Array.from(new Set(appointmentPhotos.map((p) => p.angle || "Frente")));
+                          if (registeredAngles.length > 0) {
+                            return (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "4px", alignItems: "center" }}>
+                                <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>Ángulos con fotos:</span>
+                                {registeredAngles.map((ang) => {
+                                  const count = appointmentPhotos.filter((p) => (p.angle || "Frente") === ang).length;
+                                  const isActive = (agendaPhotoAngle === "Otro" ? agendaCustomAngle : agendaPhotoAngle) === ang;
+                                  return (
+                                    <button
+                                      key={ang}
+                                      onClick={() => {
+                                        if (ang === "Frente" || ang === "Perfil Izquierdo" || ang === "Perfil Derecho") {
+                                          setAgendaPhotoAngle(ang);
+                                        } else {
+                                          setAgendaPhotoAngle("Otro");
+                                          setAgendaCustomAngle(ang);
+                                        }
+                                      }}
+                                      style={{
+                                        padding: "3px 8px",
+                                        borderRadius: "4px",
+                                        border: isActive ? "1px solid #006687" : "1px solid #e2e8f0",
+                                        background: isActive ? "#006687" : "#ffffff",
+                                        color: isActive ? "#ffffff" : "#475569",
+                                        fontSize: "11px",
+                                        cursor: "pointer",
+                                        fontWeight: 600
+                                      }}
+                                    >
+                                      {ang} ({count})
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+
+                      {/* Panel de Fotos del Ángulo Seleccionado */}
+                      {(() => {
+                        const currentAngleStr = agendaPhotoAngle === "Otro" ? agendaCustomAngle : agendaPhotoAngle;
+                        const filteredPhotos = appointmentPhotos.filter((p) => (p.angle || "Frente") === currentAngleStr);
+                        const before = filteredPhotos.find((p) => p.type === "BEFORE");
+                        const after = filteredPhotos.find((p) => p.type === "AFTER");
+
+                        return (
+                          <>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                              
+                              {/* Panel Antes */}
+                              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Antes (Before)</h4>
+                                {before ? (
+                                  <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                    <img src={before.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    <button
+                                      onClick={() => handleAgendaPhotoDelete(before.id)}
+                                      style={{
+                                        position: "absolute",
+                                        top: 8,
+                                        right: 8,
+                                        background: "rgba(239, 68, 68, 0.9)",
+                                        border: "none",
+                                        color: "#ffffff",
+                                        borderRadius: "50%",
+                                        width: "28px",
+                                        height: "28px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        cursor: "pointer",
+                                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                                      }}
+                                      title="Eliminar foto"
+                                    >
+                                      <Icons.Trash size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, justifyContent: "center" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setAgendaPhotoType("BEFORE"); setIsAgendaCameraOpen(true); }}
+                                      style={{
+                                        padding: "12px",
+                                        borderRadius: "8px",
+                                        border: "none",
+                                        background: "#006687",
+                                        color: "#ffffff",
+                                        fontWeight: 600,
+                                        fontSize: "13px",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "8px"
+                                      }}
+                                    >
+                                      <Icons.Camera size={16} />
+                                      <span>Hacer Foto</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setAgendaPhotoType("BEFORE"); agendaPhotoInputRef.current?.click(); }}
+                                      style={{
+                                        padding: "12px",
+                                        borderRadius: "8px",
+                                        border: "1px solid #cbd5e1",
+                                        background: "#ffffff",
+                                        color: "#475569",
+                                        fontWeight: 600,
+                                        fontSize: "13px",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "8px"
+                                      }}
+                                    >
+                                      <Icons.Image size={16} />
+                                      <span>Subir Foto</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Panel Después */}
+                              <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Después (After)</h4>
+                                {after ? (
+                                  <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                    <img src={after.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    <button
+                                      onClick={() => handleAgendaPhotoDelete(after.id)}
+                                      style={{
+                                        position: "absolute",
+                                        top: 8,
+                                        right: 8,
+                                        background: "rgba(239, 68, 68, 0.9)",
+                                        border: "none",
+                                        color: "#ffffff",
+                                        borderRadius: "50%",
+                                        width: "28px",
+                                        height: "28px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        cursor: "pointer",
+                                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                                      }}
+                                      title="Eliminar foto"
+                                    >
+                                      <Icons.Trash size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, justifyContent: "center" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setAgendaPhotoType("AFTER"); setIsAgendaCameraOpen(true); }}
+                                      style={{
+                                        padding: "12px",
+                                        borderRadius: "8px",
+                                        border: "none",
+                                        background: "#006687",
+                                        color: "#ffffff",
+                                        fontWeight: 600,
+                                        fontSize: "13px",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "8px"
+                                      }}
+                                    >
+                                      <Icons.Camera size={16} />
+                                      <span>Hacer Foto</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setAgendaPhotoType("AFTER"); agendaPhotoInputRef.current?.click(); }}
+                                      style={{
+                                        padding: "12px",
+                                        borderRadius: "8px",
+                                        border: "1px solid #cbd5e1",
+                                        background: "#ffffff",
+                                        color: "#475569",
+                                        fontWeight: 600,
+                                        fontSize: "13px",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "8px"
+                                      }}
+                                    >
+                                      <Icons.Image size={16} />
+                                      <span>Subir Foto</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                            </div>
+
+                            {/* Slider comparador deslizante si ambas fotos están presentes */}
+                            {before && after && (
+                              <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>Comparación Deslizante ({currentAngleStr})</h4>
+                                <BeforeAfterSlider
+                                  beforeUrl={before.photoUrl}
+                                  afterUrl={after.photoUrl}
+                                  height="280px"
+                                />
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+
+                      {/* Hidden File Input */}
+                      <input
+                        type="file"
+                        ref={agendaPhotoInputRef}
+                        onChange={handleAgendaPhotoFileChange}
+                        accept="image/*"
+                        style={{ display: "none" }}
+                      />
+                      {uploadingAgendaPhoto && <span style={{ fontSize: "12px", color: "#64748b", textAlign: "center" }}>Subiendo foto...</span>}
                     </div>
                   )}
                 </div>
@@ -8293,6 +8674,13 @@ export default function AgendaPage() {
         </div>,
         document.body
       )}
+
+      {/* CÁMARA MODAL EN AGENDA */}
+      <CameraCaptureModal
+        isOpen={isAgendaCameraOpen}
+        onClose={() => setIsAgendaCameraOpen(false)}
+        onCapture={handleAgendaPhotoUpload}
+      />
 
     </div>
   );

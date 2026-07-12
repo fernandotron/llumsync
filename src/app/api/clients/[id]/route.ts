@@ -34,6 +34,9 @@ export async function GET(
         files: {
           orderBy: { createdAt: "desc" },
         },
+        photos: {
+          orderBy: { takenAt: "desc" },
+        },
         clinic: true,
         allowedUsers: {
           select: { id: true },

@@ -50,6 +50,8 @@ interface Client {
   allowedUsers?: { id: string }[];
 }
 
+const TAG_COLORS = ["#f56565", "#ed8936", "#ecc94b", "#48bb78", "#38b2ac", "#4299e1", "#667eea", "#9f7aec", "#ed64a6", "#a0aec0"];
+
 interface ColumnConfig {
   key: keyof Client | "lastAppointment";
   label: string;
@@ -80,6 +82,17 @@ export default function ContactsPage() {
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [clinicUsers, setClinicUsers] = useState<any[]>([]);
   const [selectedUsersForPermissions, setSelectedUsersForPermissions] = useState<string[]>([]);
+
+  // Client Tags Modal States
+  const [clientAvailableTags, setClientAvailableTags] = useState<{ name: string; color: string }[]>([]);
+  const [showAddTagsModal, setShowAddTagsModal] = useState(false);
+  const [modalClientTags, setModalClientTags] = useState<string[]>([]);
+  const [showCreateTagsDropdown, setShowCreateTagsDropdown] = useState(false);
+  const [createTagsSubView, setCreateTagsSubView] = useState<"list" | "create">("list");
+  const [searchCreateTagQuery, setSearchCreateTagQuery] = useState("");
+  const [newCreateTagName, setNewCreateTagName] = useState("");
+  const [newCreateTagColor, setNewCreateTagColor] = useState("#f56565");
+  const createTagsDropdownRef = useRef<HTMLDivElement>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,6 +150,19 @@ export default function ContactsPage() {
   const [filterGender, setFilterGender] = useState("all");
   const [filterTag, setFilterTag] = useState("");
   const [filterUserId, setFilterUserId] = useState("all");
+
+  // Advanced Filtering layout and custom preset states
+  const [filterActiveTab, setFilterActiveTab] = useState<"menu" | "tags" | "gender" | "age" | "createdAt" | "lastAppointment" | "field" | "permissions">("menu");
+  const [customFilters, setCustomFilters] = useState<{ name: string; values: any }[]>([]);
+  const [selectedCustomFilter, setSelectedCustomFilter] = useState("");
+  const [filterAgeMin, setFilterAgeMin] = useState("");
+  const [filterAgeMax, setFilterAgeMax] = useState("");
+  const [filterCreatedStart, setFilterCreatedStart] = useState("");
+  const [filterCreatedEnd, setFilterCreatedEnd] = useState("");
+  const [filterLastApptStart, setFilterLastApptStart] = useState("");
+  const [filterLastApptEnd, setFilterLastApptEnd] = useState("");
+  const [filterFieldName, setFilterFieldName] = useState("firstName");
+  const [filterFieldValue, setFilterFieldValue] = useState("");
 
   // Create Client Form Fields
   const [formFirstName, setFormFirstName] = useState("");
@@ -355,6 +381,34 @@ export default function ContactsPage() {
         })
         .catch(console.error);
     }
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("clifav_client_available_tags");
+      if (saved) {
+        try {
+          setClientAvailableTags(JSON.parse(saved));
+        } catch (e) {
+          setClientAvailableTags([
+            { name: "FRECUENTE", color: "#4299e1" },
+            { name: "NUEVO", color: "#48bb78" },
+            { name: "RECOMENDADO", color: "#ed8936" }
+          ]);
+        }
+      } else {
+        const initial = [
+          { name: "FRECUENTE", color: "#4299e1" },
+          { name: "NUEVO", color: "#48bb78" },
+          { name: "RECOMENDADO", color: "#ed8936" }
+        ];
+        setClientAvailableTags(initial);
+        localStorage.setItem("clifav_client_available_tags", JSON.stringify(initial));
+        const savedCustom = localStorage.getItem("clifav_custom_client_filters");
+        if (savedCustom) {
+          try {
+            setCustomFilters(JSON.parse(savedCustom));
+          } catch (e) {}
+        }
+      }
+    }
   }, [activeClinic, searchQuery]);
 
   // Close dropdowns when clicking outside
@@ -372,6 +426,9 @@ export default function ContactsPage() {
       if (addressAutocompleteRef.current && !addressAutocompleteRef.current.contains(e.target as Node)) {
         setShowAddressDropdown(false);
       }
+      if (createTagsDropdownRef.current && !createTagsDropdownRef.current.contains(e.target as Node)) {
+        setShowCreateTagsDropdown(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -383,6 +440,17 @@ export default function ContactsPage() {
     );
   };
 
+  const getAge = (birthDateStr: string | Date) => {
+    const birth = new Date(birthDateStr);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   // Filter application
   const filteredClients = clients.filter((client) => {
     if (filterGender !== "all" && client.gender !== filterGender) return false;
@@ -390,6 +458,28 @@ export default function ContactsPage() {
     if (filterUserId !== "all") {
       const allowedIds = client.allowedUsers?.map((u) => u.id) || [];
       if (!allowedIds.includes(filterUserId)) return false;
+    }
+    if (filterAgeMin || filterAgeMax) {
+      if (!client.birthDate) return false;
+      const age = getAge(client.birthDate);
+      if (filterAgeMin && age < parseInt(filterAgeMin)) return false;
+      if (filterAgeMax && age > parseInt(filterAgeMax)) return false;
+    }
+    if (filterCreatedStart || filterCreatedEnd) {
+      const createdTime = new Date(client.createdAt).getTime();
+      if (filterCreatedStart && createdTime < new Date(filterCreatedStart + "T00:00:00").getTime()) return false;
+      if (filterCreatedEnd && createdTime > new Date(filterCreatedEnd + "T23:59:59").getTime()) return false;
+    }
+    if (filterLastApptStart || filterLastApptEnd) {
+      const apps = (client as any).appointments || [];
+      if (apps.length === 0) return false;
+      const latestTime = Math.max(...apps.map((a: any) => new Date(a.start).getTime()));
+      if (filterLastApptStart && latestTime < new Date(filterLastApptStart + "T00:00:00").getTime()) return false;
+      if (filterLastApptEnd && latestTime > new Date(filterLastApptEnd + "T23:59:59").getTime()) return false;
+    }
+    if (filterFieldValue.trim()) {
+      const fieldVal = String((client as any)[filterFieldName] || "").toLowerCase();
+      if (!fieldVal.includes(filterFieldValue.toLowerCase().trim())) return false;
     }
     return true;
   });
@@ -492,6 +582,105 @@ export default function ContactsPage() {
     } catch (err) {
       console.error(err);
       alert("Error de red");
+    }
+  };
+
+  const handleOpenAddTagsModal = () => {
+    setShowBulkOptions(false);
+    if (selectedClients.length === 1) {
+      const client = clients.find(c => c.id === selectedClients[0]);
+      if (client?.tags) {
+        setModalClientTags(client.tags.split(",").map(t => t.trim()).filter(Boolean));
+      } else {
+        setModalClientTags([]);
+      }
+    } else {
+      setModalClientTags([]);
+    }
+    setShowAddTagsModal(true);
+  };
+
+  const handleSaveClientTags = async () => {
+    try {
+      const res = await fetch("/api/clients/tags", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientIds: selectedClients, tags: modalClientTags }),
+      });
+      if (res.ok) {
+        setShowAddTagsModal(false);
+        setSelectedClients([]);
+        fetchClients();
+      } else {
+        alert("Error al actualizar etiquetas");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de red");
+    }
+  };
+
+  const handleDeleteTagGlobal = (tagName: string) => {
+    const updated = clientAvailableTags.filter(t => t.name !== tagName);
+    setClientAvailableTags(updated);
+    localStorage.setItem("clifav_client_available_tags", JSON.stringify(updated));
+    setModalClientTags(prev => prev.filter(t => t !== tagName));
+  };
+
+  const handleCreateCustomFilter = () => {
+    const name = prompt("Introduce el nombre para tu filtro personalizado:");
+    if (!name || !name.trim()) return;
+    
+    const filterValue = {
+      gender: filterGender,
+      tag: filterTag,
+      userId: filterUserId,
+      ageMin: filterAgeMin,
+      ageMax: filterAgeMax,
+      createdStart: filterCreatedStart,
+      createdEnd: filterCreatedEnd,
+      lastApptStart: filterLastApptStart,
+      lastApptEnd: filterLastApptEnd,
+      fieldName: filterFieldName,
+      fieldValue: filterFieldValue
+    };
+    
+    const updated = [...customFilters, { name: name.trim(), values: filterValue }];
+    setCustomFilters(updated);
+    localStorage.setItem("clifav_custom_client_filters", JSON.stringify(updated));
+    setSelectedCustomFilter(name.trim());
+  };
+
+  const handleApplyCustomFilter = (name: string) => {
+    setSelectedCustomFilter(name);
+    if (!name) {
+      setFilterGender("all");
+      setFilterTag("");
+      setFilterUserId("all");
+      setFilterAgeMin("");
+      setFilterAgeMax("");
+      setFilterCreatedStart("");
+      setFilterCreatedEnd("");
+      setFilterLastApptStart("");
+      setFilterLastApptEnd("");
+      setFilterFieldName("firstName");
+      setFilterFieldValue("");
+      return;
+    }
+    const matched = customFilters.find(f => f.name === name);
+    if (matched) {
+      const v = matched.values;
+      setFilterGender(v.gender || "all");
+      setFilterTag(v.tag || "");
+      setFilterUserId(v.userId || "all");
+      setFilterAgeMin(v.ageMin || "");
+      setFilterAgeMax(v.ageMax || "");
+      setFilterCreatedStart(v.createdStart || "");
+      setFilterCreatedEnd(v.createdEnd || "");
+      setFilterLastApptStart(v.lastApptStart || "");
+      setFilterLastApptEnd(v.lastApptEnd || "");
+      setFilterFieldName(v.fieldName || "firstName");
+      setFilterFieldValue(v.fieldValue || "");
     }
   };
 
@@ -697,57 +886,566 @@ export default function ContactsPage() {
             </button>
 
             {showFilterDropdown && (
-              <div className={`${styles.filterDropdownMenu} glass`}>
-                <div className={styles.dropdownHeader}>{t("advancedFilters")}</div>
-                <div className={styles.filterForm}>
-                  <div className="form-group">
-                    <label className="form-label">{t("colGender")}</label>
-                    <select
-                      className="input select"
-                      style={{ padding: "8px 12px" }}
-                      value={filterGender}
-                      onChange={(e) => setFilterGender(e.target.value)}
+              <div 
+                className={`${styles.filterDropdownMenu} glass`} 
+                style={{ 
+                  width: "280px", 
+                  padding: "12px", 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  gap: "8px",
+                  borderRadius: "12px",
+                  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+                }}
+              >
+                {filterActiveTab === "menu" ? (
+                  <>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      {/* Etiquetas */}
+                      <button 
+                        type="button"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "10px 8px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          textAlign: "left",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.04)"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                        onClick={() => setFilterActiveTab("tags")}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                          </svg>
+                          <span>Etiquetas</span>
+                        </div>
+                        <Icons.ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+                      </button>
+
+                      {/* Género */}
+                      <button 
+                        type="button"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "10px 8px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          textAlign: "left",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.04)"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                        onClick={() => setFilterActiveTab("gender")}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                          </svg>
+                          <span>Género</span>
+                        </div>
+                        <Icons.ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+                      </button>
+
+                      {/* Edad */}
+                      <button 
+                        type="button"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "10px 8px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          textAlign: "left",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.04)"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                        onClick={() => setFilterActiveTab("age")}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                            <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                            <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                          </svg>
+                          <span>Edad</span>
+                        </div>
+                        <Icons.ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+                      </button>
+
+                      {/* Fecha de creación */}
+                      <button 
+                        type="button"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "10px 8px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          textAlign: "left",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.04)"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                        onClick={() => setFilterActiveTab("createdAt")}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                          </svg>
+                          <span>Fecha de creación</span>
+                        </div>
+                        <Icons.ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+                      </button>
+
+                      {/* Fecha de última cita */}
+                      <button 
+                        type="button"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "10px 8px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          textAlign: "left",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.04)"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                        onClick={() => setFilterActiveTab("lastAppointment")}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                          </svg>
+                          <span>Fecha de última cita</span>
+                        </div>
+                        <Icons.ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+                      </button>
+
+                      {/* Campo */}
+                      <button 
+                        type="button"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "10px 8px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          textAlign: "left",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.04)"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                        onClick={() => setFilterActiveTab("field")}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                          </svg>
+                          <span>Campo</span>
+                        </div>
+                        <Icons.ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+                      </button>
+
+                      {/* Permisos */}
+                      <button 
+                        type="button"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "10px 8px",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          textAlign: "left",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.04)"}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                        onClick={() => setFilterActiveTab("permissions")}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)" }}>
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                          </svg>
+                          <span>Permisos</span>
+                        </div>
+                        <Icons.ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+                      </button>
+                    </div>
+
+                    <div style={{ height: "1px", backgroundColor: "var(--border-color)", margin: "4px 0" }}></div>
+
+                    {/* Personalizados Section */}
+                    <div>
+                      <h4 style={{ margin: "4px 8px 8px 8px", fontSize: "13px", fontWeight: "600", color: "var(--text-secondary)" }}>
+                        Personalizados
+                      </h4>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 8px" }}>
+                        <select 
+                          className="input select"
+                          style={{ width: "100%", padding: "6px 10px", fontSize: "13px" }}
+                          value={selectedCustomFilter}
+                          onChange={(e) => handleApplyCustomFilter(e.target.value)}
+                        >
+                          <option value="">Seleccionar</option>
+                          {customFilters.map(f => (
+                            <option key={f.name} value={f.name}>{f.name}</option>
+                          ))}
+                        </select>
+                        
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ 
+                              flex: 1, 
+                              padding: "6px", 
+                              fontSize: "12px", 
+                              background: "#fff", 
+                              border: "1px solid var(--border-color)", 
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              fontWeight: "600"
+                            }}
+                            onClick={handleCreateCustomFilter}
+                          >
+                            Crear filtro
+                          </button>
+                          {selectedCustomFilter && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ 
+                                padding: "6px 10px", 
+                                fontSize: "12px", 
+                                background: "#fff", 
+                                border: "1px solid var(--danger)", 
+                                color: "var(--danger)",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                fontWeight: "600"
+                              }}
+                              onClick={() => {
+                                const updated = customFilters.filter(f => f.name !== selectedCustomFilter);
+                                setCustomFilters(updated);
+                                localStorage.setItem("clifav_custom_client_filters", JSON.stringify(updated));
+                                handleApplyCustomFilter("");
+                              }}
+                              title="Eliminar filtro guardado"
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Subview Filter Panel */}
+                    <button 
+                      type="button"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--primary)",
+                        fontWeight: "600",
+                        fontSize: "14px",
+                        padding: "4px 8px 8px 4px",
+                        textAlign: "left"
+                      }}
+                      onClick={() => setFilterActiveTab("menu")}
                     >
-                      <option value="all">{t("all")}</option>
-                      <option value="Femenino">{t("female")}</option>
-                      <option value="Masculino">{t("male")}</option>
-                      <option value="Otro">{t("other")}</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">{t("assignedProfessional")}</label>
-                    <select
-                      className="input select"
-                      style={{ padding: "8px 12px" }}
-                      value={filterUserId}
-                      onChange={(e) => setFilterUserId(e.target.value)}
-                    >
-                      <option value="all">{t("all")}</option>
-                      {clinicUsers.map((u) => (
-                        <option key={u.id} value={u.id}>{u.name} {u.lastName || ""}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">{t("colTags")}</label>
-                    <input
-                      type="text"
-                      className="input"
-                      style={{ padding: "8px 12px" }}
-                      placeholder="Ej: Deporte"
-                      value={filterTag}
-                      onChange={(e) => setFilterTag(e.target.value)}
-                    />
-                  </div>
-                  <button 
-                    type="button" 
-                    className="btn btn-primary" 
-                    style={{ width: "100%", padding: "8px" }}
-                    onClick={() => setShowFilterDropdown(false)}
-                  >
-                    {t("apply")}
-                  </button>
-                </div>
+                      <Icons.ChevronLeft size={16} />
+                      <span>Volver</span>
+                    </button>
+
+                    <div style={{ padding: "0 8px 8px 8px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {/* Subview: ETIQUETAS */}
+                      {filterActiveTab === "tags" && (
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Etiquetas</label>
+                          <input 
+                            type="text" 
+                            className="input" 
+                            style={{ width: "100%", padding: "6px 10px", fontSize: "13px" }}
+                            placeholder="Buscar por etiqueta..."
+                            value={filterTag}
+                            onChange={(e) => setFilterTag(e.target.value)}
+                            autoFocus
+                          />
+                          {filterTag && (
+                            <button 
+                              type="button" 
+                              style={{ border: "none", background: "none", color: "var(--danger)", fontSize: "11px", cursor: "pointer", marginTop: "4px", padding: 0 }}
+                              onClick={() => setFilterTag("")}
+                            >
+                              Limpiar filtro
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Subview: GÉNERO */}
+                      {filterActiveTab === "gender" && (
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Género</label>
+                          <select 
+                            className="input select" 
+                            style={{ width: "100%", padding: "6px 10px", fontSize: "13px" }}
+                            value={filterGender}
+                            onChange={(e) => setFilterGender(e.target.value)}
+                          >
+                            <option value="all">Todos</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Otro">Otro</option>
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Subview: EDAD */}
+                      {filterActiveTab === "age" && (
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Rango de Edad</label>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <input 
+                              type="number" 
+                              className="input" 
+                              placeholder="Mín" 
+                              style={{ width: "70px", padding: "6px", fontSize: "13px" }}
+                              value={filterAgeMin}
+                              onChange={(e) => setFilterAgeMin(e.target.value)}
+                            />
+                            <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>a</span>
+                            <input 
+                              type="number" 
+                              className="input" 
+                              placeholder="Máx" 
+                              style={{ width: "70px", padding: "6px", fontSize: "13px" }}
+                              value={filterAgeMax}
+                              onChange={(e) => setFilterAgeMax(e.target.value)}
+                            />
+                          </div>
+                          {(filterAgeMin || filterAgeMax) && (
+                            <button 
+                              type="button" 
+                              style={{ border: "none", background: "none", color: "var(--danger)", fontSize: "11px", cursor: "pointer", marginTop: "4px", padding: 0 }}
+                              onClick={() => { setFilterAgeMin(""); setFilterAgeMax(""); }}
+                            >
+                              Limpiar filtro
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Subview: FECHA CREACIÓN */}
+                      {filterActiveTab === "createdAt" && (
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Fecha de creación</label>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            <input 
+                              type="date" 
+                              className="input" 
+                              style={{ padding: "6px", fontSize: "13px", width: "100%" }}
+                              value={filterCreatedStart}
+                              onChange={(e) => setFilterCreatedStart(e.target.value)}
+                            />
+                            <span style={{ fontSize: "11px", alignSelf: "center", color: "var(--text-muted)" }}>hasta</span>
+                            <input 
+                              type="date" 
+                              className="input" 
+                              style={{ padding: "6px", fontSize: "13px", width: "100%" }}
+                              value={filterCreatedEnd}
+                              onChange={(e) => setFilterCreatedEnd(e.target.value)}
+                            />
+                          </div>
+                          {(filterCreatedStart || filterCreatedEnd) && (
+                            <button 
+                              type="button" 
+                              style={{ border: "none", background: "none", color: "var(--danger)", fontSize: "11px", cursor: "pointer", marginTop: "4px", padding: 0 }}
+                              onClick={() => { setFilterCreatedStart(""); setFilterCreatedEnd(""); }}
+                            >
+                              Limpiar filtro
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Subview: FECHA ÚLTIMA CITA */}
+                      {filterActiveTab === "lastAppointment" && (
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Última cita</label>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            <input 
+                              type="date" 
+                              className="input" 
+                              style={{ padding: "6px", fontSize: "13px", width: "100%" }}
+                              value={filterLastApptStart}
+                              onChange={(e) => setFilterLastApptStart(e.target.value)}
+                            />
+                            <span style={{ fontSize: "11px", alignSelf: "center", color: "var(--text-muted)" }}>hasta</span>
+                            <input 
+                              type="date" 
+                              className="input" 
+                              style={{ padding: "6px", fontSize: "13px", width: "100%" }}
+                              value={filterLastApptEnd}
+                              onChange={(e) => setFilterLastApptEnd(e.target.value)}
+                            />
+                          </div>
+                          {(filterLastApptStart || filterLastApptEnd) && (
+                            <button 
+                              type="button" 
+                              style={{ border: "none", background: "none", color: "var(--danger)", fontSize: "11px", cursor: "pointer", marginTop: "4px", padding: 0 }}
+                              onClick={() => { setFilterLastApptStart(""); setFilterLastApptEnd(""); }}
+                            >
+                              Limpiar filtro
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Subview: CAMPO */}
+                      {filterActiveTab === "field" && (
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Buscar en Campo</label>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            <select 
+                              className="input select"
+                              style={{ padding: "6px", fontSize: "13px" }}
+                              value={filterFieldName}
+                              onChange={(e) => setFilterFieldName(e.target.value)}
+                            >
+                              <option value="phone">Teléfono</option>
+                              <option value="email">Email</option>
+                              <option value="dniNif">DNI/NIF</option>
+                              <option value="address">Dirección</option>
+                              <option value="occupation">Ocupación</option>
+                            </select>
+                            <input 
+                              type="text" 
+                              className="input" 
+                              placeholder="Valor a buscar..." 
+                              style={{ padding: "6px", fontSize: "13px" }}
+                              value={filterFieldValue}
+                              onChange={(e) => setFilterFieldValue(e.target.value)}
+                            />
+                          </div>
+                          {filterFieldValue && (
+                            <button 
+                              type="button" 
+                              style={{ border: "none", background: "none", color: "var(--danger)", fontSize: "11px", cursor: "pointer", marginTop: "4px", padding: 0 }}
+                              onClick={() => setFilterFieldValue("")}
+                            >
+                              Limpiar filtro
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Subview: PERMISOS */}
+                      {filterActiveTab === "permissions" && (
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Acceso de Profesionales</label>
+                          <select 
+                            className="input select" 
+                            style={{ width: "100%", padding: "6px 10px", fontSize: "13px" }}
+                            value={filterUserId}
+                            onChange={(e) => setFilterUserId(e.target.value)}
+                          >
+                            <option value="all">Todos los empleados</option>
+                            {clinicUsers.map((u) => (
+                              <option key={u.id} value={u.id}>{u.name} {u.lastName || ""}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      <button 
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ width: "100%", padding: "6px", marginTop: "8px", fontSize: "12px" }}
+                        onClick={() => setShowFilterDropdown(false)}
+                      >
+                        Aplicar Filtros
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -775,7 +1473,7 @@ export default function ContactsPage() {
               {showBulkOptions && (
                 <div className={`${styles.dropdownMenu} glass`}>
                   <div className={styles.dropdownList}>
-                    <button className={styles.dropdownItemBtn} onClick={() => alert(t("addTagsInDev"))}>
+                    <button className={styles.dropdownItemBtn} onClick={handleOpenAddTagsModal}>
                       {t("addTags")}
                     </button>
                     <button className={styles.dropdownItemBtn} onClick={() => {
@@ -894,10 +1592,28 @@ export default function ContactsPage() {
                   {columns.filter((c) => c.visible).map((c) => (
                     <td key={c.key}>
                       {c.key === "tags" && client.tags ? (
-                        <div className={styles.tagList}>
-                          {client.tags.split(",").map((tag) => (
-                            <span key={tag} className={styles.tagBadge}>{tag.trim()}</span>
-                          ))}
+                        <div className={styles.tagList} style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                          {client.tags.split(",").map((tag) => {
+                            const trimmed = tag.trim();
+                            const matchedTag = clientAvailableTags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
+                            const color = matchedTag?.color || "#a0aec0";
+                            return (
+                              <span 
+                                key={tag} 
+                                className={styles.tagBadge}
+                                style={{ 
+                                  backgroundColor: color, 
+                                  color: "#ffffff", 
+                                  padding: "2px 8px", 
+                                  borderRadius: "12px", 
+                                  fontSize: "11px", 
+                                  fontWeight: "700" 
+                                }}
+                              >
+                                {trimmed}
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : (c.key === "firstName" || c.key === "lastName") ? (
                         <Link href={`/dashboard/contacts/${client.id}`} className={styles.clientNameLink}>
@@ -1072,6 +1788,350 @@ export default function ContactsPage() {
                 {t("cancel")}
               </button>
               <button type="button" className="btn btn-primary" onClick={handleSavePermissions}>
+                {t("save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD TAGS BULK MODAL */}
+      {showAddTagsModal && (
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px", overflow: "visible" }}>
+            <div className={styles.modalHeader} style={{ borderBottom: "none", paddingBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ color: "var(--primary)", fontSize: "18px", margin: 0 }}>
+                Añadir Etiquetas ({selectedClients.length} cliente{selectedClients.length > 1 ? "s" : ""})
+              </h2>
+              <button 
+                type="button" 
+                onClick={() => setShowAddTagsModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", padding: 0 }}
+              >
+                <Icons.Close size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: "8px 0 20px 0" }}>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "16px", marginTop: 0 }}>
+                Selecciona o crea etiquetas para asignar a los clientes seleccionados.
+              </p>
+              
+              {/* Tags row */}
+              <div 
+                style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: "8px", 
+                  flexWrap: "wrap", 
+                  minHeight: "40px", 
+                  padding: "8px", 
+                  border: "1px solid var(--border-color)", 
+                  borderRadius: "8px",
+                  position: "relative"
+                }} 
+                ref={createTagsDropdownRef}
+              >
+                {modalClientTags.map((tag, idx) => {
+                  const color = clientAvailableTags.find(t => t.name === tag)?.color || "#4299e1";
+                  return (
+                    <span 
+                      key={idx} 
+                      style={{ 
+                        backgroundColor: color, 
+                        color: "#fff", 
+                        padding: "4px 10px", 
+                        borderRadius: "16px", 
+                        fontSize: "12px", 
+                        fontWeight: "600",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px"
+                      }}
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        style={{ 
+                          background: "rgba(255,255,255,0.25)", 
+                          border: "none", 
+                          borderRadius: "50%", 
+                          width: "14px", 
+                          height: "14px", 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          color: "#fff", 
+                          cursor: "pointer",
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          padding: 0
+                        }}
+                        onClick={() => setModalClientTags(prev => prev.filter((_, i) => i !== idx))}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+                
+                <button
+                  type="button"
+                  style={{ 
+                    width: "28px", 
+                    height: "28px", 
+                    borderRadius: "50%", 
+                    border: "1px dashed var(--border-color)", 
+                    background: "transparent", 
+                    color: "var(--text-secondary)", 
+                    cursor: "pointer", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    fontSize: "16px",
+                    fontWeight: "500",
+                    transition: "all 0.2s"
+                  }}
+                  onClick={() => {
+                    setShowCreateTagsDropdown(!showCreateTagsDropdown);
+                    setCreateTagsSubView("list");
+                    setSearchCreateTagQuery("");
+                  }}
+                  title="Agregar etiqueta"
+                >
+                  +
+                </button>
+
+                {showCreateTagsDropdown && (
+                  <div 
+                    style={{ 
+                      position: "absolute", 
+                      top: "100%", 
+                      left: "8px", 
+                      marginTop: "6px",
+                      background: "#ffffff", 
+                      border: "1px solid var(--border-color)", 
+                      borderRadius: "8px", 
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                      zIndex: 1000, 
+                      width: "250px",
+                      padding: "12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px"
+                    }}
+                  >
+                    {createTagsSubView === "list" ? (
+                      <>
+                        <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "var(--text-primary)" }}>Etiquetas</h3>
+                        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                          <Icons.Search size={14} style={{ position: "absolute", left: "8px", color: "var(--text-muted)", pointerEvents: "none" }} />
+                          <input 
+                            type="text"
+                            style={{ 
+                              width: "100%", 
+                              fontSize: "12px", 
+                              padding: "6px 8px 6px 28px", 
+                              border: "1px solid var(--border-color)", 
+                              borderRadius: "4px",
+                              outline: "none"
+                            }}
+                            placeholder="Buscar etiqueta"
+                            value={searchCreateTagQuery}
+                            onChange={(e) => setSearchCreateTagQuery(e.target.value)}
+                          />
+                        </div>
+                        <div 
+                          style={{ 
+                            display: "flex", 
+                            flexDirection: "column", 
+                            gap: "4px", 
+                            maxHeight: "150px", 
+                            overflowY: "auto",
+                            paddingRight: "2px"
+                          }}
+                        >
+                          {clientAvailableTags
+                            .filter(tag => {
+                              if (modalClientTags.includes(tag.name)) return false;
+                              return tag.name.toLowerCase().includes(searchCreateTagQuery.toLowerCase());
+                            })
+                            .map(tag => (
+                              <div
+                                key={tag.name}
+                                style={{ 
+                                  backgroundColor: tag.color, 
+                                  color: "#ffffff",
+                                  padding: "6px 10px",
+                                  borderRadius: "4px",
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "flex", 
+                                  justifyContent: "space-between", 
+                                  alignItems: "center",
+                                  width: "100%"
+                                }}
+                              >
+                                <span 
+                                  style={{ flex: 1, cursor: "pointer", display: "block" }} 
+                                  onClick={() => {
+                                    setModalClientTags(prev => [...prev, tag.name]);
+                                    setShowCreateTagsDropdown(false);
+                                  }}
+                                >
+                                  {tag.name}
+                                </span>
+                                <span 
+                                  title="Eliminar etiqueta"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteTagGlobal(tag.name);
+                                  }}
+                                  style={{ 
+                                    cursor: "pointer", 
+                                    display: "flex", 
+                                    alignItems: "center", 
+                                    marginLeft: "8px",
+                                    color: "rgba(255, 255, 255, 0.8)",
+                                    background: "rgba(255, 255, 255, 0.15)",
+                                    borderRadius: "4px",
+                                    padding: "2px"
+                                  }}
+                                >
+                                  <Icons.Close size={12} />
+                                </span>
+                              </div>
+                            ))}
+                          {clientAvailableTags.filter(tag => {
+                            if (modalClientTags.includes(tag.name)) return false;
+                            return tag.name.toLowerCase().includes(searchCreateTagQuery.toLowerCase());
+                          }).length === 0 && (
+                            <div style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "center", padding: "8px" }}>Sin etiquetas disponibles</div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          style={{ 
+                            alignSelf: "flex-end",
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            color: "var(--text-secondary)",
+                            background: "#ffffff",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                          }}
+                          onClick={() => {
+                            setCreateTagsSubView("create");
+                            setNewCreateTagName("");
+                            setNewCreateTagColor("#f56565");
+                          }}
+                        >
+                          Nueva etiqueta
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "var(--text-primary)" }}>Nueva etiqueta</h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          <div>
+                            <label style={{ fontSize: "10px", fontWeight: "600", textTransform: "uppercase", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Nombre</label>
+                            <input 
+                              type="text"
+                              style={{ 
+                                width: "100%", 
+                                fontSize: "12px", 
+                                padding: "6px 10px", 
+                                border: "1px solid var(--border-color)", 
+                                borderRadius: "4px",
+                                outline: "none"
+                              }}
+                              placeholder="Nombre de la etiqueta"
+                              value={newCreateTagName}
+                              onChange={(e) => setNewCreateTagName(e.target.value)}
+                              autoFocus
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "10px", fontWeight: "600", textTransform: "uppercase", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Asignar Color</label>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px" }}>
+                              {TAG_COLORS.map(color => (
+                                <div
+                                  key={color}
+                                  style={{ 
+                                    backgroundColor: color, 
+                                    width: "22px", 
+                                    height: "22px", 
+                                    borderRadius: "50%", 
+                                    cursor: "pointer",
+                                    border: newCreateTagColor === color ? "2px solid #2d3748" : "none",
+                                    boxShadow: newCreateTagColor === color ? "0 0 0 1px #fff" : "none"
+                                  }}
+                                  onClick={() => setNewCreateTagColor(color)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px", marginTop: "8px" }}>
+                            <button 
+                              type="button"
+                              style={{ 
+                                padding: "4px 8px", 
+                                fontSize: "11px", 
+                                border: "1px solid var(--border-color)", 
+                                background: "#fff", 
+                                borderRadius: "4px", 
+                                cursor: "pointer", 
+                                color: "var(--text-secondary)" 
+                              }}
+                              onClick={() => setCreateTagsSubView("list")}
+                            >
+                              Cancelar
+                            </button>
+                            <button 
+                              type="button"
+                              style={{ 
+                                padding: "4px 8px", 
+                                fontSize: "11px", 
+                                border: "none", 
+                                background: "var(--primary)", 
+                                borderRadius: "4px", 
+                                cursor: "pointer", 
+                                color: "#fff" 
+                              }}
+                              disabled={!newCreateTagName.trim()}
+                              onClick={() => {
+                                const name = newCreateTagName.trim().toUpperCase();
+                                if (clientAvailableTags.some(t => t.name === name)) {
+                                  alert("Esta etiqueta ya existe.");
+                                  return;
+                                }
+                                const updated = [...clientAvailableTags, { name, color: newCreateTagColor }];
+                                setClientAvailableTags(updated);
+                                localStorage.setItem("clifav_client_available_tags", JSON.stringify(updated));
+                                setModalClientTags(prev => [...prev, name]);
+                                setShowCreateTagsDropdown(false);
+                              }}
+                            >
+                              Guardar
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.modalActions} style={{ borderTop: "none", paddingTop: 0 }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowAddTagsModal(false)}>
+                {t("cancel")}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleSaveClientTags}>
                 {t("save")}
               </button>
             </div>

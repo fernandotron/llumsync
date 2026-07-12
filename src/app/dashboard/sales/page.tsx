@@ -122,6 +122,7 @@ const IconTrash = ({ size = 16 }: { size?: number }) => (
 
 interface ArticleItem {
   id: string;
+  checkoutGroupId?: string;
   refMov: string;
   nuV: string;
   fecha: string;
@@ -604,6 +605,8 @@ export default function SalesPage() {
 
   const [verBaseImponible, setVerBaseImponible] = useState(false);
   const [verBonosDevengo, setVerBonosDevengo] = useState(false);
+  const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
+  const optionsRef = useRef<HTMLDivElement>(null);
 
   // Database list states
   const [clients, setClients] = useState<Client[]>([]);
@@ -822,10 +825,10 @@ export default function SalesPage() {
 
   // Auto-open fiscal profile setup modal if payment selection is active and fiscal data is missing
   useEffect(() => {
-    if (selectedItemForPayment && isFiscalProfileMissing) {
+    if (!loading && selectedItemForPayment && isFiscalProfileMissing) {
       setShowFiscalSetupModal(true);
     }
-  }, [selectedItemForPayment, activeFiscalProfile]);
+  }, [selectedItemForPayment, activeFiscalProfile, loading, isFiscalProfileMissing]);
 
   // Redirect to agenda if has no sales permissions at all, or set initial allowed tab
   useEffect(() => {
@@ -1014,6 +1017,9 @@ export default function SalesPage() {
       if (columnSelectorRef.current && !columnSelectorRef.current.contains(event.target as Node)) {
         setShowColumnDropdown(false);
       }
+      if (optionsRef.current && !optionsRef.current.contains(event.target as Node)) {
+        setShowOptionsDropdown(false);
+      }
       
       const target = event.target as HTMLElement;
       if (
@@ -1152,263 +1158,29 @@ export default function SalesPage() {
     if (loading) return;
     const params = new URLSearchParams(window.location.search);
     const saleId = params.get("saleId");
+    const appointmentId = params.get("appointmentId");
     
-    // 1. If we have a saleId, look for the sale and open it inside the Caja panel
+    if (!saleId && !appointmentId) return;
+
+    const allArticles = getArticlesList();
+
     if (saleId && salesHistory.length > 0) {
-      const sale = salesHistory.find((s: any) => s.id === saleId);
-      if (sale) {
+      const foundItem = allArticles.find(item => item.id.includes(saleId));
+      if (foundItem) {
         setShowPosDrawer(false);
-        
-        // Check if there is an associated appointment in our DB list
-        let appt = null;
-        try {
-          const items = JSON.parse(sale.itemsJson || "[]");
-          const apptItem = items.find((i: any) => i.id && i.id.startsWith("db-app-"));
-          if (apptItem) {
-            const appId = apptItem.id.replace("db-app-", "");
-            appt = appointments.find((a: any) => a.id === appId);
-          }
-        } catch {}
-
-        // Check if there is an associated voucher in our DB list
-        let voucher = null;
-        try {
-          const items = JSON.parse(sale.itemsJson || "[]");
-          const voucherItem = items.find((i: any) => i.id && (i.id.startsWith("db-voucher-") || i.id.startsWith("voucher-")));
-          if (voucherItem) {
-            const voucherId = voucherItem.id.replace("db-voucher-", "").replace("voucher-", "");
-            voucher = clientVouchers.find((v: any) => v.id === voucherId);
-          }
-        } catch {}
-
-        if (appt) {
-          const clientObj = clients.find((c: any) => c.id === appt.clientId);
-          const appDate = new Date(appt.start);
-          setSelectedItemForPayment({
-            id: `db-app-${appt.id}`,
-            refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
-            nuV: sale.invoiceNumber,
-            fecha: appDate.toLocaleDateString("es-ES"),
-            fechaRaw: appDate,
-            hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")}`,
-            tipo: "Servicio",
-            detalle: appt.service?.name || "Tratamiento",
-            clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
-            cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
-            clientId: appt.clientId,
-            dni: clientObj?.dniNif || "-",
-            empleado: appt.user?.name || "Especialista",
-            consulta: activeClinic?.name || "",
-            estado: "PAGADO",
-            metodoPago: getPaymentMethodText(sale.paymentMethod),
-            fechaPago: new Date(sale.createdAt).toLocaleDateString("es-ES"),
-            price: appt.service?.price || 0,
-            factura: "Si",
-            precio: appt.service?.price || 0,
-            iva: 0,
-            irpf: 0,
-            total: appt.service?.price || 0,
-            pagado: appt.service?.price || 0,
-          });
-          return;
-        } else if (voucher) {
-          const clientObj = clients.find((c: any) => c.id === voucher.clientId);
-          const cvDate = new Date(voucher.createdAt);
-          const cvIdx = clientVouchers.findIndex(v => v.id === voucher.id);
-
-          // Find all database sales that belong to this client voucher
-          const matchingSales = salesHistory.filter((s) => {
-            try {
-              const itemsArr = JSON.parse(s.itemsJson || "[]");
-              return itemsArr.some((i: any) => i.id === `db-voucher-${voucher.id}` || i.id === `voucher-${voucher.id}` || i.id === voucher.id);
-            } catch {
-              return false;
-            }
-          });
-
-          const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
-          const voucherPrice = voucher.price || 0;
-
-          let resolvedEstado = "PENDIENTE";
-          if (voucherPrice === 0) {
-            resolvedEstado = "GRATUITO";
-          } else if (totalPaid >= voucherPrice) {
-            resolvedEstado = "PAGADO";
-          } else if (totalPaid > 0) {
-            resolvedEstado = "PAGO PARCIAL";
-          }
-
-          const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
-          const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
-
-          const latestSale = matchingSales.length > 0
-            ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
-            : null;
-          const resolvedFechaPago = latestSale ? new Date(latestSale.createdAt).toLocaleDateString("es-ES") : "-";
-
-          const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
-          const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
-
-          const cvNumber = cvIdx !== -1 ? cvIdx : 0;
-
-          setSelectedItemForPayment({
-            id: `db-voucher-${voucher.id}`,
-            refMov: `#${700 + cvNumber}`,
-            nuV: resolvedNuV === "-" ? `#${200 + cvNumber}` : resolvedNuV,
-            fecha: cvDate.toLocaleDateString("es-ES"),
-            fechaRaw: cvDate,
-            hora: "-",
-            tipo: "Bono",
-            detalle: voucher.name || "Bono de Sesiones",
-            clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
-            cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
-            clientId: voucher.clientId,
-            dni: clientObj?.dniNif || "-",
-            empleado: "Recepción",
-            consulta: activeClinic?.name || "",
-            estado: resolvedEstado,
-            metodoPago: resolvedMetodo,
-            fechaPago: resolvedFechaPago,
-            price: voucherPrice,
-            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
-            precio: voucherPrice,
-            iva: 0.00,
-            irpf: 0.00,
-            total: voucherPrice,
-            pagado: resolvedEstado === "PAGADO" ? voucherPrice : totalPaid,
-          });
-          return;
-        } else {
-          const clientObj = clients.find((c: any) => c.id === sale.clientId);
-          const saleDate = new Date(sale.createdAt);
-          let firstItemName = "Venta";
-          let firstItemPrice = sale.total;
-          try {
-            const items = JSON.parse(sale.itemsJson || "[]");
-            if (items.length > 0) {
-              firstItemName = items[0].name || items[0].detalle || "Venta";
-              firstItemPrice = items[0].price || sale.total;
-            }
-          } catch {}
-
-          setSelectedItemForPayment({
-            id: `db-sale-${sale.id}`,
-            refMov: `#${sale.id.substring(0, 4).toUpperCase()}`,
-            nuV: sale.invoiceNumber,
-            fecha: saleDate.toLocaleDateString("es-ES"),
-            fechaRaw: saleDate,
-            hora: "-",
-            tipo: "Servicio",
-            detalle: firstItemName,
-            clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
-            cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
-            clientId: sale.clientId,
-            dni: clientObj?.dniNif || "-",
-            empleado: "Recepción",
-            consulta: activeClinic?.name || "",
-            estado: "PAGADO",
-            metodoPago: getPaymentMethodText(sale.paymentMethod),
-            fechaPago: saleDate.toLocaleDateString("es-ES"),
-            price: firstItemPrice,
-            factura: "Si",
-            precio: firstItemPrice,
-            iva: 0,
-            irpf: 0,
-            total: sale.total,
-            pagado: sale.total,
-          });
-          return;
-        }
+        setSelectedItemForPayment(foundItem);
+        return;
       }
     }
 
-    // 2. Fallback or check for appointmentId
-    const appointmentId = params.get("appointmentId");
-    if (!appointmentId || appointments.length === 0) return;
-
-    const appt = appointments.find((a: any) => a.id === appointmentId);
-    if (!appt) return;
-
-    // Always close the POS drawer when deep-linking to an appointment
-    setShowPosDrawer(false);
-
-    const clientObj = clients.find((c: any) => c.id === appt.clientId);
-    const appDate = new Date(appt.start);
-
-    if (appt.status === "COMPLETED") {
-      // For paid appointments: try to find the matching sale in salesHistory by clientId
-      const matchingSale = salesHistory.find((s: any) => {
-        if (s.clientId !== appt.clientId) return false;
-        if (s.paymentMethod === "OTHER") return false;
-        try {
-          const items = JSON.parse(s.itemsJson || "[]");
-          return items.some((i: any) =>
-            i.name === appt.service?.name ||
-            i.id === `db-app-${appt.id}`
-          );
-        } catch { return false; }
-      });
-
-      const resolvedNuV = matchingSale ? matchingSale.invoiceNumber : "-";
-      const resolvedMetodo = matchingSale ? getPaymentMethodText(matchingSale.paymentMethod) : "Tarjeta";
-      const resolvedFechaPago = matchingSale ? new Date(matchingSale.createdAt).toLocaleDateString("es-ES") : appDate.toLocaleDateString("es-ES");
-
-      setSelectedItemForPayment({
-        id: `db-app-${appt.id}`,
-        refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
-        nuV: resolvedNuV,
-        fecha: appDate.toLocaleDateString("es-ES"),
-        fechaRaw: appDate,
-        hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")}`,
-        tipo: "Servicio",
-        detalle: appt.service?.name || "Tratamiento",
-        clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
-        cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
-        clientId: appt.clientId,
-        dni: clientObj?.dniNif || "-",
-        empleado: appt.user?.name || "Especialista",
-        consulta: activeClinic?.name || "",
-        estado: "PAGADO",
-        metodoPago: resolvedMetodo,
-        fechaPago: resolvedFechaPago,
-        price: appt.service?.price || 0,
-        factura: resolvedNuV !== "-" ? "Si" : "",
-        precio: appt.service?.price || 0,
-        iva: 0,
-        irpf: 0,
-        total: appt.service?.price || 0,
-        pagado: appt.service?.price || 0,
-      });
-      return;
+    if (appointmentId && appointments.length > 0) {
+      const foundItem = allArticles.find(item => item.id === `db-app-${appointmentId}`);
+      if (foundItem) {
+        setShowPosDrawer(false);
+        setSelectedItemForPayment(foundItem);
+        return;
+      }
     }
-
-    // For unpaid appointments: open the checkout panel
-    setSelectedItemForPayment({
-      id: `db-app-${appt.id}`,
-      refMov: `#${appt.id.substring(0, 4).toUpperCase()}`,
-      nuV: "-",
-      fecha: appDate.toLocaleDateString("es-ES"),
-      fechaRaw: appDate,
-      hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")}`,
-      tipo: "Servicio",
-      detalle: appt.service?.name || "Tratamiento",
-      clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
-      cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
-      clientId: appt.clientId,
-      dni: clientObj?.dniNif || "-",
-      empleado: appt.user?.name || "Especialista",
-      consulta: activeClinic?.name || "",
-      estado: "PENDIENTE",
-      metodoPago: "-",
-      fechaPago: "-",
-      price: appt.service?.price || 0,
-      factura: "",
-      precio: appt.service?.price || 0,
-      iva: 0,
-      irpf: 0,
-      total: appt.service?.price || 0,
-      pagado: 0,
-    });
   }, [loading, appointments, clients, salesHistory, activeClinic, clientVouchers]);
 
   // Load existing partial payments from database sales history for the selected checkout item
@@ -1453,75 +1225,14 @@ export default function SalesPage() {
     const urlAppointmentId = params.get("appointmentId");
     const urlClientVoucherId = params.get("clientVoucherId");
 
+    const allArticles = getArticlesList();
+
     // 1. If clientVoucherId is present, open checkout view directly as setSelectedItemForPayment
     if (urlClientVoucherId && clientVouchers.length > 0) {
-      const cv = clientVouchers.find((v) => v.id === urlClientVoucherId);
-      if (cv) {
+      const foundItem = allArticles.find(item => item.id === `db-voucher-${urlClientVoucherId}`);
+      if (foundItem) {
         setShowPosDrawer(false);
-        const clientObj = clients.find((c) => c.id === cv.clientId);
-        const cvDate = new Date(cv.createdAt);
-
-        // Find all database sales that belong to this client voucher
-        const matchingSales = salesHistory.filter((sale) => {
-          try {
-            const itemsArr = JSON.parse(sale.itemsJson || "[]");
-            return itemsArr.some((i: any) => i.id === `db-voucher-${cv.id}` || i.id === `voucher-${cv.id}` || i.id === cv.id);
-          } catch (e) {
-            return false;
-          }
-        });
-
-        const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
-        const voucherPrice = cv.price || 0;
-
-        let resolvedEstado = "PENDIENTE";
-        if (voucherPrice === 0) {
-          resolvedEstado = "GRATUITO";
-        } else if (totalPaid >= voucherPrice) {
-          resolvedEstado = "PAGADO";
-        } else if (totalPaid > 0) {
-          resolvedEstado = "PAGO PARCIAL";
-        }
-
-        const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
-        const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
-
-        const latestSale = matchingSales.length > 0
-          ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
-          : null;
-        const resolvedFechaPago = latestSale ? new Date(latestSale.createdAt).toLocaleDateString("es-ES") : "-";
-
-        const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
-        const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
-
-        const checkoutItem: ArticleItem = {
-          id: `db-voucher-${cv.id}`,
-          refMov: `#${cv.id.substring(0, 4).toUpperCase()}`,
-          nuV: resolvedNuV,
-          fecha: cvDate.toLocaleDateString("es-ES"),
-          fechaRaw: cvDate,
-          hora: "-",
-          tipo: "Bono",
-          detalle: cv.name || "Bono de Sesiones",
-          clientNumber: clientObj ? `#${clientObj.clientNumber}` : "-",
-          cliente: clientObj ? `${clientObj.firstName} ${clientObj.lastName}`.trim() : "-",
-          clientId: cv.clientId,
-          dni: clientObj?.dniNif || "-",
-          empleado: "Recepción",
-          consulta: activeClinic?.name || "Clifav Central",
-          estado: resolvedEstado,
-          metodoPago: resolvedMetodo,
-          fechaPago: resolvedFechaPago,
-          price: voucherPrice,
-          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
-          precio: voucherPrice,
-          iva: 0.00,
-          irpf: 0.00,
-          total: voucherPrice,
-          pagado: resolvedEstado === "PAGADO" ? voucherPrice : totalPaid,
-        };
-
-        setSelectedItemForPayment(checkoutItem);
+        setSelectedItemForPayment(foundItem);
         // Clean URL params without reload
         window.history.replaceState({}, "", "/dashboard/sales");
         return;
@@ -1529,41 +1240,50 @@ export default function SalesPage() {
     }
 
     // 2. If appointmentId present, open checkout view directly
-    if (urlAppointmentId && urlClientId && urlServiceId) {
-      const matchClient = clients.find((c) => c.id === urlClientId);
-      const matchService = services.find((s) => s.id === urlServiceId);
-      if (matchClient && matchService) {
-        const now = new Date();
-        const checkoutItem: ArticleItem = {
-          id: `db-app-${urlAppointmentId}`,
-          refMov: `#${urlAppointmentId.substring(0, 4).toUpperCase()}`,
-          nuV: "-",
-          fecha: now.toLocaleDateString("es-ES"),
-          fechaRaw: now,
-          hora: "-",
-          tipo: "Servicio",
-          detalle: matchService.name,
-          clientNumber: `#${matchClient.clientNumber || ""}`,
-          cliente: `${matchClient.firstName} ${matchClient.lastName}`,
-          clientId: matchClient.id,
-          dni: matchClient.dniNif || "-",
-          empleado: "Especialista",
-          consulta: activeClinic?.name || "Clifav Central",
-          estado: "PENDIENTE",
-          metodoPago: "-",
-          fechaPago: "-",
-          price: matchService.price,
-          factura: "",
-          precio: matchService.price,
-          iva: 0,
-          irpf: 0,
-          total: matchService.price,
-          pagado: 0,
-        };
-        setSelectedItemForPayment(checkoutItem);
+    if (urlAppointmentId) {
+      const foundItem = allArticles.find(item => item.id === `db-app-${urlAppointmentId}`);
+      if (foundItem) {
+        setShowPosDrawer(false);
+        setSelectedItemForPayment(foundItem);
         // Clean URL params without reload
         window.history.replaceState({}, "", "/dashboard/sales");
         return;
+      } else if (urlClientId && urlServiceId) {
+        const matchClient = clients.find((c) => c.id === urlClientId);
+        const matchService = services.find((s) => s.id === urlServiceId);
+        if (matchClient && matchService) {
+          const now = new Date();
+          const checkoutItem: ArticleItem = {
+            id: `db-app-${urlAppointmentId}`,
+            refMov: `#${urlAppointmentId.substring(0, 4).toUpperCase()}`,
+            nuV: "-",
+            fecha: now.toLocaleDateString("es-ES"),
+            fechaRaw: now,
+            hora: "-",
+            tipo: "Servicio",
+            detalle: matchService.name,
+            clientNumber: `#${matchClient.clientNumber || ""}`,
+            cliente: `${matchClient.firstName} ${matchClient.lastName}`,
+            clientId: matchClient.id,
+            dni: matchClient.dniNif || "-",
+            empleado: "Especialista",
+            consulta: activeClinic?.name || "Clifav Central",
+            estado: "PENDIENTE",
+            metodoPago: "-",
+            fechaPago: "-",
+            price: matchService.price,
+            factura: "",
+            precio: matchService.price,
+            iva: 0,
+            irpf: 0,
+            total: matchService.price,
+            pagado: 0,
+          };
+          setSelectedItemForPayment(checkoutItem);
+          // Clean URL params without reload
+          window.history.replaceState({}, "", "/dashboard/sales");
+          return;
+        }
       }
     }
 
@@ -2279,6 +1999,126 @@ export default function SalesPage() {
       showDescripcion: true,
       estado: selectedItemForPayment.estado === "PAGADO" ? "PAGADO" : "PENDIENTE",
     });
+  };
+
+  const handleCreateInvoiceForArticles = (itemsToBill: ArticleItem[]) => {
+    if (itemsToBill.length === 0) return;
+
+    // Guard: must have fiscal profile configured
+    if (!activeFiscalProfile) {
+      setShowNoFiscalProfileModal(true);
+      return;
+    }
+
+    const mainItem = itemsToBill[0];
+    const clientId = mainItem.clientId || "";
+    const clientObj = clients.find(c => c.id === clientId);
+    const clientName = clientObj ? `${clientObj.firstName} ${clientObj.lastName || ""}`.trim() : mainItem.cliente || "Cliente General";
+    const clientDni = clientObj ? clientObj.dniNif || "-" : mainItem.dni || "-";
+    const clientAddress = clientObj ? `${clientObj.address || ""}, ${clientObj.postalCode || ""}, ${clientObj.municipality || ""}, ${clientObj.country || ""}`.trim() : "-";
+    
+    const appDate = mainItem.fecha || new Date().toLocaleDateString("es-ES");
+    
+    const concepts = itemsToBill.map(item => ({
+      id: item.id,
+      text: `${appDate} | ${clientName} | ${clientDni} | ${item.detalle}`,
+      quantity: 1,
+      price: item.price,
+      subtotal: item.price,
+    }));
+
+    const nextNum = getNextInvoiceNumber("NORMAL");
+
+    setActiveInvoiceEdit({
+      clientId,
+      clientName,
+      clientDni,
+      clientAddress,
+      clientEmail: clientObj?.email || "",
+      clientPhone: clientObj?.phone || "",
+      date: new Date().toISOString().split("T")[0],
+      series: "NORMAL",
+      number: nextNum,
+      concepts,
+      observations: "Puedes añadir anotaciones a la factura",
+      groupServices: false,
+      groupAll: false,
+      showFecha: true,
+      showCliente: true,
+      showNif: true,
+      showDescripcion: true,
+      estado: mainItem.estado === "PAGADO" ? "PAGADO" : "PENDIENTE",
+    });
+  };
+
+  const handleExportArticlesExcel = async () => {
+    const list = getArticlesList();
+    if (list.length === 0) {
+      alert("No hay datos para exportar.");
+      return;
+    }
+
+    const XLSX = await import("xlsx");
+    const sheetData: any[][] = [];
+
+    // Header row
+    const headers = [
+      "REF. MOV",
+      "NU. V",
+      "FECHA",
+      "HORA",
+      "TIPO",
+      "DETALLE",
+      "NÚMERO DE CLIENTE",
+      "CLIENTE",
+      "DNI/NIF",
+      "EMPLEADO",
+      "CONSULTA",
+      "ESTADO",
+      "MÉTODO DE PAGO",
+      "FECHA DE PAGO",
+      "FACTURA",
+      "PRECIO",
+      "IVA",
+      "IRPF",
+      "TOTAL",
+      "PAGADO",
+    ];
+    sheetData.push(headers);
+
+    // Data rows
+    list.forEach((item) => {
+      sheetData.push([
+        item.refMov,
+        item.nuV,
+        item.fecha,
+        item.hora,
+        item.tipo,
+        item.detalle,
+        item.clientNumber,
+        item.cliente,
+        item.dni,
+        item.empleado,
+        item.consulta,
+        item.estado,
+        item.metodoPago,
+        item.fechaPago,
+        item.factura,
+        item.precio,
+        item.iva,
+        item.irpf,
+        item.total,
+        item.pagado,
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ventas");
+
+    const fileClinicName = (activeClinic?.name || "Clinica").replace(/[^a-zA-Z0-9]/g, "_");
+    const filename = `Ventas_${fileClinicName}.xlsx`;
+    XLSX.writeFile(wb, filename);
   };
 
   const printInvoice = (inv: any, clinic: any, fiscalProfile?: any) => {
@@ -3276,16 +3116,17 @@ export default function SalesPage() {
   const getArticlesList = (): ArticleItem[] => {
     const isMockClinic = activeClinic && (activeClinic.id === "1941b619-8ead-4388-91f4-aedd9100a7e9" || activeClinic.id === "6fe5ca72-4169-48da-94a2-79196efbe581");
     let items: ArticleItem[] = isMockClinic ? [...MOCK_ARTICULOS] : [];
+    if (!isMockClinic) {
+      let dbItems: ArticleItem[] = [];
 
-    // Merge real database sales
-    salesHistory.forEach((sale, saleIdx) => {
-      const saleDate = new Date(sale.createdAt);
-      const itemsArr = JSON.parse(sale.itemsJson || "[]");
+      // Merge real database sales
+      salesHistory.forEach((sale, saleIdx) => {
+        const saleDate = new Date(sale.createdAt);
+        const itemsArr = JSON.parse(sale.itemsJson || "[]");
 
-      itemsArr.forEach((item: any, itemIdx: number) => {
-        // Skip pushing as a separate row if this sale belongs to a database appointment or client voucher,
-        // since their respective rows handle showing the unified payment status
-        if (
+        // Skip the entire sale in the standalone sales loop if the sale contains any item corresponding to a database appointment or voucher checkout.
+        // Those items (and their checkout siblings) will be processed in the appointments or clientVouchers loops instead.
+        const belongsToAppOrVoucher = itemsArr.some((item: any) => 
           item.id && (
             item.id.startsWith("db-app-") ||
             appointments.some(a => a.id === item.id) ||
@@ -3293,178 +3134,311 @@ export default function SalesPage() {
             item.id.startsWith("voucher-") ||
             clientVouchers.some(v => v.id === item.id || `db-voucher-${v.id}` === item.id || `voucher-${v.id}` === item.id)
           )
-        ) {
+        );
+
+        if (belongsToAppOrVoucher) {
           return;
         }
 
-        items.push({
-          id: `db-sale-item-${sale.id}-${itemIdx}`,
-          refMov: `#${500 + saleIdx}`,
-          nuV: sale.invoiceNumber,
-          fecha: saleDate.toLocaleDateString("es-ES"),
-          fechaRaw: saleDate,
-          hora: "-",
-          tipo: item.type === "service" ? "Servicio" : "Producto",
-          detalle: item.name,
-          clientNumber: `#${sale.client?.clientNumber || 200 + saleIdx}`,
-          cliente: `${sale.client?.firstName || ""} ${sale.client?.lastName || ""}`,
-          clientId: sale.client?.id,
-          dni: sale.client?.dniNif || "-",
-          empleado: "Recepción",
-          consulta: activeClinic?.name || "Clifav Central",
-          estado: "PAGADO",
-          metodoPago: getPaymentMethodText(sale.paymentMethod),
-          fechaPago: saleDate.toLocaleDateString("es-ES"),
-          price: item.price * item.quantity,
-          factura: sale.invoiceNumber && sale.invoiceNumber !== "-" ? "Si" : "",
-          precio: item.price * item.quantity,
-          iva: 0.00,
-          irpf: 0.00,
-          total: item.price * item.quantity,
-          pagado: item.price * item.quantity,
+        itemsArr.forEach((item: any, itemIdx: number) => {
+          dbItems.push({
+            id: `db-sale-item-${sale.id}-${itemIdx}`,
+            refMov: "", // Assigned below
+            nuV: sale.invoiceNumber,
+            fecha: saleDate.toLocaleDateString("es-ES"),
+            fechaRaw: saleDate,
+            hora: "-",
+            tipo: item.type === "service" ? "Servicio" : "Producto",
+            detalle: item.name,
+            clientNumber: `#${sale.client?.clientNumber || 200 + saleIdx}`,
+            cliente: `${sale.client?.firstName || ""} ${sale.client?.lastName || ""}`,
+            clientId: sale.client?.id,
+            dni: sale.client?.dniNif || "-",
+            empleado: "Recepción",
+            consulta: activeClinic?.name || "Clifav Central",
+            estado: "PAGADO",
+            metodoPago: getPaymentMethodText(sale.paymentMethod),
+            fechaPago: saleDate.toLocaleDateString("es-ES"),
+            price: item.price * item.quantity,
+            factura: sale.invoiceNumber && sale.invoiceNumber !== "-" ? "Si" : "",
+            precio: item.price * item.quantity,
+            iva: 0.00,
+            irpf: 0.00,
+            total: item.price * item.quantity,
+            pagado: item.price * item.quantity,
+          });
         });
       });
-    });
 
-    // Merge real database appointments
-    appointments.forEach((app, appIdx) => {
-      const appDate = new Date(app.start);
+      // Merge real database appointments
+      appointments.forEach((app, appIdx) => {
+        const appDate = new Date(app.start);
 
-      // Find all database sales that belong to this appointment
-      const matchingSales = salesHistory.filter((sale) => {
-        try {
-          const itemsArr = JSON.parse(sale.itemsJson || "[]");
-          return itemsArr.some((i: any) => i.id === `db-app-${app.id}` || i.id === app.id);
-        } catch (e) {
-          return false;
+        // Find all database sales that belong to this appointment
+        const matchingSales = salesHistory.filter((sale) => {
+          try {
+            const itemsArr = JSON.parse(sale.itemsJson || "[]");
+            return itemsArr.some((i: any) => i.id === `db-app-${app.id}` || i.id === app.id);
+          } catch (e) {
+            return false;
+          }
+        });
+
+        const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+        const servicePrice = app.service?.price || 0;
+
+        let resolvedEstado = "PENDIENTE";
+        if (servicePrice === 0) {
+          resolvedEstado = "GRATUITO";
+        } else if (totalPaid >= servicePrice) {
+          resolvedEstado = "PAGADO";
+        } else if (totalPaid > 0) {
+          resolvedEstado = "PAGO PARCIAL";
+        }
+
+        // Format payment methods used
+        const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
+        const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
+
+        // Date of latest payment
+        const latestSale = matchingSales.length > 0 
+          ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
+          : null;
+        const resolvedFechaPago = latestSale 
+          ? new Date(latestSale.createdAt).toLocaleDateString("es-ES")
+          : "-";
+
+        // Get invoice number(s) if paid or partially paid
+        const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
+        const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
+
+        dbItems.push({
+          id: `db-app-${app.id}`,
+          checkoutGroupId: `app-${app.id}`,
+          refMov: "", // Assigned below
+          nuV: "", // Assigned below
+          fecha: appDate.toLocaleDateString("es-ES"),
+          fechaRaw: appDate,
+          hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")} - ${String(new Date(app.end).getHours()).padStart(2, "0")}:${String(new Date(app.end).getMinutes()).padStart(2, "0")}`,
+          tipo: "Servicio",
+          detalle: app.service?.name || "Tratamiento Clínico",
+          clientNumber: `#${app.client?.clientNumber || 300 + appIdx}`,
+          cliente: `${app.client?.firstName || ""} ${app.client?.lastName || ""}`,
+          clientId: app.client?.id,
+          dni: app.client?.dniNif || "-",
+          empleado: app.user?.name || "Especialista",
+          consulta: activeClinic?.name || "Clifav Central",
+          estado: resolvedEstado,
+          metodoPago: resolvedMetodo,
+          fechaPago: resolvedFechaPago,
+          price: servicePrice,
+          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+          precio: servicePrice,
+          iva: 0.00,
+          irpf: 0.00,
+          total: servicePrice,
+          pagado: resolvedEstado === "PAGADO" ? servicePrice : totalPaid,
+        });
+
+        // Find any added items in matchingSales
+        const addedItemsMap = new Map<string, any>();
+        matchingSales.forEach((sale) => {
+          try {
+            const itemsArr = JSON.parse(sale.itemsJson || "[]");
+            itemsArr.forEach((item: any) => {
+              if (item.id === `db-app-${app.id}` || item.id === app.id) {
+                return;
+              }
+              addedItemsMap.set(item.id || item.name, {
+                ...item,
+                saleDate: new Date(sale.createdAt),
+              });
+            });
+          } catch {}
+        });
+
+        // Push separate rows for added items, sharing checkoutGroupId and invoice/nuV logic
+        let addedIdx = 0;
+        addedItemsMap.forEach((addedItem) => {
+          addedIdx++;
+          dbItems.push({
+            id: `db-app-added-${app.id}-${addedItem.id || addedItem.name}`,
+            checkoutGroupId: `app-${app.id}`,
+            refMov: "", // Assigned below
+            nuV: "", // Shared with main appointment
+            fecha: appDate.toLocaleDateString("es-ES"),
+            fechaRaw: new Date(appDate.getTime() + addedIdx * 1000),
+            hora: "-",
+            tipo: addedItem.type === "product" ? "Producto" : "Servicio",
+            detalle: addedItem.name,
+            clientNumber: `#${app.client?.clientNumber || 300 + appIdx}`,
+            cliente: `${app.client?.firstName || ""} ${app.client?.lastName || ""}`,
+            clientId: app.client?.id,
+            dni: app.client?.dniNif || "-",
+            empleado: app.user?.name || "Especialista",
+            consulta: activeClinic?.name || "Clifav Central",
+            estado: resolvedEstado,
+            metodoPago: resolvedMetodo,
+            fechaPago: resolvedFechaPago,
+            price: addedItem.price * (addedItem.quantity || 1),
+            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+            precio: addedItem.price * (addedItem.quantity || 1),
+            iva: 0.00,
+            irpf: 0.00,
+            total: addedItem.price * (addedItem.quantity || 1),
+            pagado: resolvedEstado === "PAGADO" ? addedItem.price * (addedItem.quantity || 1) : 0,
+          });
+        });
+      });
+
+      // Merge real database client vouchers
+      clientVouchers.forEach((cv, cvIdx) => {
+        const cvDate = new Date(cv.createdAt);
+
+        // Find all database sales that belong to this client voucher
+        const matchingSales = salesHistory.filter((sale) => {
+          try {
+            const itemsArr = JSON.parse(sale.itemsJson || "[]");
+            return itemsArr.some((i: any) => i.id === `db-voucher-${cv.id}` || i.id === `voucher-${cv.id}` || i.id === cv.id);
+          } catch (e) {
+            return false;
+          }
+        });
+
+        const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+        const voucherPrice = cv.price || 0;
+
+        let resolvedEstado = "PENDIENTE";
+        if (voucherPrice === 0) {
+          resolvedEstado = "GRATUITO";
+        } else if (totalPaid >= voucherPrice) {
+          resolvedEstado = "PAGADO";
+        } else if (totalPaid > 0) {
+          resolvedEstado = "PAGO PARCIAL";
+        }
+
+        // Format payment methods used
+        const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
+        const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
+
+        // Date of latest payment
+        const latestSale = matchingSales.length > 0
+          ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
+          : null;
+        const resolvedFechaPago = latestSale
+          ? new Date(latestSale.createdAt).toLocaleDateString("es-ES")
+          : "-";
+
+        // Get invoice number(s) if paid or partially paid
+        const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
+        const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
+
+        dbItems.push({
+          id: `db-voucher-${cv.id}`,
+          checkoutGroupId: `voucher-${cv.id}`,
+          refMov: "", // Assigned below
+          nuV: "", // Assigned below
+          fecha: cvDate.toLocaleDateString("es-ES"),
+          fechaRaw: cvDate,
+          hora: "-",
+          tipo: "Bono",
+          detalle: cv.name || "Bono de Sesiones",
+          clientNumber: `#${cv.client?.clientNumber || 400 + cvIdx}`,
+          cliente: `${cv.client?.firstName || ""} ${cv.client?.lastName || ""}`,
+          clientId: cv.client?.id,
+          dni: cv.client?.dniNif || "-",
+          empleado: "Recepción",
+          consulta: activeClinic?.name || "Clifav Central",
+          estado: resolvedEstado,
+          metodoPago: resolvedMetodo,
+          fechaPago: resolvedFechaPago,
+          price: voucherPrice,
+          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+          precio: voucherPrice,
+          iva: 0.00,
+          irpf: 0.00,
+          total: voucherPrice,
+          pagado: resolvedEstado === "PAGADO" ? voucherPrice : totalPaid,
+        });
+
+        // Find any added items in matchingSales
+        const addedItemsMap = new Map<string, any>();
+        matchingSales.forEach((sale) => {
+          try {
+            const itemsArr = JSON.parse(sale.itemsJson || "[]");
+            itemsArr.forEach((item: any) => {
+              if (item.id === `db-voucher-${cv.id}` || item.id === `voucher-${cv.id}` || item.id === cv.id) {
+                return;
+              }
+              addedItemsMap.set(item.id || item.name, {
+                ...item,
+                saleDate: new Date(sale.createdAt),
+              });
+            });
+          } catch {}
+        });
+
+        // Push separate rows for added items, sharing checkoutGroupId and invoice/nuV logic
+        let addedIdx = 0;
+        addedItemsMap.forEach((addedItem) => {
+          addedIdx++;
+          dbItems.push({
+            id: `db-voucher-added-${cv.id}-${addedItem.id || addedItem.name}`,
+            checkoutGroupId: `voucher-${cv.id}`,
+            refMov: "", // Assigned below
+            nuV: "", // Shared with main voucher
+            fecha: cvDate.toLocaleDateString("es-ES"),
+            fechaRaw: new Date(cvDate.getTime() + addedIdx * 1000),
+            hora: "-",
+            tipo: addedItem.type === "product" ? "Producto" : "Servicio",
+            detalle: addedItem.name,
+            clientNumber: `#${cv.client?.clientNumber || 400 + cvIdx}`,
+            cliente: `${cv.client?.firstName || ""} ${cv.client?.lastName || ""}`,
+            clientId: cv.client?.id,
+            dni: cv.client?.dniNif || "-",
+            empleado: "Recepción",
+            consulta: activeClinic?.name || "Clifav Central",
+            estado: resolvedEstado,
+            metodoPago: resolvedMetodo,
+            fechaPago: resolvedFechaPago,
+            price: addedItem.price * (addedItem.quantity || 1),
+            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+            precio: addedItem.price * (addedItem.quantity || 1),
+            iva: 0.00,
+            irpf: 0.00,
+            total: addedItem.price * (addedItem.quantity || 1),
+            pagado: resolvedEstado === "PAGADO" ? addedItem.price * (addedItem.quantity || 1) : 0,
+          });
+        });
+      });
+
+      // Sort db items ascending by date/time (fechaRaw)
+      dbItems.sort((a, b) => a.fechaRaw.getTime() - b.fechaRaw.getTime());
+
+      // Assign sequential reference and sale numbers based on chronological order
+      // We keep a map of checkoutGroupId -> nuV so that parent items and added items share the same sale number.
+      const checkoutGroupNuV: Record<string, string> = {};
+      let nextNuVIndex = 0;
+
+      dbItems.forEach((item, idx) => {
+        item.refMov = `#${600 + idx}`;
+        
+        if (item.checkoutGroupId) {
+          if (!checkoutGroupNuV[item.checkoutGroupId]) {
+            checkoutGroupNuV[item.checkoutGroupId] = `#${100 + nextNuVIndex}`;
+            nextNuVIndex++;
+          }
+          item.nuV = checkoutGroupNuV[item.checkoutGroupId];
+        } else {
+          if (!item.nuV) {
+            item.nuV = `#${100 + nextNuVIndex}`;
+            nextNuVIndex++;
+          }
         }
       });
 
-      const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
-      const servicePrice = app.service?.price || 0;
-
-      let resolvedEstado = "PENDIENTE";
-      if (servicePrice === 0) {
-        resolvedEstado = "GRATUITO";
-      } else if (totalPaid >= servicePrice) {
-        resolvedEstado = "PAGADO";
-      } else if (totalPaid > 0) {
-        resolvedEstado = "PAGO PARCIAL";
-      }
-
-      // Format payment methods used
-      const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
-      const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
-
-      // Date of latest payment
-      const latestSale = matchingSales.length > 0 
-        ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
-        : null;
-      const resolvedFechaPago = latestSale 
-        ? new Date(latestSale.createdAt).toLocaleDateString("es-ES")
-        : "-";
-
-      // Get invoice number(s) if paid or partially paid
-      const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
-      const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
-
-      items.push({
-        id: `db-app-${app.id}`,
-        refMov: `#${600 + appIdx}`,
-        nuV: `#${100 + appIdx}`,
-        fecha: appDate.toLocaleDateString("es-ES"),
-        fechaRaw: appDate,
-        hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")} - ${String(new Date(app.end).getHours()).padStart(2, "0")}:${String(new Date(app.end).getMinutes()).padStart(2, "0")}`,
-        tipo: "Servicio",
-        detalle: app.service?.name || "Tratamiento Clínico",
-        clientNumber: `#${app.client?.clientNumber || 300 + appIdx}`,
-        cliente: `${app.client?.firstName || ""} ${app.client?.lastName || ""}`,
-        clientId: app.client?.id,
-        dni: app.client?.dniNif || "-",
-        empleado: app.user?.name || "Especialista",
-        consulta: activeClinic?.name || "Clifav Central",
-        estado: resolvedEstado,
-        metodoPago: resolvedMetodo,
-        fechaPago: resolvedFechaPago,
-        price: servicePrice,
-        factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
-        precio: servicePrice,
-        iva: 0.00,
-        irpf: 0.00,
-        total: servicePrice,
-        pagado: resolvedEstado === "PAGADO" ? servicePrice : totalPaid,
-      });
-    });
-
-    // Merge real database client vouchers
-    clientVouchers.forEach((cv, cvIdx) => {
-      const cvDate = new Date(cv.createdAt);
-
-      // Find all database sales that belong to this client voucher
-      const matchingSales = salesHistory.filter((sale) => {
-        try {
-          const itemsArr = JSON.parse(sale.itemsJson || "[]");
-          return itemsArr.some((i: any) => i.id === `db-voucher-${cv.id}` || i.id === `voucher-${cv.id}` || i.id === cv.id);
-        } catch (e) {
-          return false;
-        }
-      });
-
-      const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
-      const voucherPrice = cv.price || 0;
-
-      let resolvedEstado = "PENDIENTE";
-      if (voucherPrice === 0) {
-        resolvedEstado = "GRATUITO";
-      } else if (totalPaid >= voucherPrice) {
-        resolvedEstado = "PAGADO";
-      } else if (totalPaid > 0) {
-        resolvedEstado = "PAGO PARCIAL";
-      }
-
-      // Format payment methods used
-      const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
-      const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
-
-      // Date of latest payment
-      const latestSale = matchingSales.length > 0
-        ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
-        : null;
-      const resolvedFechaPago = latestSale
-        ? new Date(latestSale.createdAt).toLocaleDateString("es-ES")
-        : "-";
-
-      // Get invoice number(s) if paid or partially paid
-      const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
-      const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
-
-      items.push({
-        id: `db-voucher-${cv.id}`,
-        refMov: `#${700 + cvIdx}`,
-        nuV: `#${200 + cvIdx}`,
-        fecha: cvDate.toLocaleDateString("es-ES"),
-        fechaRaw: cvDate,
-        hora: "-",
-        tipo: "Bono",
-        detalle: cv.name || "Bono de Sesiones",
-        clientNumber: `#${cv.client?.clientNumber || 400 + cvIdx}`,
-        cliente: `${cv.client?.firstName || ""} ${cv.client?.lastName || ""}`,
-        clientId: cv.client?.id,
-        dni: cv.client?.dniNif || "-",
-        empleado: "Recepción",
-        consulta: activeClinic?.name || "Clifav Central",
-        estado: resolvedEstado,
-        metodoPago: resolvedMetodo,
-        fechaPago: resolvedFechaPago,
-        price: voucherPrice,
-        factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
-        precio: voucherPrice,
-        iva: 0.00,
-        irpf: 0.00,
-        total: voucherPrice,
-        pagado: resolvedEstado === "PAGADO" ? voucherPrice : totalPaid,
-      });
-    });
+      items = dbItems;
+    }
 
     // Map items to dynamically resolve clientIds and apply overrides
     const resolvedItems = items.map((item, idx) => {
@@ -7377,77 +7351,154 @@ export default function SalesPage() {
           )}
 
           {activeTab === "articulos" && (
-            <div className={styles.columnSelectorWrapper} ref={columnSelectorRef}>
-              <button
-                type="button"
-                className={styles.gearBtn}
-                title="Configurar Columnas"
-                onClick={() => setShowColumnDropdown(!showColumnDropdown)}
-              >
-                <Icons.Settings size={18} />
-              </button>
-              {showColumnDropdown && (
-                <div className={styles.columnDropdown}>
-                  <div className={styles.columnDropdownHeader}>Mostrar Columnas</div>
-                  <div className={styles.columnDropdownList}>
-                    {Object.keys(visibleColumns).map((colKey) => (
-                      <label key={colKey} className={styles.columnDropdownItem}>
-                        <input
-                          type="checkbox"
-                          checked={visibleColumns[colKey]}
-                          onChange={() =>
-                            setVisibleColumns({
-                              ...visibleColumns,
-                              [colKey]: !visibleColumns[colKey],
-                            })
-                          }
-                        />
-                        <span>
-                          {colKey === "refMov"
-                            ? "REF. MOV"
-                            : colKey === "nuV"
-                            ? "NU. V"
-                            : colKey === "fecha"
-                            ? "FECHA"
-                            : colKey === "hora"
-                            ? "HORA"
-                            : colKey === "tipo"
-                            ? "TIPO"
-                            : colKey === "detalle"
-                            ? "DETALLE"
-                            : colKey === "clientNumber"
-                            ? "NÚMERO DE CLIENTE"
-                            : colKey === "cliente"
-                            ? "CLIENTE"
-                            : colKey === "dni"
-                            ? "DNI"
-                            : colKey === "empleado"
-                            ? "EMPLEADO"
-                            : colKey === "consulta"
-                            ? "CONSULTA"
-                            : colKey === "estado"
-                            ? "ESTADO"
-                            : colKey === "metodoPago"
-                            ? "MÉTODO DE PAGO"
-                            : colKey === "fechaPago"
-                            ? "FECHA DE PAGO"
-                            : colKey === "factura"
-                            ? "FACTURA"
-                            : colKey === "precio"
-                            ? "PRECIO"
-                            : colKey === "iva"
-                            ? "IVA"
-                            : colKey === "irpf"
-                            ? "IRPF"
-                            : colKey === "total"
-                            ? "TOTAL"
-                            : "PAGADO"}
-                        </span>
-                      </label>
-                    ))}
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "12px" }}>
+              {/* Opciones Dropdown */}
+              <div className={styles.dropdownWrapper} ref={optionsRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", fontSize: "13px", borderRadius: "8px", borderColor: "var(--border-color)", background: "#ffffff", color: "var(--text-primary)" }}
+                  onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
+                >
+                  <span>Opciones</span>
+                  <Icons.ChevronDown size={14} />
+                </button>
+
+                {showOptionsDropdown && (
+                  <div
+                    className="options-dropdown-menu"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      right: 0,
+                      marginTop: "6px",
+                      background: "#ffffff",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "8px",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                      zIndex: 999,
+                      minWidth: "180px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {selectedRowIds.length > 0 && (
+                      <div
+                        className="options-dropdown-item"
+                        style={{
+                          padding: "10px 16px",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          color: "var(--text-primary)",
+                          borderBottom: "1px solid var(--border-color)",
+                          transition: "background 0.2s",
+                        }}
+                        onClick={() => {
+                          setShowOptionsDropdown(false);
+                          const selectedItems = getArticlesList().filter(item => selectedRowIds.includes(item.id));
+                          handleCreateInvoiceForArticles(selectedItems);
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-input)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      >
+                        Nueva Factura
+                      </div>
+                    )}
+                    <div
+                      className="options-dropdown-item"
+                      style={{
+                        padding: "10px 16px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        color: "var(--text-primary)",
+                        transition: "background 0.2s",
+                      }}
+                      onClick={() => {
+                        setShowOptionsDropdown(false);
+                        handleExportArticlesExcel();
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-input)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                    >
+                      Descargar Excel
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Column selector */}
+              <div className={styles.columnSelectorWrapper} ref={columnSelectorRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  className={styles.gearBtn}
+                  title="Configurar Columnas"
+                  onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <Icons.Settings size={18} />
+                </button>
+                {showColumnDropdown && (
+                  <div className={styles.columnDropdown}>
+                    <div className={styles.columnDropdownHeader}>Mostrar Columnas</div>
+                    <div className={styles.columnDropdownList}>
+                      {Object.keys(visibleColumns).map((colKey) => (
+                        <label key={colKey} className={styles.columnDropdownItem}>
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns[colKey]}
+                            onChange={() =>
+                              setVisibleColumns({
+                                ...visibleColumns,
+                                [colKey]: !visibleColumns[colKey],
+                              })
+                            }
+                          />
+                          <span>
+                            {colKey === "refMov"
+                              ? "REF. MOV"
+                              : colKey === "nuV"
+                              ? "NU. V"
+                              : colKey === "fecha"
+                              ? "FECHA"
+                              : colKey === "hora"
+                              ? "HORA"
+                              : colKey === "tipo"
+                              ? "TIPO"
+                              : colKey === "detalle"
+                              ? "DETALLE"
+                              : colKey === "clientNumber"
+                              ? "NÚMERO DE CLIENTE"
+                              : colKey === "cliente"
+                              ? "CLIENTE"
+                              : colKey === "dni"
+                              ? "DNI"
+                              : colKey === "empleado"
+                              ? "EMPLEADO"
+                              : colKey === "consulta"
+                              ? "CONSULTA"
+                              : colKey === "estado"
+                              ? "ESTADO"
+                              : colKey === "metodoPago"
+                              ? "MÉTODO DE PAGO"
+                              : colKey === "fechaPago"
+                              ? "FECHA DE PAGO"
+                              : colKey === "factura"
+                              ? "FACTURA"
+                              : colKey === "precio"
+                              ? "PRECIO"
+                              : colKey === "iva"
+                              ? "IVA"
+                              : colKey === "irpf"
+                              ? "IRPF"
+                              : colKey === "total"
+                              ? "TOTAL"
+                              : "PAGADO"}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -7474,31 +7525,135 @@ export default function SalesPage() {
             {(() => {
               const stats = calculateArticlesStats();
               return (
-                <div className={styles.metricsRow}>
-                  <div className={styles.metricItem}>
-                    {t("businessVolume")}: <span>{formatPrice(stats.volumenNegocio)}</span>
+                <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "24px" }}>
+                  {/* Volumen de negocio Card */}
+                  <div style={{
+                    background: "linear-gradient(135deg, rgba(14, 165, 233, 0.06) 0%, rgba(14, 165, 233, 0.12) 100%)",
+                    border: "1px solid rgba(14, 165, 233, 0.25)",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    flex: "1 1 180px",
+                    minWidth: "160px",
+                    boxShadow: "0 4px 6px -1px rgba(14, 165, 233, 0.05), 0 2px 4px -1px rgba(14, 165, 233, 0.03)",
+                  }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                      {t("businessVolume")}
+                    </span>
+                    <span style={{ fontSize: "20px", fontWeight: "800", color: "#0ea5e9" }}>
+                      {formatPrice(stats.volumenNegocio)}
+                    </span>
                   </div>
-                  <div className={styles.metricItem}>
-                    {t("appointments")}: <span>{formatPrice(stats.citasSum)} ({stats.citasCount})</span>
+
+                  {/* Citas Card */}
+                  <div style={{
+                    background: "var(--card-bg, #ffffff)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    flex: "1 1 180px",
+                    minWidth: "160px",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                  }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                      {t("appointments")}
+                    </span>
+                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(stats.citasSum)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.citasCount})</span>
+                    </span>
                   </div>
-                  <div className={styles.metricItem}>
-                    {t("vouchers")}: <span>{formatPrice(stats.bonosSum)} ({stats.bonosCount})</span>
+
+                  {/* Bonos Card */}
+                  <div style={{
+                    background: "var(--card-bg, #ffffff)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    flex: "1 1 180px",
+                    minWidth: "160px",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                  }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                      {t("vouchers")}
+                    </span>
+                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(stats.bonosSum)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.bonosCount})</span>
+                    </span>
                   </div>
-                  <div className={styles.metricItem}>
-                    {t("products")}: <span>{formatPrice(stats.productosSum)} ({stats.productosCount})</span>
+
+                  {/* Productos Card */}
+                  <div style={{
+                    background: "var(--card-bg, #ffffff)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    flex: "1 1 180px",
+                    minWidth: "160px",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                  }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                      {t("products")}
+                    </span>
+                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(stats.productosSum)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.productosCount})</span>
+                    </span>
                   </div>
-                  <div className={styles.metricItem}>
-                    {t("subscriptions")}: <span>{formatPrice(0)} (0)</span>
+
+                  {/* Suscripciones Card */}
+                  <div style={{
+                    background: "var(--card-bg, #ffffff)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    flex: "1 1 180px",
+                    minWidth: "160px",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                  }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                      {t("subscriptions")}
+                    </span>
+                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(0)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>(0)</span>
+                    </span>
                   </div>
-                  <div className={styles.metricItem}>
-                    {t("budgets")}: <span>{formatPrice(0)} (0)</span>
+
+                  {/* Presupuestos Card */}
+                  <div style={{
+                    background: "var(--card-bg, #ffffff)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    flex: "1 1 180px",
+                    minWidth: "160px",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                  }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                      {t("budgets")}
+                    </span>
+                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(0)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>(0)</span>
+                    </span>
                   </div>
                 </div>
               );
             })()}
-
-
-
 
             {/* Articles List Table */}
             <div className={styles.tableWrapper} style={{ overflowX: "auto" }}>
