@@ -27,8 +27,12 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Obtener todas las citas próximas (de los próximos 7 días) con sus clientes y servicios
+    // 2. Obtener todas las citas (del pasado -7 días a los próximos 7 días) con sus clientes y servicios
     const now = new Date();
+    
+    const pastLimit = new Date();
+    pastLimit.setDate(now.getDate() - 7);
+    
     const futureLimit = new Date();
     futureLimit.setDate(now.getDate() + 7);
 
@@ -36,7 +40,7 @@ export async function POST(request: Request) {
       where: {
         clinicId,
         start: {
-          gte: now,
+          gte: pastLimit,
           lte: futureLimit,
         },
       },
@@ -70,6 +74,27 @@ export async function POST(request: Request) {
 
         // Formatear el mensaje de recordatorio automático
         const startD = new Date(app.start);
+
+        // Controlar el tiempo de envío para citas en base a configuración ANTES (BEFORE) o DESPUÉS (AFTER)
+        const hoursBefore = reminder.hoursBefore || 0;
+        const minutesBefore = reminder.minutesBefore || 0;
+        const triggerTimeOffset = (hoursBefore * 60 * 60 * 1000) + (minutesBefore * 60 * 1000);
+
+        if (reminder.timing === "AFTER") {
+          // Para envíos después de la cita (ej: post-tratamiento)
+          const timeToSend = startD.getTime() + triggerTimeOffset;
+          if (now.getTime() < timeToSend) {
+            // Aún no corresponde enviar el mensaje
+            continue;
+          }
+        } else {
+          // Para envíos antes de la cita (ej: recordatorio tradicional)
+          const timeToSend = startD.getTime() - triggerTimeOffset;
+          if (now.getTime() < timeToSend) {
+            continue;
+          }
+        }
+
         const dateFormatted = startD.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
         const timeFormatted = startD.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
         const longDateFormatted = startD.toLocaleDateString("es-ES", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -192,26 +217,42 @@ export async function POST(request: Request) {
             } else if (clinicApiUrl && clinicInstance && clinicToken) {
               // 2. OPCIÓN DE FALLBACK: Evolution API (Código QR)
               try {
-                const targetUrl = `${clinicApiUrl}/message/sendText/${clinicInstance}`;
-                
+                const hasImage = !!reminder.imageUrl;
+                const targetUrl = hasImage
+                  ? `${clinicApiUrl}/message/sendMedia/${clinicInstance}`
+                  : `${clinicApiUrl}/message/sendText/${clinicInstance}`;
+
+                const requestBody = hasImage
+                  ? {
+                      number: formattedPhone,
+                      mediatype: "image",
+                      media: reminder.imageUrl,
+                      caption: message,
+                      options: {
+                        delay: 1200,
+                        presence: "composing",
+                      }
+                    }
+                  : {
+                      number: formattedPhone,
+                      text: message, // Nueva versión de Evolution API (v2.x)
+                      textMessage: {
+                        text: message // Compatibilidad con versiones anteriores
+                      },
+                      options: {
+                        delay: 1200,
+                        presence: "composing",
+                        linkPreview: false
+                      }
+                    };
+
                 const res = await fetch(targetUrl, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
                     "apikey": clinicToken,
                   },
-                  body: JSON.stringify({
-                    number: formattedPhone,
-                    text: message, // Nueva versión de Evolution API (v2.x)
-                    textMessage: {
-                      text: message // Compatibilidad con versiones anteriores
-                    },
-                    options: {
-                      delay: 1200,
-                      presence: "composing",
-                      linkPreview: false
-                    }
-                  }),
+                  body: JSON.stringify(requestBody),
                 });
 
                 if (!res.ok) {

@@ -205,7 +205,10 @@ export default function SettingsPage() {
   const [isReminderSystemForm, setIsReminderSystemForm] = useState(false);
   const [reminderFormTriggerWhen, setReminderFormTriggerWhen] = useState("BOTH");
   const [reminderFormTemplateId, setReminderFormTemplateId] = useState("");
+  const [reminderFormImageUrl, setReminderFormImageUrl] = useState("");
+  const [reminderFormTiming, setReminderFormTiming] = useState("BEFORE");
   const [reminderToDelete, setReminderToDelete] = useState<string | null>(null);
+  const reminderImageInputRef = useRef<HTMLInputElement | null>(null);
 
 
   // Clinic configurations states
@@ -684,6 +687,8 @@ export default function SettingsPage() {
       setReminderFormServiceIds(reminder.serviceIds ? reminder.serviceIds.split(",") : []);
       setReminderFormTriggerWhen(reminder.triggerWhen || "BOTH");
       setReminderFormTemplateId(reminder.templateId || "");
+      setReminderFormImageUrl(reminder.imageUrl || "");
+      setReminderFormTiming(reminder.timing || "BEFORE");
     } else {
       setEditingReminder(null);
       setReminderFormName("");
@@ -696,6 +701,8 @@ export default function SettingsPage() {
       setReminderFormServiceIds([]);
       setReminderFormTriggerWhen("BOTH");
       setReminderFormTemplateId("");
+      setReminderFormImageUrl("");
+      setReminderFormTiming("BEFORE");
     }
     setShowReminderForm(true);
   };
@@ -720,6 +727,8 @@ export default function SettingsPage() {
       isSystem: isReminderSystemForm,
       triggerWhen: reminderFormTriggerWhen,
       templateId: reminderFormTemplateId,
+      imageUrl: reminderFormImageUrl || null,
+      timing: reminderFormTiming,
     };
 
     try {
@@ -7380,7 +7389,15 @@ export default function SettingsPage() {
                                   <option value="30">30 Minutos</option>
                                   <option value="45">45 Minutos</option>
                                 </select>
-                                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>ANTES</span>
+                                <select
+                                  className="input select"
+                                  value={reminderFormTiming}
+                                  onChange={(e) => setReminderFormTiming(e.target.value)}
+                                  style={{ width: "120px" }}
+                                >
+                                  <option value="BEFORE">ANTES</option>
+                                  <option value="AFTER">DESPUÉS</option>
+                                </select>
                               </div>
                             </div>
                           )}
@@ -7464,18 +7481,84 @@ export default function SettingsPage() {
                               </div>
 
                               <div className="form-group">
-                                <label className="form-label" style={{ fontWeight: 600 }}>Mensaje</label>
-                                <div style={{
-                                  background: "var(--bg-input)",
-                                  border: "1px solid var(--border-color)",
-                                  borderRadius: "6px",
-                                  padding: "16px",
-                                  fontSize: "13px",
-                                  minHeight: "150px",
-                                  color: "var(--text-primary)",
-                                  lineHeight: "1.5"
-                                }}>
-                                  {reminderFormMessage}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                                  <label className="form-label" style={{ fontWeight: 600, margin: 0 }}>Mensaje</label>
+                                  
+                                  {/* Dropdown de Variables */}
+                                  <div style={{ position: "relative" }}>
+                                    <select
+                                      className="input select"
+                                      style={{ padding: "4px 8px", fontSize: "11px", width: "160px" }}
+                                      defaultValue=""
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          const textarea = document.getElementById("reminder-message-textarea-auto") as HTMLTextAreaElement;
+                                          if (textarea) {
+                                            const start = textarea.selectionStart;
+                                            const end = textarea.selectionEnd;
+                                            const text = reminderFormMessage;
+                                            const before = text.substring(0, start);
+                                            const after = text.substring(end, text.length);
+                                            setReminderFormMessage(before + e.target.value + after);
+                                            setTimeout(() => {
+                                              textarea.focus();
+                                              textarea.selectionStart = textarea.selectionEnd = start + e.target.value.length;
+                                            }, 50);
+                                          } else {
+                                            setReminderFormMessage(prev => prev + e.target.value);
+                                          }
+                                          e.target.value = ""; // Reset
+                                        }
+                                      }}
+                                    >
+                                      <option value="" disabled>Variables ▾</option>
+                                      <optgroup label="Cliente">
+                                        <option value="{{Cliente:Nombre}}">Nombre</option>
+                                        <option value="{{Cliente:Apellidos}}">Apellidos</option>
+                                        <option value="{{Cliente:Dirección_Cliente}}">Dirección Cliente</option>
+                                      </optgroup>
+                                      <optgroup label="Consulta">
+                                        <option value="{{Nombre_Consulta}}">Nombre Consulta</option>
+                                        <option value="{{Dirección_Consulta}}">Dirección Consulta</option>
+                                      </optgroup>
+                                      <optgroup label="Cita">
+                                        <option value="{{Fecha_Hora_Cita}}">Fecha y Hora Cita</option>
+                                        <option value="{{Fecha_Cita}}">Fecha Cita</option>
+                                        <option value="{{Fecha_larga}}">Fecha larga</option>
+                                        <option value="{{Hora_Cita}}">Hora Cita</option>
+                                        <option value="{{Nombre_Servicio}}">Nombre Servicio</option>
+                                        <option value="{{Link_VideoConsulta}}">Link VideoConsulta</option>
+                                        <option value="{{Link_Cancelar_Cita}}">Link Cancelar Cita</option>
+                                        <option value="{{Link_Mover_Cita}}">Link Mover Cita</option>
+                                        <option value="{{Link_Confirmar_Cita}}">Link Confirmar Cita</option>
+                                        <option value="{{Link_Pago_Online}}">Link Pago Online</option>
+                                        <option value="{{Recurso}}">Recurso</option>
+                                        <option value="{{Zona_horaria}}">Zona Horaria</option>
+                                      </optgroup>
+                                      <optgroup label="Empleado">
+                                        <option value="{{Empleado_Nombre_Completo}}">Nombre Completo</option>
+                                        <option value="{{Empleado_Nombre}}">Nombre</option>
+                                        <option value="{{Empleado_Apellidos}}">Apellidos</option>
+                                        <option value="{{Empleado_Correo}}">Correo</option>
+                                        <option value="{{Empleado_DNI}}">DNI</option>
+                                        <option value="{{Empleado_Teléfono}}">Teléfono</option>
+                                      </optgroup>
+                                      <optgroup label="Otro">
+                                        <option value="{{Deuda}}">Deuda</option>
+                                      </optgroup>
+                                    </select>
+                                  </div>
+                                </div>
+                                <textarea
+                                  id="reminder-message-textarea-auto"
+                                  className="textarea"
+                                  value={reminderFormMessage}
+                                  onChange={(e) => setReminderFormMessage(e.target.value)}
+                                  placeholder="Escribe el mensaje del recordatorio aquí..."
+                                  style={{ width: "100%", height: "200px", fontFamily: "inherit", fontSize: "13px", resize: "none", padding: "12px", border: "1px solid var(--border-color)", borderRadius: "6px" }}
+                                />
+                                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                                  Las variables con doble llave <code>{"{{...}}"}</code> se sustituirán dinámicamente con los datos correspondientes.
                                 </div>
                               </div>
 
@@ -7568,6 +7651,90 @@ export default function SettingsPage() {
                               </div>
                             </div>
                           )}
+
+                          {/* INSERCIÓN DEL UPLOADER DE IMAGEN */}
+                          {!isReminderSystemForm && (reminderFormChannel === "WHATSAPP" || reminderFormChannel === "WHATSAPP_MANUAL" || reminderFormChannel === "EMAIL") && (
+                            <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
+                              <label className="form-label" style={{ fontWeight: 600, margin: 0 }}>Imagen / Archivo Adjunto (Opcional)</label>
+                              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                                <input
+                                  type="text"
+                                  className="input"
+                                  placeholder="URL de la imagen o archivo..."
+                                  value={reminderFormImageUrl}
+                                  onChange={(e) => setReminderFormImageUrl(e.target.value)}
+                                  style={{ flex: 1 }}
+                                />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  ref={reminderImageInputRef}
+                                  style={{ display: "none" }}
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+                                    try {
+                                      const res = await fetch("/api/upload", {
+                                        method: "POST",
+                                        body: formData,
+                                      });
+                                      if (res.ok) {
+                                        const data = await res.json();
+                                        setReminderFormImageUrl(data.url);
+                                      } else {
+                                        alert("Error al subir la imagen");
+                                      }
+                                    } catch (err) {
+                                      console.error(err);
+                                      alert("Error de conexión al subir la imagen");
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => reminderImageInputRef.current?.click()}
+                                  style={{
+                                    padding: "8px 14px",
+                                    background: "#006687",
+                                    color: "#ffffff",
+                                    borderRadius: "8px",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    border: "none",
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap"
+                                  }}
+                                >
+                                  Subir Archivo
+                                </button>
+                              </div>
+                              {reminderFormImageUrl && (
+                                <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", background: "var(--bg-app)", padding: "8px", borderRadius: "8px", border: "1px solid var(--border-color)", maxWidth: "fit-content" }}>
+                                  <div style={{ width: "80px", height: "60px", borderRadius: "6px", overflow: "hidden", border: "1px solid var(--border-color)", background: "#ffffff" }}>
+                                    <img src={reminderFormImageUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setReminderFormImageUrl("")}
+                                    style={{
+                                      background: "rgba(239, 68, 68, 0.12)",
+                                      border: "none",
+                                      color: "#ef4444",
+                                      padding: "4px 8px",
+                                      borderRadius: "4px",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                      cursor: "pointer"
+                                    }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -7624,7 +7791,7 @@ export default function SettingsPage() {
                                   <div style={{ fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>{r.name}</div>
                                   <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", display: "flex", gap: "12px" }}>
                                     <span><strong>Canal:</strong> {r.channel === "WHATSAPP_MANUAL" ? "WhatsApp Manual" : r.channel}</span>
-                                    {!r.isSystem && <span><strong>Antelación:</strong> {r.hoursBefore}h {r.minutesBefore}m antes</span>}
+                                    {!r.isSystem && <span><strong>Tiempo:</strong> {r.hoursBefore}h {r.minutesBefore}m {r.timing === "AFTER" ? "después" : "antes"}</span>}
                                     {r.isSystem && <span><strong>Frecuencia:</strong> {r.triggerWhen === "BOTH" ? "Al crear/modificar" : "Solo modificar"}</span>}
                                     <span><strong>Condición:</strong> {r.condition}</span>
                                   </div>

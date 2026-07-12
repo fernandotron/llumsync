@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { 
       name, channel, condition, hoursBefore, minutesBefore, message, 
-      clinicId, allServices, serviceIds, isSystem, triggerWhen, templateId 
+      clinicId, allServices, serviceIds, isSystem, triggerWhen, templateId, imageUrl, timing
     } = body;
 
     if (!name || !channel || !condition || !clinicId || message === undefined) {
@@ -57,6 +57,8 @@ export async function POST(request: Request) {
         isSystem: isSystem ?? false,
         triggerWhen: triggerWhen || "BOTH",
         templateId: templateId || "",
+        imageUrl: imageUrl || null,
+        timing: timing || "BEFORE",
       },
     });
 

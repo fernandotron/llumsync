@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, channel, condition, hoursBefore, minutesBefore, message, allServices, serviceIds, enabled, isSystem, triggerWhen, templateId } = body;
+    const { name, channel, condition, hoursBefore, minutesBefore, message, allServices, serviceIds, enabled, isSystem, triggerWhen, templateId, imageUrl, timing } = body;
 
     const data: any = {};
     if (name !== undefined) data.name = name;
@@ -24,6 +24,8 @@ export async function PUT(
     if (isSystem !== undefined) data.isSystem = isSystem;
     if (triggerWhen !== undefined) data.triggerWhen = triggerWhen;
     if (templateId !== undefined) data.templateId = templateId;
+    if (imageUrl !== undefined) data.imageUrl = imageUrl;
+    if (timing !== undefined) data.timing = timing;
 
 
     const updated = await prisma.appointmentReminder.update({

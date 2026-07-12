@@ -436,6 +436,8 @@ model AppointmentReminder {
   isSystem        Boolean        @default(false) // true si es notificación interna para administradores
   triggerWhen     String         @default("BOTH") // BOTH (crear/modificar) | STATUS_ONLY (solo modificar)
   templateId      String         @default("") // Identificador de la plantilla oficial (ej: para Whatsapp automático)
+  imageUrl        String?        // URL de la imagen adjunta (ej: de cuidados post-tratamiento)
+  timing          String         @default("BEFORE") // BEFORE | AFTER
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
