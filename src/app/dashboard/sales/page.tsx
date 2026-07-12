@@ -1165,10 +1165,32 @@ export default function SalesPage() {
     const allArticles = getArticlesList();
 
     if (saleId && salesHistory.length > 0) {
-      const foundItem = allArticles.find(item => item.id.includes(saleId));
+      let foundItem = allArticles.find(item => item.id.includes(saleId));
+      
+      if (!foundItem) {
+        const saleObj = salesHistory.find(s => s.id === saleId);
+        if (saleObj) {
+          try {
+            const itemsArr = JSON.parse(saleObj.itemsJson || "[]");
+            const appItem = itemsArr.find((i: any) => i.id && (i.id.startsWith("db-app-") || appointments.some(a => a.id === i.id)));
+            if (appItem) {
+              const cleanAppId = appItem.id.replace("db-app-", "");
+              foundItem = allArticles.find(item => item.id === `db-app-${cleanAppId}`);
+            } else {
+              const voucherItem = itemsArr.find((i: any) => i.id && (i.id.startsWith("db-voucher-") || i.id.startsWith("voucher-") || clientVouchers.some(v => v.id === i.id || `db-voucher-${v.id}` === i.id || `voucher-${v.id}` === i.id)));
+              if (voucherItem) {
+                const cleanVoucherId = voucherItem.id.replace("db-voucher-", "").replace("voucher-", "");
+                foundItem = allArticles.find(item => item.id === `db-voucher-${cleanVoucherId}`);
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
       if (foundItem) {
         setShowPosDrawer(false);
         setSelectedItemForPayment(foundItem);
+        window.history.replaceState({}, "", "/dashboard/sales");
         return;
       }
     }
@@ -1178,6 +1200,7 @@ export default function SalesPage() {
       if (foundItem) {
         setShowPosDrawer(false);
         setSelectedItemForPayment(foundItem);
+        window.history.replaceState({}, "", "/dashboard/sales");
         return;
       }
     }
