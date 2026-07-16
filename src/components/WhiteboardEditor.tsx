@@ -47,7 +47,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number>(-1);
 
-  // Initialize canvas and load background template image
+  // Initialize transparent canvas
   const initCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -58,38 +58,15 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     canvas.width = 600;
     canvas.height = 600;
 
-    // Fill white background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, 600, 600);
+    // Clear canvas to make it fully transparent so background template under it is untouched
+    ctx.clearRect(0, 0, 600, 600);
+    
+    // Reset undo/redo history
+    historyRef.current = [];
+    historyIndexRef.current = -1;
 
-    // Draw background template image
-    const img = new Image();
-    img.src = currentTemplateUrl;
-    // Allow loading external domain images from dbTemplates safely without throwing CORS errors
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const scale = Math.min(600 / img.width, 600 / img.height) * 0.95;
-      const x = (600 - img.width * scale) / 2;
-      const y = (600 - img.height * scale) / 2;
-      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-      
-      // Save canvas state to history
-      saveHistory();
-    };
-    img.onerror = () => {
-      // In case of CORS block on external database images, draw empty canvas with template name text
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(40, 40, 520, 520);
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.strokeRect(40, 40, 520, 520);
-      
-      ctx.fillStyle = "#64748b";
-      ctx.font = "italic 16px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(`Plantilla: ${templateName}`, 300, 280);
-      ctx.fillText("(Carga de imagen protegida)", 300, 310);
-      saveHistory();
-    };
+    // Save initial transparent state to history
+    saveHistory();
   };
 
   useEffect(() => {
@@ -107,7 +84,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
       historyRef.current.push(dataUrl);
       historyIndexRef.current = historyRef.current.length - 1;
     } catch (e) {
-      console.warn("Canvas is tainted, history skipped:", e);
+      console.warn("Canvas history write skipped:", e);
     }
   };
 
@@ -174,7 +151,16 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     ctx.lineWidth = brushSize;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = tool === "erase" ? "#ffffff" : color;
+
+    if (tool === "erase") {
+      // Use destination-out composite mode to clear strokes to transparent, preserving background image underneath
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.strokeStyle = "rgba(0,0,0,1)";
+    } else {
+      // Standard drawing mode
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = color;
+    }
 
     isDrawingRef.current = true;
   };
@@ -241,15 +227,50 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     setIsSaving(true);
     setSaveMessage("Subiendo anotación al historial del paciente...");
 
-    // Create temporary canvas to burn pins directly into the saved image
+    // Create temporary canvas to flatten white background, template, drawings, and pins
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
     const tempCtx = tempCanvas.getContext("2d");
+    
     if (tempCtx) {
+      // 1. Draw solid white background
+      tempCtx.fillStyle = "#ffffff";
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      // 2. Draw the background template image on top of white background
+      const bgImg = new Image();
+      bgImg.src = currentTemplateUrl;
+      bgImg.crossOrigin = "anonymous";
+      
+      await new Promise((resolve) => {
+        bgImg.onload = () => {
+          const scale = Math.min(tempCanvas.width / bgImg.width, tempCanvas.height / bgImg.height) * 0.95;
+          const x = (tempCanvas.width - bgImg.width * scale) / 2;
+          const y = (tempCanvas.height - bgImg.height * scale) / 2;
+          tempCtx.drawImage(bgImg, x, y, bgImg.width * scale, bgImg.height * scale);
+          resolve(true);
+        };
+        bgImg.onerror = () => {
+          // CORS fallback
+          tempCtx.fillStyle = "#f8fafc";
+          tempCtx.fillRect(40, 40, 520, 520);
+          tempCtx.strokeStyle = "#cbd5e1";
+          tempCtx.strokeRect(40, 40, 520, 520);
+          
+          tempCtx.fillStyle = "#64748b";
+          tempCtx.font = "italic 16px sans-serif";
+          tempCtx.textAlign = "center";
+          tempCtx.fillText(`Plantilla: ${templateName}`, 300, 280);
+          tempCtx.fillText("(Carga de imagen protegida)", 300, 310);
+          resolve(true);
+        };
+      });
+
+      // 3. Draw transparent drawing strokes canvas on top of template
       tempCtx.drawImage(canvas, 0, 0);
 
-      // Draw all pins directly on tempCtx
+      // 4. Burn pins on top of everything
       pins.forEach((pin) => {
         const x = (pin.x / 100) * tempCanvas.width;
         const y = (pin.y / 100) * tempCanvas.height;
@@ -260,16 +281,16 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         tempCtx.fillStyle = "rgba(15, 23, 42, 0.3)";
         tempCtx.fill();
 
-        // Pin border/background
+        // Pin background
         tempCtx.beginPath();
         tempCtx.arc(x, y, 12, 0, 2 * Math.PI);
-        tempCtx.fillStyle = "#ef4444"; // red circle
+        tempCtx.fillStyle = "#ef4444";
         tempCtx.fill();
         tempCtx.lineWidth = 2.5;
         tempCtx.strokeStyle = "#ffffff";
         tempCtx.stroke();
 
-        // Text inside pin
+        // Pin number text
         tempCtx.fillStyle = "#ffffff";
         tempCtx.font = "bold 13px sans-serif";
         tempCtx.textAlign = "center";
@@ -285,7 +306,6 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         return;
       }
 
-      // Compile annotations into description text
       let annotationsDesc = "";
       if (pins.length > 0) {
         annotationsDesc = " [Anotaciones: " + pins.map(p => `(${p.number}) ${p.text || "sin nota"}`).join(", ") + "]";
@@ -329,7 +349,6 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
 
   const handleDeletePin = (id: number) => {
     const filtered = pins.filter(p => p.id !== id);
-    // Reindex pins sequentially
     const reindexed = filtered.map((p, idx) => ({
       ...p,
       number: idx + 1
@@ -357,9 +376,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         <div>
           <h3 style={{ margin: "0 0 10px 0", fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>1. Seleccionar Plantilla</h3>
           
-          {/* List of templates: DB + default SVGs */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "150px", overflowY: "auto", paddingRight: "4px" }}>
-            {/* Defaults */}
             <button
               type="button"
               onClick={() => {
@@ -459,7 +476,6 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
             ))}
           </div>
 
-          {/* Custom Upload */}
           <div style={{ marginTop: "10px" }}>
             <label 
               style={{
@@ -562,7 +578,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           </div>
         </div>
 
-        {/* Brush Size / Color Palette (Visible when not pin tool) */}
+        {/* Brush Size / Color Palette */}
         {tool !== "pin" && (
           <>
             <div>
@@ -619,7 +635,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           </>
         )}
 
-        {/* Pin Annotations Input list (Visible only when tool is pin or we have pins) */}
+        {/* Pin Annotations Input list */}
         {pins.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "180px", overflowY: "auto", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
             <h4 style={{ margin: 0, fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>Notas de los Pines</h4>
@@ -777,10 +793,27 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
             aspectRatio: "1/1",
             borderRadius: "8px",
             boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.05)",
-            overflow: "hidden"
+            overflow: "hidden",
+            backgroundColor: "#ffffff" // white background base
           }}
         >
-          {/* Canvas */}
+          {/* Anatomical template image behind the drawing canvas */}
+          <img 
+            src={currentTemplateUrl} 
+            alt="Clinical template"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              pointerEvents: "none",
+              userSelect: "none"
+            }}
+          />
+
+          {/* Transparent Canvas for line drawing and brush strokes */}
           <canvas
             ref={canvasRef}
             onMouseDown={startDrawing}
@@ -791,15 +824,17 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
             onTouchMove={draw}
             onTouchEnd={stopDrawing}
             style={{
+              position: "relative",
               width: "100%",
               height: "100%",
               display: "block",
               touchAction: "none",
-              cursor: tool === "erase" ? "cell" : tool === "pin" ? "pointer" : "crosshair"
+              cursor: tool === "erase" ? "cell" : tool === "pin" ? "pointer" : "crosshair",
+              zIndex: 1
             }}
           />
 
-          {/* Absolute HTML pins overlay */}
+          {/* Absolute HTML pins overlay on top of canvas */}
           {pins.map((pin) => (
             <div
               key={pin.id}
@@ -820,8 +855,9 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 justifyContent: "center",
                 fontSize: "12px",
                 fontWeight: "bold",
-                pointerEvents: "none", // Prevent overlay blocking click
-                userSelect: "none"
+                pointerEvents: "none",
+                userSelect: "none",
+                zIndex: 2
               }}
             >
               {pin.number}
