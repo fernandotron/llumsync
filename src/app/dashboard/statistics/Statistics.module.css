@@ -174,7 +174,7 @@
 .card:hover {
   transform: translateY(-3px);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
-  border-color: rgba(59, 130, 246, 0.35);
+  border-color: rgba(0, 143, 163, 0.35);
 }
 
 /* Summary List Card */

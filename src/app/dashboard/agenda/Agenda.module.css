@@ -540,7 +540,7 @@
 }
 
 .quarter:hover {
-  background: rgba(79, 70, 229, 0.08);
+  background: var(--primary-light);
 }
 
 .outsideShiftSlot {
@@ -555,7 +555,7 @@
 }
 
 .outsideShiftSlot:hover {
-  background: rgba(79, 70, 229, 0.12) !important;
+  background: rgba(0, 143, 163, 0.12) !important;
 }
 
 .quarter:hover span {
@@ -854,7 +854,7 @@
 }
 
 .monthTodayCell.monthDayClickable:hover {
-  background-color: rgba(79, 70, 229, 0.18) !important;
+  background-color: rgba(0, 143, 163, 0.18) !important;
 }
 
 .monthDayEmpty {
@@ -1107,7 +1107,7 @@
 }
 
 .removeClientBtn:hover {
-  background: rgba(79, 70, 229, 0.15);
+  background: var(--primary-light);
 }
 
 /* Wide Modal & Layout for inline creation */
