@@ -7398,6 +7398,8 @@ export default function ClientDetailPage() {
               </div>
               <WhiteboardEditor 
                 clientId={client.id} 
+                clinicId={activeClinic?.id}
+                dbTemplates={whiteboardTemplates}
                 onSaveSuccess={() => {
                   fetchClientDetails(true);
                 }}
