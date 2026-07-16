@@ -12,6 +12,7 @@ import { getCountryConfig } from "@/lib/countries";
 import { translate } from "@/lib/translations";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import { CameraCaptureModal } from "@/components/CameraCaptureModal";
+import { WhiteboardEditor } from "@/components/WhiteboardEditor";
 
 interface Client {
   id: string;
@@ -179,7 +180,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   
   // Design active tabs: "general" | "documents" | "forms" | "medical" | "permissions" | "billing"
-  const [activeTab, setActiveTab] = useState<"general" | "documents" | "forms" | "medical" | "permissions" | "billing" | "budgets" | "photos">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "documents" | "forms" | "medical" | "permissions" | "billing" | "budgets" | "photos" | "timeline" | "whiteboard">("general");
 
   // Redirect forbidden tabs back to general
   useEffect(() => {
@@ -3523,6 +3524,18 @@ export default function ClientDetailPage() {
             onClick={() => setActiveTab("photos")}
           >
             {t("Antes y Después")}
+          </button>
+          <button 
+            className={`${styles.tabBtn} ${activeTab === "timeline" ? styles.tabBtnActive : ""}`}
+            onClick={() => setActiveTab("timeline")}
+          >
+            ⏱️ Línea de Tiempo
+          </button>
+          <button 
+            className={`${styles.tabBtn} ${activeTab === "whiteboard" ? styles.tabBtnActive : ""}`}
+            onClick={() => setActiveTab("whiteboard")}
+          >
+            ✏️ Pizarra Clínica
           </button>
         </div>
 
@@ -9024,6 +9037,203 @@ export default function ClientDetailPage() {
               title="Tomar Foto"
             />
           </div>
+        </div>
+      )}
+
+      {/* TAB 9: Línea de Tiempo */}
+      {activeTab === "timeline" && client && (() => {
+        const timelineItems: any[] = [];
+        
+        if (client.appointments) {
+          client.appointments.forEach((app: any) => {
+            timelineItems.push({
+              id: app.id,
+              date: new Date(app.start),
+              type: "appointment",
+              title: `Cita: ${app.service?.name || "Consulta"}`,
+              subtitle: `Atendido por: ${app.user?.name || "Especialista"}`,
+              badge: app.status,
+              color: app.service?.color || "#3b82f6",
+              notes: app.notes
+            });
+          });
+        }
+
+        if (client.documents) {
+          client.documents.forEach((doc: any) => {
+            timelineItems.push({
+              id: doc.id,
+              date: new Date(doc.createdAt),
+              type: "document",
+              title: `Documento Firmado: ${doc.name}`,
+              subtitle: doc.pin ? `PIN de firma: ${doc.pin}` : "Consentimiento informado firmado",
+              badge: doc.signature ? "FIRMADO" : "PENDIENTE"
+            });
+          });
+        }
+
+        if (client.photos) {
+          client.photos.forEach((ph: any) => {
+            timelineItems.push({
+              id: ph.id,
+              date: new Date(ph.takenAt || ph.createdAt),
+              type: "photo",
+              title: `Foto de Evolución: ${ph.type === "BEFORE" ? "Antes" : "Después"}`,
+              subtitle: ph.description || `Ángulo: ${ph.angle || "Frente"}`,
+              image: ph.photoUrl
+            });
+          });
+        }
+
+        if (client.files) {
+          client.files.forEach((file: any) => {
+            timelineItems.push({
+              id: file.id,
+              date: new Date(file.createdAt),
+              type: "file",
+              title: `Archivo Adjunto: ${file.name}`,
+              subtitle: file.fileSize ? `${Math.round(file.fileSize / 1024)} KB` : "Documento adjunto",
+              url: file.fileUrl
+            });
+          });
+        }
+
+        if (clientBudgets) {
+          clientBudgets.forEach((b: any) => {
+            timelineItems.push({
+              id: b.id,
+              date: new Date(b.createdAt),
+              type: "budget",
+              title: `Presupuesto Nº ${b.budgetNumber}: ${b.title}`,
+              subtitle: `Total: ${b.total.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}`,
+              badge: b.status,
+              notes: b.remainingAmount > 0 ? `Saldo pendiente: ${b.remainingAmount.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}` : "Totalmente pagado"
+            });
+          });
+        }
+
+        timelineItems.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+        return (
+          <div className={styles.documentsPanel} style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "24px" }}>
+            <h3 style={{ margin: "0 0 20px 0", fontSize: "18px", fontWeight: 700, color: "#006687" }}>Línea de Tiempo del Historial Clínico</h3>
+            {timelineItems.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>No hay eventos registrados en el historial de este paciente.</div>
+            ) : (
+              <div style={{ position: "relative", paddingLeft: "32px", borderLeft: "2px solid #e2e8f0" }}>
+                {timelineItems.map((item, index) => (
+                  <div key={item.id + "-" + index} style={{ position: "relative", marginBottom: "32px" }}>
+                    {/* Circle dot on vertical line */}
+                    <div 
+                      style={{ 
+                        position: "absolute", 
+                        left: "-41px", 
+                        top: "2px", 
+                        width: "16px", 
+                        height: "16px", 
+                        borderRadius: "50%", 
+                        border: "3px solid #ffffff",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        backgroundColor: item.type === "appointment" ? (item.color || "#3b82f6") :
+                                         item.type === "document" ? "#10b981" :
+                                         item.type === "photo" ? "#8b5cf6" :
+                                         item.type === "file" ? "#06b6d4" : "#f59e0b"
+                      }} 
+                    />
+                    
+                    {/* Timeline Item Card */}
+                    <div 
+                      style={{ 
+                        padding: "16px", 
+                        backgroundColor: "#f8fafc", 
+                        borderRadius: "10px", 
+                        border: "1px solid #e2e8f0",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
+                      }}
+                    >
+                      {/* Header */}
+                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "6px" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                          {item.type === "appointment" && "📅 Cita Médica"}
+                          {item.type === "document" && "✍️ Consentimiento"}
+                          {item.type === "photo" && "📷 Foto Evolución"}
+                          {item.type === "file" && "📁 Archivo"}
+                          {item.type === "budget" && "💰 Presupuesto"}
+                          {" — "}
+                          {item.date.toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        {item.badge && (
+                          <span 
+                            style={{ 
+                              fontSize: "10px", 
+                              fontWeight: 700, 
+                              padding: "2px 8px", 
+                              borderRadius: "12px",
+                              backgroundColor: item.badge === "COMPLETED" || item.badge === "FIRMADO" || item.badge === "ACCEPTED" ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                              color: item.badge === "COMPLETED" || item.badge === "FIRMADO" || item.badge === "ACCEPTED" ? "#10b981" : "#f59e0b"
+                            }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <h4 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{item.title}</h4>
+                      <p style={{ margin: "0 0 6px 0", fontSize: "12px", color: "#475569" }}>{item.subtitle}</p>
+                      
+                      {item.notes && (
+                        <div style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic", marginTop: "6px", paddingLeft: "8px", borderLeft: "2px solid #cbd5e1" }}>
+                          "{item.notes}"
+                        </div>
+                      )}
+
+                      {/* Display image thumbnail if photo type */}
+                      {item.image && (
+                        <div style={{ marginTop: "12px" }}>
+                          <img 
+                            src={item.image} 
+                            alt={item.title} 
+                            style={{ maxHeight: "100px", borderRadius: "6px", border: "1px solid #cbd5e1", cursor: "pointer" }}
+                            onClick={() => window.open(item.image, "_blank")}
+                          />
+                        </div>
+                      )}
+
+                      {/* Download link for files */}
+                      {item.url && (
+                        <a 
+                          href={item.url} 
+                          download 
+                          style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#3b82f6", textDecoration: "none", fontWeight: 600, marginTop: "8px" }}
+                        >
+                          📥 Descargar Archivo
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* TAB 10: Pizarra Clínica */}
+      {activeTab === "whiteboard" && client && (
+        <div className={styles.documentsPanel} style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "24px" }}>
+          <div style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: "16px", marginBottom: "20px" }}>
+            <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#006687" }}>Pizarra Clínica de Anotaciones</h3>
+            <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
+              Dibuja libremente sobre una plantilla anatómica seleccionada para marcar zonas de tratamiento o inyecciones, y guárdalo directo en la ficha del paciente.
+            </p>
+          </div>
+          <WhiteboardEditor 
+            clientId={client.id} 
+            onSaveSuccess={() => {
+              fetchClientDetails(true);
+            }}
+          />
         </div>
       )}
 
