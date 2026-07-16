@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import fs from "fs";
 import path from "path";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 // GET: Obtener fotos de un cliente (y opcionalmente por cita)
 export async function GET(
@@ -44,6 +45,27 @@ export async function POST(
 
     if (!clientId) {
       return NextResponse.json({ error: "Falta ID de cliente" }, { status: 400 });
+    }
+
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || 
+               request.headers.get("x-real-ip") || 
+               "127.0.0.1";
+               
+    const rate = checkRateLimit(ip, "upload", 10, 300000); // 10 uploads per 5 minutes
+    if (rate.limited) {
+      const retryAfter = Math.ceil((rate.reset - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: `Límite de subidas excedido. Por favor, espere ${Math.ceil(retryAfter / 60)} minutos.` },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(retryAfter),
+            "X-RateLimit-Limit": String(rate.limit),
+            "X-RateLimit-Remaining": String(rate.remaining),
+            "X-RateLimit-Reset": String(Math.ceil(rate.reset / 1000)),
+          }
+        }
+      );
     }
 
     const formData = await request.formData();

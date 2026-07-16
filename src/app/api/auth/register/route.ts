@@ -1,9 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/crypto";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || 
+               request.headers.get("x-real-ip") || 
+               "127.0.0.1";
+               
+    const rate = checkRateLimit(ip, "register", 3, 3600000); // 3 registrations per 1 hour
+    if (rate.limited) {
+      const retryAfter = Math.ceil((rate.reset - Date.now()) / 1000);
+      const retryMinutes = Math.ceil(retryAfter / 60);
+      return NextResponse.json(
+        { error: `Demasiados registros desde esta dirección IP. Por favor, espere ${retryMinutes} minutos.` },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(retryAfter),
+            "X-RateLimit-Limit": String(rate.limit),
+            "X-RateLimit-Remaining": String(rate.remaining),
+            "X-RateLimit-Reset": String(Math.ceil(rate.reset / 1000)),
+          }
+        }
+      );
+    }
+
     const { name, email, password } = await request.json();
 
     if (!name || !email || !password) {
