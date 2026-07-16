@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { hashPassword } from "@/lib/crypto";
 
 export async function POST(request: Request) {
   try {
@@ -23,11 +24,13 @@ export async function POST(request: Request) {
       );
     }
 
+    const hashed = hashPassword(password);
+
     const user = await prisma.user.create({
       data: {
         name,
         email: email.trim().toLowerCase(),
-        password,
+        password: hashed,
         role: "ADMIN",
         permissionsJson: JSON.stringify({
           agenda: ["Sus agendas", "Agendas del centro"],
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       user: {
         id: user.id,
         name: user.name,
@@ -50,6 +53,17 @@ export async function POST(request: Request) {
         permissionsJson: user.permissionsJson,
       },
     });
+
+    // Set HTTP-only session cookie
+    response.cookies.set("session_user_id", user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    return response;
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });

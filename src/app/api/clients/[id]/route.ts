@@ -48,13 +48,13 @@ export async function GET(
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
     }
 
-    // Fetch signed documents using PostgreSQL placeholder syntax ($1)
+    // Fetch signed documents using Prisma
     let rawDocs: any[] = [];
     try {
-      rawDocs = await prisma.$queryRawUnsafe(
-        `SELECT * FROM "SignedDocument" WHERE "clientId" = $1 ORDER BY "createdAt" DESC`,
-        client.id
-      ) as any[];
+      rawDocs = await prisma.signedDocument.findMany({
+        where: { clientId: client.id },
+        orderBy: { createdAt: "desc" },
+      });
     } catch (docErr) {
       console.error("Error fetching signed documents:", docErr);
     }

@@ -45,7 +45,7 @@ export async function POST(
     }
 
     // Ensure uploads directory exists
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    const uploadDir = path.join(process.cwd(), "private-uploads");
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -53,7 +53,7 @@ export async function POST(
     // Generate unique name
     const uniqueFilename = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
     const filePath = path.join(uploadDir, uniqueFilename);
-    const fileUrl = `/uploads/${uniqueFilename}`;
+    const fileUrl = `/api/uploads/${uniqueFilename}`;
 
     // Write file
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -95,7 +95,8 @@ export async function DELETE(
     });
 
     if (fileRecord) {
-      const filePath = path.join(process.cwd(), "public", fileRecord.fileUrl);
+      const fileFilename = path.basename(fileRecord.fileUrl);
+      const filePath = path.join(process.cwd(), "private-uploads", fileFilename);
       if (fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);

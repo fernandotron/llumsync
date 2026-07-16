@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
 import crypto from "crypto";
 
 export async function POST(request: Request) {
@@ -15,24 +14,19 @@ export async function POST(request: Request) {
     const docId = crypto.randomUUID();
     const now = new Date();
 
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "SignedDocument" ("id", "clientId", "name", "content", "signature", "pin", "createdAt")
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      docId,
-      clientId,
-      name,
-      content,
-      signature || null,
-      pin || null,
-      now
-    );
+    const signedDoc = await prisma.signedDocument.create({
+      data: {
+        id: docId,
+        clientId,
+        name,
+        content,
+        signature: signature || null,
+        pin: pin || null,
+        createdAt: now,
+      },
+    });
 
-    const rows: any = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "SignedDocument" WHERE "id" = ?`,
-      docId
-    );
-
-    return NextResponse.json(rows[0]);
+    return NextResponse.json(signedDoc);
   } catch (error) {
     console.error("Error saving signed document:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });

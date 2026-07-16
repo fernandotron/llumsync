@@ -171,11 +171,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard/agenda");
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
     setActiveClinicState(null);
     localStorage.removeItem("clifav_user");
     localStorage.removeItem("clifav_active_clinic");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Failed to clear session on logout:", err);
+    }
     router.push("/");
   };
 

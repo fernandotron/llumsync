@@ -9,11 +9,9 @@ export async function GET(
   try {
     const { id } = await params;
     
-    const rows: any = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "SignedDocument" WHERE "id" = ?`,
-      id
-    );
-    const signedDoc = rows[0];
+    const signedDoc = await prisma.signedDocument.findUnique({
+      where: { id },
+    });
 
     if (!signedDoc) {
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
@@ -46,11 +44,9 @@ export async function PUT(
       return NextResponse.json({ error: "Falta la firma" }, { status: 400 });
     }
 
-    const rowsBefore: any = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "SignedDocument" WHERE "id" = ?`,
-      id
-    );
-    const signedDoc = rowsBefore[0];
+    const signedDoc = await prisma.signedDocument.findUnique({
+      where: { id },
+    });
 
     if (!signedDoc) {
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
@@ -82,7 +78,7 @@ export async function PUT(
       updatedContent += `<br/><br/>` + signatureImg;
     }
 
-    await prisma.signedDocument.update({
+    const updatedDoc = await prisma.signedDocument.update({
       where: { id },
       data: {
         signature,
@@ -90,12 +86,7 @@ export async function PUT(
       },
     });
 
-    const rowsAfter: any = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "SignedDocument" WHERE "id" = ?`,
-      id
-    );
-
-    return NextResponse.json(rowsAfter[0]);
+    return NextResponse.json(updatedDoc);
   } catch (error) {
     console.error("Error updating signed document remotely:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
@@ -109,10 +100,9 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM "SignedDocument" WHERE "id" = ?`,
-      id
-    );
+    await prisma.signedDocument.delete({
+      where: { id },
+    });
 
     return NextResponse.json({ success: true, deletedId: id });
   } catch (error) {

@@ -11,14 +11,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No se proporcionó ningún archivo" }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    const uploadDir = path.join(process.cwd(), "private-uploads");
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
     const uniqueFilename = `upload-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
     const filePath = path.join(uploadDir, uniqueFilename);
-    const fileUrl = `/uploads/${uniqueFilename}`;
+    const fileUrl = `/api/uploads/${uniqueFilename}`;
 
     const buffer = Buffer.from(await file.arrayBuffer());
     fs.writeFileSync(filePath, buffer);

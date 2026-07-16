@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { hashPassword } from "@/lib/crypto";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -40,7 +41,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         color,
         showInAgenda: showInAgenda !== undefined ? Boolean(showInAgenda) : undefined,
         permissionsJson: permissionsJson !== undefined ? permissionsJson : undefined,
-        password: password !== undefined ? password : undefined
+        password: password !== undefined ? hashPassword(password) : undefined
       }
     });
 
