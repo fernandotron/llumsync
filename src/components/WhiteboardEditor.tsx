@@ -367,10 +367,11 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           flexDirection: "column", 
           gap: "20px", 
           padding: "20px", 
-          backgroundColor: "#ffffff", 
+          backgroundColor: "rgba(255, 255, 255, 0.8)", 
+          backdropFilter: "blur(16px)",
           borderRadius: "12px",
-          border: "1px solid rgba(226, 232, 240, 0.8)",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)"
+          border: "1px solid rgba(2, 132, 199, 0.1)",
+          boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.04)"
         }}
       >
         <div>
@@ -519,7 +520,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 padding: "10px 6px",
                 fontSize: "11px",
                 fontWeight: 700,
-                borderRadius: "6px",
+                borderRadius: "8px",
                 border: "1px solid",
                 borderColor: tool === "draw" ? "#0284c7" : "#cbd5e1",
                 backgroundColor: tool === "draw" ? "rgba(2, 132, 199, 0.08)" : "#ffffff",
@@ -528,7 +529,10 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: "4px"
+                gap: "4px",
+                boxShadow: tool === "draw" ? "0 4px 10px -2px rgba(2, 132, 199, 0.2)" : "none",
+                transform: tool === "draw" ? "translateY(-1px)" : "none",
+                transition: "all 0.2s"
               }}
             >
               <span>✏️</span> Lápiz
@@ -540,7 +544,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 padding: "10px 6px",
                 fontSize: "11px",
                 fontWeight: 700,
-                borderRadius: "6px",
+                borderRadius: "8px",
                 border: "1px solid",
                 borderColor: tool === "erase" ? "#0284c7" : "#cbd5e1",
                 backgroundColor: tool === "erase" ? "rgba(2, 132, 199, 0.08)" : "#ffffff",
@@ -549,7 +553,10 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: "4px"
+                gap: "4px",
+                boxShadow: tool === "erase" ? "0 4px 10px -2px rgba(2, 132, 199, 0.2)" : "none",
+                transform: tool === "erase" ? "translateY(-1px)" : "none",
+                transition: "all 0.2s"
               }}
             >
               <span>🧽</span> Borrador
@@ -561,7 +568,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 padding: "10px 6px",
                 fontSize: "11px",
                 fontWeight: 700,
-                borderRadius: "6px",
+                borderRadius: "8px",
                 border: "1px solid",
                 borderColor: tool === "pin" ? "#0284c7" : "#cbd5e1",
                 backgroundColor: tool === "pin" ? "rgba(2, 132, 199, 0.08)" : "#ffffff",
@@ -570,7 +577,10 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: "4px"
+                gap: "4px",
+                boxShadow: tool === "pin" ? "0 4px 10px -2px rgba(2, 132, 199, 0.2)" : "none",
+                transform: tool === "pin" ? "translateY(-1px)" : "none",
+                transition: "all 0.2s"
               }}
             >
               <span>📍</span> Pines

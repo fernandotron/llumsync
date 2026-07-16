@@ -202,6 +202,8 @@
   border-radius: var(--radius-lg);
   background: var(--bg-panel-solid);
   border: 1px solid var(--border-color);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s ease;
 }
 
 .avatar {
@@ -215,7 +217,7 @@
   justify-content: center;
   font-weight: 700;
   font-size: 28px;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 20px -4px rgba(0, 143, 163, 0.3);
 }
 
 .patientMeta {
@@ -391,7 +393,7 @@
 .tabBtnActive {
   color: var(--primary) !important;
   border-bottom-color: var(--primary);
-  background: transparent;
+  background: var(--primary-light) !important;
 }
 
 /* Tab contents container */
