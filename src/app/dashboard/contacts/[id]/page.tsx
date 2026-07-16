@@ -7283,7 +7283,7 @@ export default function ClientDetailPage() {
             timelineItems.sort((a, b) => b.date.getTime() - a.date.getTime());
 
             return (
-              <div className={styles.documentsPanel} style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "24px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
                 <h3 style={{ margin: "0 0 20px 0", fontSize: "18px", fontWeight: 700, color: "#006687" }}>Línea de Tiempo del Historial Clínico</h3>
                 {timelineItems.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>No hay eventos registrados en el historial de este paciente.</div>
@@ -7389,7 +7389,7 @@ export default function ClientDetailPage() {
 
           {/* TAB 10: Pizarra Clínica */}
           {activeTab === "whiteboard" && client && (
-            <div className={styles.documentsPanel} style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
               <div style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: "16px", marginBottom: "20px" }}>
                 <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#006687" }}>Pizarra Clínica de Anotaciones</h3>
                 <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
