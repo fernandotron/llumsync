@@ -3286,6 +3286,7 @@ export default function ClientDetailPage() {
   return (
     <div className={styles.container}>
       {/* LEFT COLUMN: SIDEBAR */}
+      {/*
       <div className={styles.sidebarCol}>
         <div className={styles.sidebarSearchWrapper}>
           <Icons.Search size={16} className={styles.sidebarSearchIcon} />
@@ -3331,6 +3332,7 @@ export default function ClientDetailPage() {
           </button>
         </div>
       </div>
+      */}
 
       {/* RIGHT COLUMN: MAIN CONTENT */}
       <div className={styles.mainCol}>
