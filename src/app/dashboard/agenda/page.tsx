@@ -79,6 +79,25 @@ const formatSpanishDate = (dateStr: string) => {
   return `${weekdays[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 };
 
+const getDeterministicPalette = (name: string) => {
+  const colorPalettes = [
+    { bg: "rgba(14, 165, 233, 0.15)", text: "#0284c7" },
+    { bg: "rgba(16, 185, 129, 0.15)", text: "#059669" },
+    { bg: "rgba(139, 92, 246, 0.15)", text: "#7c3aed" },
+    { bg: "rgba(245, 158, 11, 0.15)", text: "#d97706" },
+    { bg: "rgba(236, 72, 153, 0.15)", text: "#db2777" },
+    { bg: "rgba(6, 182, 212, 0.15)", text: "#0891b2" },
+    { bg: "rgba(249, 115, 22, 0.15)", text: "#ea580c" }
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colorPalettes.length;
+  return colorPalettes[index];
+};
+
+
 const formatTime12h = (time24: string) => {
   if (!time24) return "";
   const [hStr, mStr] = time24.split(":");
@@ -434,6 +453,9 @@ export default function AgendaPage() {
   };
   
   // State
+  const [draggedApp, setDraggedApp] = useState<Appointment | null>(null);
+  const [draggedOverSlot, setDraggedOverSlot] = useState<{ userId: string; hour: number; minute: number; dateStr: string } | null>(null);
+  const [savingAppIds, setSavingAppIds] = useState<string[]>([]);
   const [view, setView] = useState<"day" | "week" | "month">(() => {
     if (typeof window !== "undefined") {
       const savedView = window.localStorage.getItem("agenda_view");
@@ -2371,6 +2393,119 @@ export default function AgendaPage() {
     }
   };
 
+  // Drag and Drop Handlers
+  const handleMoveAppointment = async (app: Appointment, newUserId: string, newDateStr: string, newTimeStr: string) => {
+    if (!canCreateOrEditAppointment(currentUser)) {
+      alert("No tienes permisos para modificar citas.");
+      return;
+    }
+
+    const duration = (new Date(app.end).getTime() - new Date(app.start).getTime()) / 60000;
+    if (checkIfOutsideShift(newUserId, newDateStr, newTimeStr, duration)) {
+      const confirmSave = window.confirm(
+        "Estás asignando una cita fuera del horario laboral establecido para este profesional. ¿Deseas guardarla igualmente?"
+      );
+      if (!confirmSave) {
+        return;
+      }
+    }
+
+    const startDateTime = new Date(`${newDateStr}T${newTimeStr}`);
+    const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
+
+    // Save previous state for rollback on API error
+    const oldAppointments = [...appointments];
+
+    // Optimistic UI Update: update positions instantly on the screen
+    setAppointments(prev => prev.map(a => {
+      if (a.id === app.id) {
+        return {
+          ...a,
+          userId: newUserId,
+          start: startDateTime.toISOString(),
+          end: endDateTime.toISOString()
+        };
+      }
+      return a;
+    }));
+
+    setSavingAppIds(prev => [...prev, app.id]);
+
+    const payload = {
+      id: app.id,
+      userId: newUserId,
+      serviceId: app.serviceId,
+      clinicId: app.clinicId,
+      start: startDateTime.toISOString(),
+      end: endDateTime.toISOString(),
+      status: app.status,
+      notes: app.notes || "",
+      actorName: currentUser ? currentUser.name : "Sistema",
+      actorId: currentUser?.id,
+    };
+
+    try {
+      const res = await fetch("/api/appointments", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        fetchAppointments();
+        triggerAutoSync();
+      } else {
+        alert("Error al mover la cita.");
+        setAppointments(oldAppointments); // Rollback
+      }
+    } catch (err) {
+      console.error("Error moving appointment:", err);
+      alert("Error al conectar con el servidor.");
+      setAppointments(oldAppointments); // Rollback
+    } finally {
+      setSavingAppIds(prev => prev.filter(id => id !== app.id));
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, app: Appointment) => {
+    setDraggedApp(app);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", app.id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnter = (e: React.DragEvent, userId: string, hour: number, minute: number, dateObj: Date) => {
+    e.preventDefault();
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
+    setDraggedOverSlot({ userId, hour, minute, dateStr });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedApp(null);
+    setDraggedOverSlot(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, newUserId: string, hour: number, minute: number, dateObj: Date) => {
+    e.preventDefault();
+    setDraggedOverSlot(null);
+    if (!draggedApp) return;
+
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
+    const timeStr = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+
+    await handleMoveAppointment(draggedApp, newUserId, dateStr, timeStr);
+    setDraggedApp(null);
+  };
+
   // Save clinical follow-up (Seguimientos)
   const handleSaveSeguimiento = async () => {
     if (!selectedAppointment) return;
@@ -2741,25 +2876,57 @@ export default function AgendaPage() {
 
                 {/* Column Body Grid */}
                 <div className={styles.columnGridBody}>
-                  {hours.map((hour) => (
-                    <div key={hour} className={styles.hourRow}>
-                      {/* 15-minute sub-intervals shown on hover */}
-                      <div className={styles.quarterIntervals}>
-                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 0) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 0)}>
-                          <span>+ {String(hour).padStart(2, "0")}:00</span>
-                        </div>
-                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 15) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 15)}>
-                          <span>+ {String(hour).padStart(2, "0")}:15</span>
-                        </div>
-                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 30) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 30)}>
-                          <span>+ {String(hour).padStart(2, "0")}:30</span>
-                        </div>
-                        <div className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 45) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 45)}>
-                          <span>+ {String(hour).padStart(2, "0")}:45</span>
+                  {hours.map((hour) => {
+                    const dateStr = currentDate.getFullYear() + "-" + String(currentDate.getMonth() + 1).padStart(2, "0") + "-" + String(currentDate.getDate()).padStart(2, "0");
+                    const isDraggedOver00 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 0 && draggedOverSlot.dateStr === dateStr;
+                    const isDraggedOver15 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 15 && draggedOverSlot.dateStr === dateStr;
+                    const isDraggedOver30 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 30 && draggedOverSlot.dateStr === dateStr;
+                    const isDraggedOver45 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 45 && draggedOverSlot.dateStr === dateStr;
+
+                    return (
+                      <div key={hour} className={styles.hourRow}>
+                        {/* 15-minute sub-intervals shown on hover */}
+                        <div className={styles.quarterIntervals}>
+                          <div 
+                            className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 0) ? styles.outsideShiftSlot : ""} ${isDraggedOver00 ? styles.dragOverSlot : ""}`} 
+                            onClick={() => handleSlotClick(staff.id, hour, 0)}
+                            onDragOver={handleDragOver}
+                            onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 0, currentDate)}
+                            onDrop={(e) => handleDrop(e, staff.id, hour, 0, currentDate)}
+                          >
+                            <span>+ {String(hour).padStart(2, "0")}:00</span>
+                          </div>
+                          <div 
+                            className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 15) ? styles.outsideShiftSlot : ""} ${isDraggedOver15 ? styles.dragOverSlot : ""}`} 
+                            onClick={() => handleSlotClick(staff.id, hour, 15)}
+                            onDragOver={handleDragOver}
+                            onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 15, currentDate)}
+                            onDrop={(e) => handleDrop(e, staff.id, hour, 15, currentDate)}
+                          >
+                            <span>+ {String(hour).padStart(2, "0")}:15</span>
+                          </div>
+                          <div 
+                            className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 30) ? styles.outsideShiftSlot : ""} ${isDraggedOver30 ? styles.dragOverSlot : ""}`} 
+                            onClick={() => handleSlotClick(staff.id, hour, 30)}
+                            onDragOver={handleDragOver}
+                            onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 30, currentDate)}
+                            onDrop={(e) => handleDrop(e, staff.id, hour, 30, currentDate)}
+                          >
+                            <span>+ {String(hour).padStart(2, "0")}:30</span>
+                          </div>
+                          <div 
+                            className={`${styles.quarter} ${isSlotOutsideShift(staff, currentDate, hour, 45) ? styles.outsideShiftSlot : ""} ${isDraggedOver45 ? styles.dragOverSlot : ""}`} 
+                            onClick={() => handleSlotClick(staff.id, hour, 45)}
+                            onDragOver={handleDragOver}
+                            onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 45, currentDate)}
+                            onDrop={(e) => handleDrop(e, staff.id, hour, 45, currentDate)}
+                          >
+                            <span>+ {String(hour).padStart(2, "0")}:45</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Absolute positioned appointments */}
                   {staffApps.map((app) => {
@@ -2805,7 +2972,7 @@ export default function AgendaPage() {
                     return (
                       <div
                         key={app.id}
-                        className={`${styles.appointmentCard} ${statusClass} ${cardSizeClass}`}
+                        className={`${styles.appointmentCard} ${statusClass} ${cardSizeClass} ${draggedApp?.id === app.id ? styles.isDraggingCard : ""}`}
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
@@ -2816,6 +2983,9 @@ export default function AgendaPage() {
                           padding: height < 25 ? "2px 6px" : height < 45 ? "4px 6px" : undefined,
                         }}
                         onClick={(e) => handleAppointmentClick(app, e)}
+                        draggable={canCreateOrEditAppointment(currentUser)}
+                        onDragStart={(e) => handleDragStart(e, app)}
+                        onDragEnd={handleDragEnd}
                       >
                         <div className={styles.appCardHeader}>
                           <div className={styles.appClient} style={{ margin: 0, padding: 0, minWidth: 0, flex: 1, display: "flex", alignItems: "center", flexWrap: "wrap", gap: "3px" }}>
@@ -2839,6 +3009,18 @@ export default function AgendaPage() {
                             <span>{app.client.firstName} {app.client.lastName}</span>
                           </div>
                           <span className={`${styles.statusDot} ${styles[app.status.toLowerCase()]}`} style={{ flexShrink: 0, marginLeft: "6px" }}></span>
+                          {savingAppIds.includes(app.id) && (
+                            <svg className={styles.spinningIconMini} viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "4px", opacity: 0.8 }}>
+                              <line x1="12" y1="2" x2="12" y2="6"></line>
+                              <line x1="12" y1="18" x2="12" y2="22"></line>
+                              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                              <line x1="2" y1="12" x2="6" y2="12"></line>
+                              <line x1="18" y1="12" x2="22" y2="12"></line>
+                              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                            </svg>
+                          )}
                         </div>
                         <div className={styles.appTime}>
                           {String(startHours).padStart(2, "0")}:{String(startMins).padStart(2, "0")} - {String(endHours).padStart(2, "0")}:{String(endMins).padStart(2, "0")}
@@ -3136,24 +3318,56 @@ export default function AgendaPage() {
 
                         {/* Column body with hour grids and absolute appointments */}
                         <div className={styles.columnGridBody}>
-                          {hours.map((hour) => (
-                            <div key={hour} className={styles.hourRow}>
-                              <div className={styles.quarterIntervals}>
-                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 0) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 0, dateObj)}>
-                                  <span>+ {String(hour).padStart(2, "0")}:00</span>
-                                </div>
-                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 15) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 15, dateObj)}>
-                                  <span>+ {String(hour).padStart(2, "0")}:15</span>
-                                </div>
-                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 30) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 30, dateObj)}>
-                                  <span>+ {String(hour).padStart(2, "0")}:30</span>
-                                </div>
-                                <div className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 45) ? styles.outsideShiftSlot : ""}`} onClick={() => handleSlotClick(staff.id, hour, 45, dateObj)}>
-                                  <span>+ {String(hour).padStart(2, "0")}:45</span>
+                          {hours.map((hour) => {
+                            const colDateStr = dateObj.getFullYear() + "-" + String(dateObj.getMonth() + 1).padStart(2, "0") + "-" + String(dateObj.getDate()).padStart(2, "0");
+                            const isDraggedOver00 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 0 && draggedOverSlot.dateStr === colDateStr;
+                            const isDraggedOver15 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 15 && draggedOverSlot.dateStr === colDateStr;
+                            const isDraggedOver30 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 30 && draggedOverSlot.dateStr === colDateStr;
+                            const isDraggedOver45 = draggedOverSlot && draggedOverSlot.userId === staff.id && draggedOverSlot.hour === hour && draggedOverSlot.minute === 45 && draggedOverSlot.dateStr === colDateStr;
+
+                            return (
+                              <div key={hour} className={styles.hourRow}>
+                                <div className={styles.quarterIntervals}>
+                                  <div 
+                                    className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 0) ? styles.outsideShiftSlot : ""} ${isDraggedOver00 ? styles.dragOverSlot : ""}`} 
+                                    onClick={() => handleSlotClick(staff.id, hour, 0, dateObj)}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 0, dateObj)}
+                                    onDrop={(e) => handleDrop(e, staff.id, hour, 0, dateObj)}
+                                  >
+                                    <span>+ {String(hour).padStart(2, "0")}:00</span>
+                                  </div>
+                                  <div 
+                                    className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 15) ? styles.outsideShiftSlot : ""} ${isDraggedOver15 ? styles.dragOverSlot : ""}`} 
+                                    onClick={() => handleSlotClick(staff.id, hour, 15, dateObj)}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 15, dateObj)}
+                                    onDrop={(e) => handleDrop(e, staff.id, hour, 15, dateObj)}
+                                  >
+                                    <span>+ {String(hour).padStart(2, "0")}:15</span>
+                                  </div>
+                                  <div 
+                                    className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 30) ? styles.outsideShiftSlot : ""} ${isDraggedOver30 ? styles.dragOverSlot : ""}`} 
+                                    onClick={() => handleSlotClick(staff.id, hour, 30, dateObj)}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 30, dateObj)}
+                                    onDrop={(e) => handleDrop(e, staff.id, hour, 30, dateObj)}
+                                  >
+                                    <span>+ {String(hour).padStart(2, "0")}:30</span>
+                                  </div>
+                                  <div 
+                                    className={`${styles.quarter} ${isSlotOutsideShift(staff, dateObj, hour, 45) ? styles.outsideShiftSlot : ""} ${isDraggedOver45 ? styles.dragOverSlot : ""}`} 
+                                    onClick={() => handleSlotClick(staff.id, hour, 45, dateObj)}
+                                    onDragOver={handleDragOver}
+                                    onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 45, dateObj)}
+                                    onDrop={(e) => handleDrop(e, staff.id, hour, 45, dateObj)}
+                                  >
+                                    <span>+ {String(hour).padStart(2, "0")}:45</span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
 
                           {/* Render appointments */}
                           {staffDayApps.map((app) => {
@@ -3195,7 +3409,7 @@ export default function AgendaPage() {
                             return (
                               <div
                                 key={app.id}
-                                className={`${styles.appointmentCard} ${statusClass} ${cardSizeClass}`}
+                                className={`${styles.appointmentCard} ${statusClass} ${cardSizeClass} ${draggedApp?.id === app.id ? styles.isDraggingCard : ""}`}
                                 style={{
                                   top: `${top}px`,
                                   height: `${height}px`,
@@ -3206,6 +3420,9 @@ export default function AgendaPage() {
                                   padding: height < 25 ? "2px 4px" : height < 45 ? "3px 4px" : "4px 6px",
                                 }}
                                 onClick={(e) => handleAppointmentClick(app, e)}
+                                draggable={canCreateOrEditAppointment(currentUser)}
+                                onDragStart={(e) => handleDragStart(e, app)}
+                                onDragEnd={handleDragEnd}
                               >
                                 <div className={styles.appCardHeader} style={{ marginBottom: "2px" }}>
                                   <div className={styles.appClient} style={{ fontSize: "11px", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: "3px" }}>
@@ -3227,6 +3444,18 @@ export default function AgendaPage() {
                                       );
                                     })}
                                     <span>{app.client.firstName} {app.client.lastName}</span>
+                                    {savingAppIds.includes(app.id) && (
+                                      <svg className={styles.spinningIconMini} viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "4px", opacity: 0.8 }}>
+                                        <line x1="12" y1="2" x2="12" y2="6"></line>
+                                        <line x1="12" y1="18" x2="12" y2="22"></line>
+                                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                                        <line x1="2" y1="12" x2="6" y2="12"></line>
+                                        <line x1="18" y1="12" x2="22" y2="12"></line>
+                                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                                      </svg>
+                                    )}
                                   </div>
                                 </div>
                                 <div className={styles.appTime} style={{ fontSize: "10px", fontWeight: 700 }}>
@@ -3539,6 +3768,19 @@ export default function AgendaPage() {
     );
   };
 
+  // Daily Summary statistics calculations for currentDate
+  const dailyApps = appointments.filter((app) => {
+    const appDate = new Date(app.start);
+    return appDate.toDateString() === currentDate.toDateString();
+  });
+  const totalDaily = dailyApps.length;
+  const completedDaily = dailyApps.filter((app) => app.status === "COMPLETED").length;
+  const pendingDaily = dailyApps.filter((app) => app.status === "PENDING" || app.status === "CONFIRMED" || !app.status).length;
+  const cancelledDaily = dailyApps.filter((app) => app.status === "CANCELLED" || app.status === "NOSHOW").length;
+  const totalRevenueDaily = dailyApps
+    .filter((app) => app.status !== "CANCELLED" && app.status !== "NOSHOW")
+    .reduce((sum, app) => sum + (app.service?.price || 0), 0);
+
   return (
     <div className={styles.container}>
       {/* Filters & Header Toolbar */}
@@ -3579,6 +3821,63 @@ export default function AgendaPage() {
       <div className={styles.dashboardBody}>
         {/* Main Calendar View Area */}
         <section className={styles.calendarArea}>
+          {/* Daily Mini Summary Panel */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "10px", marginBottom: "16px" }}>
+            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icons.Calendar size={14} style={{ color: "#fff" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Total Citas</div>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--text-primary)" }}>{totalDaily}</div>
+              </div>
+            </div>
+            
+            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icons.Check size={14} style={{ color: "#fff" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Completadas</div>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: "#10b981" }}>{completedDaily}</div>
+              </div>
+            </div>
+            
+            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icons.Clock size={14} style={{ color: "#fff" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Pendientes</div>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: "#d97706" }}>{pendingDaily}</div>
+              </div>
+            </div>
+
+            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #ef4444, #dc2626)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icons.Close size={14} style={{ color: "#fff" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Canceladas</div>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: "#ef4444" }}>{cancelledDaily}</div>
+              </div>
+            </div>
+
+            {showPrices && (
+              <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Previsión Día</div>
+                  <div style={{ fontSize: "14px", fontWeight: 800, color: "#8b5cf6" }}>
+                    {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(totalRevenueDaily)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Calendar view selector & navigation */}
           <div className={styles.calendarHeader}>
             <div className={styles.calendarHeaderLeft}>

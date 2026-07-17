@@ -10,31 +10,31 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary) 0%, #004bbb 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(0, 96, 223, 0.35);
+  box-shadow: 0 8px 24px rgba(15, 118, 110, 0.25);
   border: none;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .chatBubble:hover {
   transform: scale(1.1) translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0, 96, 223, 0.45);
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.35);
 }
 
 .chatBubbleActive {
-  background: #ef4444;
-  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.35);
+  background: var(--danger);
+  box-shadow: 0 8px 24px rgba(225, 29, 72, 0.25);
   transform: rotate(90deg);
 }
 
 .chatBubbleActive:hover {
-  background: #dc2626;
-  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.45);
+  background: #be123c;
+  box-shadow: 0 12px 28px rgba(225, 29, 72, 0.35);
 }
 
 .chatWindow {
@@ -43,21 +43,23 @@
   right: 0;
   width: 380px;
   height: 520px;
-  border-radius: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transform-origin: bottom right;
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: scale(0.9) translateY(20px);
+    transform: scale(0.95) translateY(15px);
   }
   to {
     opacity: 1;
@@ -67,11 +69,12 @@
 
 .chatHeader {
   padding: 16px 20px;
-  background: linear-gradient(135deg, var(--primary) 0%, #004cbe 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .chatHeaderInfo {
@@ -86,32 +89,34 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  letter-spacing: 0.2px;
 }
 
 .chatHeaderStatus {
   font-size: 10px;
-  opacity: 0.85;
+  opacity: 0.9;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-weight: 600;
 }
 
 .statusIndicator {
   width: 6px;
   height: 6px;
-  background: #10b981;
+  background: #34d399;
   border-radius: 50%;
   display: inline-block;
-  box-shadow: 0 0 8px #10b981;
+  box-shadow: 0 0 8px #34d399;
 }
 
 .closeButton {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: 50%;
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -121,6 +126,7 @@
 .closeButton:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
 }
 
 .messagesArea {
@@ -130,7 +136,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: linear-gradient(to bottom, transparent, var(--bg-input));
+  background: linear-gradient(to bottom, transparent, rgba(15, 23, 42, 0.02));
 }
 
 .messageRow {
@@ -147,18 +153,20 @@
 }
 
 .messageBubble {
-  max-width: 80%;
+  max-width: 82%;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 13.5px;
   line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+  font-weight: 500;
 }
 
 .messageBubbleUser {
   background: var(--primary);
   color: #ffffff;
   border-bottom-right-radius: 2px;
-  box-shadow: 0 4px 12px rgba(0, 96, 223, 0.2);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.15);
 }
 
 .messageBubbleAssistant {
@@ -166,7 +174,7 @@
   color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-bottom-left-radius: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .msgHeader {
@@ -190,13 +198,11 @@
 
 .msgListItem {
   margin-left: 16px;
-  list-style-type: disc;
   margin-bottom: 4px;
 }
 
 .msgListItemNumbered {
   margin-left: 16px;
-  list-style-type: decimal;
   margin-bottom: 4px;
 }
 
@@ -260,12 +266,13 @@
   outline: none;
   background: var(--bg-input);
   color: var(--text-primary);
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .inputField:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-light);
+  background-color: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .sendBtn {
@@ -279,12 +286,16 @@
   justify-content: center;
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sendBtn:hover {
-  background: #004bbb;
+  background: var(--primary-hover);
   transform: scale(1.05);
+}
+
+.sendBtn:active {
+  transform: scale(0.97);
 }
 
 .sendBtn:disabled {
@@ -296,19 +307,20 @@
 
 /* Fallback alert banner */
 .fallbackBanner {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  color: #d97706;
-  border-radius: 8px;
+  background: var(--warning-light);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  color: var(--warning);
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   font-size: 11px;
   margin-bottom: 12px;
   line-height: 1.4;
+  font-weight: 500;
 }
 
 /* Custom scrollbar for messages area */
 .messagesArea::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 
 .messagesArea::-webkit-scrollbar-track {

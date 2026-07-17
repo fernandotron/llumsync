@@ -7,7 +7,7 @@
   flex-grow: 1;
   background-color: var(--bg-app);
   min-width: 0;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   z-index: 20;
 }
@@ -17,7 +17,7 @@
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 14px 20px;
   background-color: var(--bg-panel-solid);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
@@ -36,46 +36,55 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
 }
 .menuBtn:hover {
   background: var(--bg-input);
+  transform: scale(1.05);
 }
 
 .logoArea {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-weight: 800;
   font-size: 15px;
   color: var(--text-primary);
+  letter-spacing: 0.5px;
 }
 
 .logoIcon {
-  width: 28px;
-  height: 28px;
-  background: var(--primary);
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
   font-weight: 800;
-  font-size: 12px;
+  font-size: 13px;
+  box-shadow: 0 4px 10px rgba(15, 118, 110, 0.2);
 }
 
 .userAvatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background-color: var(--primary-light);
-  color: var(--primary);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 12px;
-  border: 1px solid var(--primary);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.userAvatar:hover {
+  transform: scale(1.05);
 }
 
 /* Responsive adjustments */
@@ -90,6 +99,6 @@
 
   .mainContent {
     margin-left: 0 !important;
-    padding: 16px !important;
+    padding: 20px !important;
   }
 }

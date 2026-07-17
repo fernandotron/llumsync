@@ -69,6 +69,10 @@
   animation: rotate 1.5s linear infinite;
 }
 
+.spinningIconMini {
+  animation: rotate 1.2s linear infinite;
+}
+
 @keyframes rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -581,6 +585,10 @@
   transition: all 0.2s;
 }
 
+.appointmentCard:active {
+  cursor: grabbing !important;
+}
+
 .appointmentCard:hover {
   transform: scale(1.02);
   z-index: 9999 !important; /* Raised to overlay tooltip above other cards */
@@ -627,41 +635,49 @@
 
 /* Status colors */
 .statusPending {
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(254, 243, 199, 0.55),
-    rgba(254, 243, 199, 0.55) 10px,
-    rgba(252, 211, 77, 0.35) 10px,
-    rgba(252, 211, 77, 0.35) 20px
-  ) !important;
-  color: #b45309 !important;
-  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.15) !important;
+  background-color: rgba(245, 158, 11, 0.09) !important;
+  color: #d97706 !important;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2) !important;
 }
 
 [data-theme="dark"] .statusPending {
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(251, 191, 36, 0.05),
-    rgba(251, 191, 36, 0.05) 10px,
-    rgba(251, 191, 36, 0.15) 10px,
-    rgba(251, 191, 36, 0.15) 20px
-  ) !important;
+  background-color: rgba(245, 158, 11, 0.15) !important;
   color: #fbbf24 !important;
-  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.2) !important;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.3) !important;
 }
 .statusConfirmed {
-  background: var(--primary-light);
-  color: var(--primary);
+  background-color: rgba(14, 165, 233, 0.09) !important;
+  color: #0284c7 !important;
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.2) !important;
+}
+[data-theme="dark"] .statusConfirmed {
+  background-color: rgba(14, 165, 233, 0.15) !important;
+  color: #38bdf8 !important;
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.3) !important;
 }
 .statusCompleted {
-  background: var(--success-light);
-  color: var(--success);
+  background-color: rgba(16, 185, 129, 0.09) !important;
+  color: #059669 !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2) !important;
+}
+[data-theme="dark"] .statusCompleted {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.3) !important;
 }
 .statusCancelled {
-  background: var(--danger-light);
-  color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.07) !important;
+  color: #dc2626 !important;
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.18) !important;
   text-decoration: line-through;
-  opacity: 0.6;
+  opacity: 0.65;
+}
+[data-theme="dark"] .statusCancelled {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #f87171 !important;
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.25) !important;
+  text-decoration: line-through;
+  opacity: 0.65;
 }
 
 .statusDot {
@@ -733,18 +749,25 @@
 }
 
 .weekAppItem {
-  padding: 6px 8px;
-  background: var(--bg-input);
-  border-radius: 4px;
+  padding: 8px 12px;
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.15s;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, filter 0.2s ease;
 }
 .weekAppItem:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+  filter: brightness(1.03);
+}
+.weekAppItem:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .weekAppTime {
@@ -846,11 +869,13 @@
 
 .monthDayClickable {
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .monthDayClickable:hover {
-  background-color: var(--bg-input);
+  background-color: var(--primary-light);
+  transform: translateY(-1px);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.15);
 }
 
 .monthTodayCell.monthDayClickable:hover {
@@ -4732,4 +4757,19 @@
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
   }
+}
+
+.dragOverSlot {
+  background-color: rgba(15, 118, 110, 0.18) !important;
+  border: 1.5px dashed var(--primary) !important;
+  box-shadow: 0 0 10px rgba(15, 118, 110, 0.2) !important;
+  transform: scale(1.015);
+  z-index: 10;
+}
+
+.isDraggingCard {
+  opacity: 0.45 !important;
+  border: 2px dashed var(--primary) !important;
+  box-shadow: none !important;
+  transform: scale(0.96) !important;
 }

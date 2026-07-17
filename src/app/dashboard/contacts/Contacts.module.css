@@ -178,12 +178,60 @@
   box-shadow: var(--shadow-sm);
 }
 
-.loadingState, .emptyState {
+.loadingState {
   padding: 60px;
   text-align: center;
   font-size: 15px;
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+.emptyState {
+  padding: 80px 40px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: radial-gradient(circle at center, var(--primary-light) 0%, transparent 70%);
+}
+
+.emptyState::before {
+  content: "📂";
+  font-size: 44px;
+  margin-bottom: 8px;
+  opacity: 0.85;
+  animation: floatIcon 3s infinite alternate ease-in-out;
+}
+
+@keyframes floatIcon {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+.skeletonTableContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  background: var(--bg-panel-solid);
+}
+
+.skeletonTableRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.skeletonTableRow:last-child {
+  border-bottom: none;
 }
 
 .tagList {
@@ -1213,4 +1261,164 @@
   .searchIcon {
     left: 14px !important;
   }
+}
+
+/* ==========================================
+   PREMIUM QUICK FILTER PILLS - DoctorCliq inspired
+   ========================================== */
+.quickFilterBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.quickFilterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 2rem;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-panel-solid);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.quickFilterPill:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,143,163,0.12);
+}
+
+.quickFilterPillActive {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 4px 12px rgba(0,143,163,0.3);
+}
+
+.quickFilterCount {
+  background: rgba(255,255,255,0.3);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.quickFilterPillActive .quickFilterCount {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+/* ==========================================
+   PATIENT AVATAR CELL
+   ========================================== */
+.clientAvatarCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+
+.clientAvatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.clientAvatarInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.clientNameLink {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s;
+}
+.clientNameLink:hover {
+  color: var(--primary);
+}
+
+/* ==========================================
+   WHATSAPP QUICK BUTTON
+   ========================================== */
+.whatsappQuickBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #25d366;
+  text-decoration: none;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #25d36614;
+  border: 1px solid #25d36630;
+  transition: all 0.15s ease;
+  width: fit-content;
+}
+.whatsappQuickBtn:hover {
+  background: #25d366;
+  color: #fff;
+  transform: scale(1.03);
+}
+
+/* ==========================================
+   APPOINTMENT DATE CELLS
+   ========================================== */
+.appointmentCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dateRelative {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.dateMissing {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.nextApptBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  border: 1px solid rgba(0,143,163,0.2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
 }

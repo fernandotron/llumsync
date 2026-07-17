@@ -135,9 +135,42 @@ export default function StatisticsPage() {
 
   if (loading) {
     return (
-      <div className={styles.loadingState}>
-        <div className={styles.loadingSpinner}></div>
-        <span>{t("statsLoadingMetrics")}</span>
+      <div className={styles.skeletonContainer}>
+        {/* Toolbar skeleton */}
+        <div className={styles.skeletonToolbar}>
+          <div className="shimmer" style={{ width: "220px", height: "32px", borderRadius: "8px" }}></div>
+          <div className="shimmer" style={{ width: "140px", height: "18px", borderRadius: "4px", marginTop: "8px" }}></div>
+        </div>
+        
+        {/* Filter bar placeholder */}
+        <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+          <div className="shimmer" style={{ width: "100px", height: "36px", borderRadius: "12px" }}></div>
+          <div className="shimmer" style={{ width: "240px", height: "36px", borderRadius: "12px" }}></div>
+        </div>
+
+        {/* Tab Selector placeholder */}
+        <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="shimmer" style={{ width: "90px", height: "34px", borderRadius: "2rem" }}></div>
+          ))}
+        </div>
+        
+        {/* Metric Cards Skeleton Grid */}
+        <div className={styles.skeletonGrid} style={{ marginTop: "16px" }}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className={styles.skeletonCard} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div className="shimmer" style={{ width: "40%", height: "14px", borderRadius: "4px" }}></div>
+              <div className="shimmer" style={{ width: "70%", height: "28px", borderRadius: "6px" }}></div>
+              <div className="shimmer" style={{ width: "30%", height: "12px", borderRadius: "4px" }}></div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Main Chart Card Skeleton */}
+        <div className={styles.skeletonCard} style={{ height: "360px", marginTop: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div className="shimmer" style={{ width: "150px", height: "18px", borderRadius: "4px" }}></div>
+          <div className="shimmer" style={{ flex: 1, borderRadius: "8px" }}></div>
+        </div>
       </div>
     );
   }
@@ -848,14 +881,14 @@ export default function StatisticsPage() {
         )}
       </div>
 
-      {/* TABS SELECTOR */}
+      {/* TABS SELECTOR - Pill Style inspired by DoctorCliq */}
       <nav className={styles.tabsList}>
         {[
-          { key: "general", label: t("tabGeneral") },
-          { key: "citas", label: t("tabAppointments") },
-          { key: "ventas", label: t("tabSalesAndBilling") },
-          { key: "clientes", label: t("tabClients") },
-          { key: "rendimiento", label: t("tabPerformance") }
+          { key: "general", label: t("tabGeneral"), icon: "📊" },
+          { key: "citas", label: t("tabAppointments"), icon: "📅" },
+          { key: "ventas", label: t("tabSalesAndBilling"), icon: "💰" },
+          { key: "clientes", label: t("tabClients"), icon: "👥" },
+          { key: "rendimiento", label: t("tabPerformance"), icon: "🏆" }
         ].map((tab) => (
           <button
             key={tab.key}
@@ -863,6 +896,7 @@ export default function StatisticsPage() {
             className={`${styles.tabItem} ${activeTab === tab.key ? styles.tabItemActive : ""}`}
             onClick={() => setActiveTab(tab.key as any)}
           >
+            <span className={styles.tabIcon}>{tab.icon}</span>
             {tab.label}
           </button>
         ))}
@@ -871,56 +905,93 @@ export default function StatisticsPage() {
       {/* --- TAB CONTENT 1: GENERAL --- */}
       {activeTab === "general" && (
         <div className={styles.dashboardGrid}>
-          {/* Left Column: Resumen */}
-          <div className={styles.card}>
-            <h3 className={styles.chartCardTitle}>{t("summary")}</h3>
-            <div className={styles.summaryList}>
-              <div className={styles.summaryItem}>
-                <div className={`${styles.summaryIcon} ${styles.blue}`}>
-                  <Icons.DollarCircle size={16} />
-                </div>
-                <span className={styles.summaryLabel}>{t("statsSales")}</span>
-                <strong className={styles.summaryValue}>{formatPrice(totalRevenue)}</strong>
+          {/* PREMIUM KPI CARDS GRID */}
+          <div className={styles.kpiCardsGrid}>
+            {/* Ingresos */}
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconWrap} style={{ background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
               </div>
-
-              <div className={styles.summaryItem}>
-                <div className={`${styles.summaryIcon} ${styles.purple}`}>
-                  <Icons.Calendar size={16} />
-                </div>
-                <span className={styles.summaryLabel}>{t("statsBookedAppts")}</span>
-                <strong className={styles.summaryValue}>{appointmentsCount}</strong>
+              <div className={styles.kpiContent}>
+                <span className={styles.kpiLabel}>{t("statsSales")}</span>
+                <strong className={styles.kpiValue}>{formatPrice(totalRevenue)}</strong>
+                <span className={styles.kpiSub}>{filteredSales.length} venta{filteredSales.length !== 1 ? "s" : ""}</span>
               </div>
+            </div>
 
-              <div className={styles.summaryItem}>
-                <div className={`${styles.summaryIcon} ${styles.green}`}>
-                  <Icons.Clock size={16} />
-                </div>
-                <span className={styles.summaryLabel}>{t("statsOccupied")}</span>
-                <strong className={styles.summaryValue}>{occupiedHoursText}</strong>
+            {/* Citas */}
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconWrap} style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
               </div>
-
-              <div className={styles.summaryItem}>
-                <div className={`${styles.summaryIcon} ${styles.blue}`}>
-                  <Icons.Users size={16} />
-                </div>
-                <span className={styles.summaryLabel}>{t("statsClients")}</span>
-                <strong className={styles.summaryValue}>{uniqueClientsCount}</strong>
+              <div className={styles.kpiContent}>
+                <span className={styles.kpiLabel}>{t("statsBookedAppts")}</span>
+                <strong className={styles.kpiValue}>{appointmentsCount}</strong>
+                <span className={styles.kpiSub}>{occupiedHoursText} ocupadas</span>
               </div>
+            </div>
 
-              <div className={styles.summaryItem}>
-                <div className={`${styles.summaryIcon} ${styles.orange}`}>
-                  <Icons.Warning size={16} />
-                </div>
-                <span className={styles.summaryLabel}>{t("statsNoShows")}</span>
-                <strong className={styles.summaryValue}>{noShowsCount}</strong>
+            {/* Pacientes únicos */}
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconWrap} style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
               </div>
+              <div className={styles.kpiContent}>
+                <span className={styles.kpiLabel}>{t("statsClients")}</span>
+                <strong className={styles.kpiValue}>{uniqueClientsCount}</strong>
+                <span className={styles.kpiSub}>pacientes activos</span>
+              </div>
+            </div>
 
-              <div className={styles.summaryItem}>
-                <div className={`${styles.summaryIcon} ${styles.red}`}>
-                  <Icons.Trash size={16} />
+            {/* Tasa de ocupación con barra de progreso */}
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconWrap} style={{ background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+              </div>
+              <div className={styles.kpiContent}>
+                <span className={styles.kpiLabel}>Tasa de ocupación</span>
+                <strong className={styles.kpiValue}>{occupancyRate}%</strong>
+                <div className={styles.kpiProgressBar}>
+                  <div className={styles.kpiProgressFill} style={{ width: `${occupancyRate}%`, background: "linear-gradient(90deg, #f59e0b, #d97706)" }} />
                 </div>
-                <span className={styles.summaryLabel}>{t("statsCancellations")}</span>
-                <strong className={styles.summaryValue}>{cancellationsCount}</strong>
+              </div>
+            </div>
+
+            {/* No shows */}
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconWrap} style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div className={styles.kpiContent}>
+                <span className={styles.kpiLabel}>{t("statsNoShows")}</span>
+                <strong className={styles.kpiValue}>{noShowsCount}</strong>
+                <span className={styles.kpiSub}>{cancellationsCount} cancelaciones</span>
+              </div>
+            </div>
+
+            {/* Completadas */}
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconWrap} style={{ background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <div className={styles.kpiContent}>
+                <span className={styles.kpiLabel}>Completadas</span>
+                <strong className={styles.kpiValue}>{statusCompleted}</strong>
+                <div className={styles.kpiProgressBar}>
+                  <div className={styles.kpiProgressFill} style={{ width: `${totalApptsCount > 0 ? Math.round(statusCompleted/totalApptsCount*100) : 0}%`, background: "linear-gradient(90deg, #06b6d4, #0891b2)" }} />
+                </div>
               </div>
             </div>
           </div>

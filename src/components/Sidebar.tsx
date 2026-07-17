@@ -210,14 +210,19 @@ export default function Sidebar() {
       <div className={styles.userFooter}>
         {isCollapsed ? (
           <div className={styles.footerControlsStack}>
-            {/* 1. Circle Avatar */}
+            {/* 1. Gradient Avatar */}
             <div 
-              className={styles.avatar} 
-              style={{ cursor: "pointer" }}
+              style={{
+                width: "36px", height: "36px", borderRadius: "50%",
+                background: "linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%)",
+                color: "white", display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 800, fontSize: "14px", cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(0,143,163,0.3)", flexShrink: 0,
+              }}
               onClick={() => router.push("/dashboard/account")}
               title={translate("myAccount", language)}
             >
-              {user.name.charAt(0)}
+              {user.name.charAt(0).toUpperCase()}
             </div>
             
             {/* 2. Theme Toggle */}
@@ -239,36 +244,71 @@ export default function Sidebar() {
             </button>
           </div>
         ) : (
-          /* Horizontal Row for Avatar, Theme Toggle, and Logout */
-          <div className={styles.footerControlsRow}>
-            <div 
-              className={styles.avatar} 
-              style={{ cursor: "pointer" }}
+          /* Expanded: Show user name + role + controls */
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {/* User info row */}
+            <div
+              style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "10px 12px", borderRadius: "12px",
+                background: "rgba(0,143,163,0.06)", border: "1px solid rgba(0,143,163,0.12)",
+                cursor: "pointer", transition: "background 0.2s"
+              }}
               onClick={() => router.push("/dashboard/account")}
               title={translate("myAccount", language)}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(0,143,163,0.12)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(0,143,163,0.06)"}
             >
-              {user.name.charAt(0)}
+              {/* Gradient avatar */}
+              <div style={{
+                width: "36px", height: "36px", borderRadius: "50%",
+                background: "linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%)",
+                color: "white", display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 800, fontSize: "14px", flexShrink: 0,
+                boxShadow: "0 4px 12px rgba(0,143,163,0.25)"
+              }}>
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: "13px", fontWeight: 700, color: "var(--text-primary)",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
+                }}>
+                  {user.name}
+                </div>
+                <div style={{
+                  display: "inline-flex", alignItems: "center",
+                  fontSize: "10px", fontWeight: 700,
+                  color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.5px"
+                }}>
+                  {user.role === "ADMIN" ? "Admin" : user.role === "DOCTOR" ? "Doctor" : user.role === "THERAPIST" ? "Terapeuta" : user.role === "RECEPTIONIST" ? "Recepción" : user.role}
+                </div>
+              </div>
             </div>
-            
-            <button 
-              onClick={toggleTheme} 
-              className={styles.footerIconBtn}
-              title={theme === "light" ? translate("activateNightMode", language) : translate("activateLightMode", language)}
-            >
-              {theme === "light" ? <Icons.Moon size={18} /> : <Icons.Sun size={18} />}
-            </button>
-            
-            <button 
-              onClick={logout} 
-              className={styles.logoutIconBtn} 
-              title={translate("closeSession", language)}
-            >
-              <Icons.LogOut size={18} />
-            </button>
+
+            {/* Action buttons row */}
+            <div className={styles.footerControlsRow}>
+              <button 
+                onClick={toggleTheme} 
+                className={styles.footerIconBtn}
+                title={theme === "light" ? translate("activateNightMode", language) : translate("activateLightMode", language)}
+              >
+                {theme === "light" ? <Icons.Moon size={18} /> : <Icons.Sun size={18} />}
+              </button>
+              
+              <button 
+                onClick={logout} 
+                className={styles.logoutIconBtn} 
+                title={translate("closeSession", language)}
+              >
+                <Icons.LogOut size={18} />
+              </button>
+            </div>
           </div>
         )}
       </div>
     </aside>
+
     </>
   );
 }

@@ -5561,88 +5561,140 @@ export default function SettingsPage() {
                     No hay productos registrados en el inventario. Pulsa "+ Nuevo Producto" para comenzar.
                   </div>
                 ) : (
-                  <div className="table-container">
-                    <table className="table" style={{ fontSize: "13px", width: "100%" }}>
-                      <thead>
-                        <tr style={{ background: "var(--bg-input)", color: "var(--text-secondary)" }}>
-                          <th style={{ padding: "12px" }}>Producto</th>
-                          <th style={{ padding: "12px" }}>SKU / Código</th>
-                          <th style={{ padding: "12px", textAlign: "right" }}>{showGanancias ? "Precio Costo" : ""}</th>
-                          <th style={{ padding: "12px", textAlign: "center" }}>Stock</th>
-                          <th style={{ padding: "12px", textAlign: "center" }}>Stock Mín.</th>
-                          <th style={{ padding: "12px" }}>Estado</th>
-                          <th style={{ padding: "12px", textAlign: "right" }}>Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {products.map((prod) => {
-                          const isCritical = prod.stock <= prod.minStock;
-                          return (
-                            <tr key={prod.id} style={{ borderBottom: "1px solid var(--border-color)", verticalAlign: "middle" }}>
-                              <td style={{ padding: "12px" }}>
-                                <strong>{prod.name}</strong>
-                              </td>
-                              <td style={{ padding: "12px" }}>
-                                <code style={{ fontSize: "11px", background: "var(--bg-input)", padding: "2px 6px", borderRadius: "4px" }}>
-                                  {prod.sku || "N/A"}
-                                </code>
-                              </td>
-                              <td style={{ padding: "12px", textAlign: "right" }}>
-                                {showGanancias ? (prod.costPrice ? `${prod.costPrice.toFixed(2)} €` : "0.00 €") : ""}
-                              </td>
-                              <td style={{ padding: "12px", textAlign: "center", fontWeight: 700 }}>
-                                <span style={{ color: isCritical ? "#ef4444" : "inherit" }}>
-                                  {prod.stock} uds
+                  <>
+                    {/* Summary Header Panel */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px", marginBottom: "24px" }}>
+                      <div style={{ background: "rgba(255,255,255,0.8)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                        <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: "18px" }}>📦</span>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Total Productos</div>
+                          <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>{products.length}</div>
+                        </div>
+                      </div>
+                      <div style={{ background: "rgba(255,255,255,0.8)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                        <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: "18px" }}>✅</span>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>En Stock</div>
+                          <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>{products.filter((p: any) => p.stock > p.minStock).length}</div>
+                        </div>
+                      </div>
+                      <div style={{ background: "rgba(255,255,255,0.8)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                        <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "linear-gradient(135deg, #ef4444, #dc2626)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: "18px" }}>⚠️</span>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Stock Crítico</div>
+                          <div style={{ fontSize: "22px", fontWeight: 800, color: "#ef4444", lineHeight: 1.1 }}>{products.filter((p: any) => p.stock <= p.minStock).length}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Product Cards Grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "16px" }}>
+                      {products.map((prod: any) => {
+                        const isCritical = prod.stock <= prod.minStock;
+                        const maxStock = Math.max(prod.stock, prod.minStock * 2, 1);
+                        const stockPct = Math.min(100, Math.round((prod.stock / maxStock) * 100));
+                        return (
+                          <div
+                            key={prod.id}
+                            style={{
+                              background: "rgba(255,255,255,0.85)",
+                              backdropFilter: "blur(12px)",
+                              border: isCritical ? "1.5px solid rgba(239,68,68,0.4)" : "1px solid var(--border-color)",
+                              borderRadius: "14px",
+                              padding: "18px",
+                              boxShadow: isCritical
+                                ? "0 4px 20px -2px rgba(239,68,68,0.12)"
+                                : "0 4px 20px -2px rgba(0,0,0,0.05)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "12px",
+                              transition: "transform 0.2s, box-shadow 0.2s"
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 28px -6px rgba(0,0,0,0.1)"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = isCritical ? "0 4px 20px -2px rgba(239,68,68,0.12)" : "0 4px 20px -2px rgba(0,0,0,0.05)"; }}
+                          >
+                            {/* Card Header */}
+                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                              <div>
+                                <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--text-primary)", marginBottom: "4px" }}>{prod.name}</div>
+                                {prod.sku && (
+                                  <code style={{ fontSize: "11px", background: "var(--bg-input)", padding: "2px 7px", borderRadius: "6px", color: "var(--text-secondary)", fontFamily: "monospace" }}>
+                                    {prod.sku}
+                                  </code>
+                                )}
+                              </div>
+                              {isCritical ? (
+                                <span style={{ flexShrink: 0, padding: "3px 9px", borderRadius: "999px", fontSize: "11px", fontWeight: 700, background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)", whiteSpace: "nowrap" }}>
+                                  ⚠️ Stock bajo
                                 </span>
-                              </td>
-                              <td style={{ padding: "12px", textAlign: "center", color: "var(--text-secondary)" }}>
-                                {prod.minStock} uds
-                              </td>
-                              <td style={{ padding: "12px" }}>
-                                <span style={{
-                                  padding: "4px 8px",
-                                  borderRadius: "12px",
-                                  fontSize: "11px",
-                                  fontWeight: 600,
-                                  background: isCritical ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)",
-                                  color: isCritical ? "#ef4444" : "#10b981"
-                                }}>
-                                  {isCritical ? "⚠️ Stock Crítico" : "✓ Óptimo"}
+                              ) : (
+                                <span style={{ flexShrink: 0, padding: "3px 9px", borderRadius: "999px", fontSize: "11px", fontWeight: 700, background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.25)", whiteSpace: "nowrap" }}>
+                                  ✓ Óptimo
                                 </span>
-                              </td>
-                              <td style={{ padding: "12px", textAlign: "right" }}>
-                                <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenStockAdjustModal(prod)}
-                                    style={{
-                                      padding: "4px 8px", fontSize: "11px", fontWeight: 600,
-                                      background: "var(--primary-light)", color: "var(--primary)",
-                                      border: "none", borderRadius: "4px", cursor: "pointer"
-                                    }}
-                                  >
-                                    ⚡ Ajustar Stock
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenProductForm(prod)}
-                                    style={{
-                                      padding: "4px 8px", fontSize: "11px",
-                                      background: "none", border: "1px solid var(--border-color)",
-                                      borderRadius: "4px", cursor: "pointer", color: "var(--text-primary)"
-                                    }}
-                                  >
-                                    Editar
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              )}
+                            </div>
+
+                            {/* Stock bar */}
+                            <div>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                                <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 600 }}>Stock</span>
+                                <span style={{ fontSize: "14px", fontWeight: 800, color: isCritical ? "#ef4444" : "var(--text-primary)" }}>
+                                  {prod.stock} <span style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)" }}>/ mín. {prod.minStock} uds</span>
+                                </span>
+                              </div>
+                              <div style={{ height: "7px", background: "var(--bg-input)", borderRadius: "99px", overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%",
+                                  width: `${stockPct}%`,
+                                  background: isCritical ? "linear-gradient(90deg, #ef4444, #dc2626)" : "linear-gradient(90deg, #10b981, #059669)",
+                                  borderRadius: "99px",
+                                  transition: "width 0.4s ease"
+                                }} />
+                              </div>
+                            </div>
+
+                            {/* Price */}
+                            {showGanancias && prod.costPrice != null && (
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                                <span style={{ color: "var(--text-secondary)" }}>Precio coste</span>
+                                <span style={{ fontWeight: 700 }}>{prod.costPrice.toFixed(2)} €</span>
+                              </div>
+                            )}
+
+                            {/* Actions */}
+                            <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenStockAdjustModal(prod)}
+                                style={{ flex: 1, padding: "7px 0", fontSize: "12px", fontWeight: 700, background: "var(--primary-light)", color: "var(--primary)", border: "1px solid rgba(0,143,163,0.2)", borderRadius: "8px", cursor: "pointer", transition: "all 0.15s" }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--primary)"; (e.currentTarget as HTMLElement).style.color = "#fff"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--primary-light)"; (e.currentTarget as HTMLElement).style.color = "var(--primary)"; }}
+                              >
+                                ⚡ Ajustar Stock
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenProductForm(prod)}
+                                style={{ padding: "7px 14px", fontSize: "12px", background: "none", border: "1px solid var(--border-color)", borderRadius: "8px", cursor: "pointer", color: "var(--text-primary)", fontWeight: 600, transition: "all 0.15s" }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--primary)"; (e.currentTarget as HTMLElement).style.color = "var(--primary)"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                              >
+                                Editar
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
+
 
                 {/* FORMULARIO DRAWER CREAR/EDITAR PRODUCTO */}
                 {showProductForm && typeof window !== "undefined" && createPortal(

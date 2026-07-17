@@ -114,8 +114,7 @@ export default function ContactsPage() {
   // Column Visibility Config
   const [columns, setColumns] = useState<ColumnConfig[]>([
     { key: "clientNumber", label: t("colClientNum"), visible: true },
-    { key: "firstName", label: t("colFirstName"), visible: true },
-    { key: "lastName", label: t("colLastName"), visible: true },
+    { key: "firstName", label: `${t("colFirstName")} y ${t("lastName").toLowerCase()}`, visible: true },
     { key: "phone", label: t("colPhone"), visible: true },
     { key: "email", label: t("colEmail"), visible: true },
     { key: "dniNif", label: identityLabel, visible: true },
@@ -808,6 +807,41 @@ export default function ContactsPage() {
     }
   };
 
+  // --- PREMIUM HELPERS ---
+  const getRelativeDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "-";
+    const diffMs = Date.now() - date.getTime();
+    const diffDays = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+    const isPast = diffMs > 0;
+    if (diffDays === 0) return "Hoy";
+    if (diffDays === 1) return isPast ? "Ayer" : "Mañana";
+    if (diffDays < 7) return isPast ? `Hace ${diffDays} días` : `En ${diffDays} días`;
+    if (diffDays < 30) return isPast ? `Hace ${Math.floor(diffDays / 7)} sem.` : `En ${Math.floor(diffDays / 7)} sem.`;
+    if (diffDays < 365) return isPast ? `Hace ${Math.floor(diffDays / 30)} mes.` : `En ${Math.floor(diffDays / 30)} mes.`;
+    return isPast ? `Hace ${Math.floor(diffDays / 365)} año` : `En ${Math.floor(diffDays / 365)} año`;
+  };
+
+  const AVATAR_PALETTES = [
+    { bg: "#e0f2fe", color: "#0369a1" },
+    { bg: "#d1fae5", color: "#065f46" },
+    { bg: "#fce7f3", color: "#9d174d" },
+    { bg: "#ede9fe", color: "#5b21b6" },
+    { bg: "#fef3c7", color: "#92400e" },
+    { bg: "#ffedd5", color: "#9a3412" },
+    { bg: "#e0f7f6", color: "#0e7490" },
+  ];
+
+  const getAvatarPalette = (name: string) => {
+    let sum = 0;
+    for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+    return AVATAR_PALETTES[sum % AVATAR_PALETTES.length];
+  };
+
+  // Quick filter state (pills)
+  const [quickFilter, setQuickFilter] = useState<"all" | "no_next" | "new">("all");
+
   const getRenderedValue = (client: Client, key: string) => {
     if (key === "birthDate" && client.birthDate) {
       return new Date(client.birthDate).toLocaleDateString("es-ES");
@@ -818,7 +852,7 @@ export default function ContactsPage() {
     if (key === "lastAppointment") {
       const appointments = (client as any).appointments;
       if (appointments && appointments.length > 0) {
-        return new Date(appointments[0].start).toLocaleDateString("es-ES");
+        return getRelativeDate(appointments[0].start);
       }
       return "-";
     }
@@ -1529,10 +1563,41 @@ export default function ContactsPage() {
         />
       </div>
 
+      {/* Quick Filter Pills - DoctorCliq inspired */}
+      <div className={styles.quickFilterBar}>
+        {([
+          { key: "all", label: "Todos", icon: "👥" },
+          { key: "new", label: "Nuevos (7 días)", icon: "✨" },
+          { key: "no_next", label: "Sin próxima cita", icon: "📅" },
+        ] as const).map(pill => (
+          <button
+            key={pill.key}
+            type="button"
+            className={`${styles.quickFilterPill} ${quickFilter === pill.key ? styles.quickFilterPillActive : ""}`}
+            onClick={() => setQuickFilter(pill.key)}
+          >
+            <span>{pill.icon}</span>
+            <span>{pill.label}</span>
+            {pill.key === "all" && <span className={styles.quickFilterCount}>{filteredClients.length}</span>}
+          </button>
+        ))}
+      </div>
+
       {/* Contact Table Grid */}
       <div className={`${styles.tableWrapper} glass`}>
         {loading ? (
-          <div className={styles.loadingState}>{t("loadingPatients")}</div>
+          <div className={styles.skeletonTableContainer}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={styles.skeletonTableRow}>
+                <div className="shimmer" style={{ width: "32px", height: "20px", borderRadius: "4px" }}></div>
+                <div className="shimmer" style={{ width: "150px", height: "20px", borderRadius: "4px" }}></div>
+                <div className="shimmer" style={{ width: "200px", height: "20px", borderRadius: "4px" }}></div>
+                <div className="shimmer" style={{ width: "100px", height: "20px", borderRadius: "4px" }}></div>
+                <div className="shimmer" style={{ width: "120px", height: "20px", borderRadius: "4px" }}></div>
+                <div className="shimmer" style={{ width: "80px", height: "20px", borderRadius: "4px" }}></div>
+              </div>
+            ))}
+          </div>
         ) : filteredClients.length === 0 ? (
           <div className={styles.emptyState}>{t("noContactsFound")}</div>
         ) : (
@@ -1579,59 +1644,116 @@ export default function ContactsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedClients.map((client) => (
-                <tr key={client.id} className={selectedClients.includes(client.id) ? styles.selectedRow : ""}>
-                  <td style={{ textAlign: "center" }}>
-                    <input 
-                      type="checkbox" 
-                      className={styles.rowCheckbox}
-                      checked={selectedClients.includes(client.id)}
-                      onChange={() => handleSelectClient(client.id)}
-                    />
-                  </td>
-                  {columns.filter((c) => c.visible).map((c) => (
-                    <td key={c.key}>
-                      {c.key === "tags" && client.tags ? (
-                        <div className={styles.tagList} style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                          {client.tags.split(",").map((tag) => {
-                            const trimmed = tag.trim();
-                            const matchedTag = clientAvailableTags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
-                            const color = matchedTag?.color || "#a0aec0";
-                            return (
-                              <span 
-                                key={tag} 
-                                className={styles.tagBadge}
-                                style={{ 
-                                  backgroundColor: color, 
-                                  color: "#ffffff", 
-                                  padding: "2px 8px", 
-                                  borderRadius: "12px", 
-                                  fontSize: "11px", 
-                                  fontWeight: "700" 
-                                }}
-                              >
-                                {trimmed}
+              {paginatedClients
+                .filter(client => {
+                  if (quickFilter === "new") {
+                    const created = new Date(client.createdAt);
+                    return (Date.now() - created.getTime()) < 7 * 24 * 60 * 60 * 1000;
+                  }
+                  if (quickFilter === "no_next") {
+                    const appts: any[] = (client as any).appointments || [];
+                    const futureAppts = appts.filter((a: any) => new Date(a.start) > new Date());
+                    return futureAppts.length === 0;
+                  }
+                  return true;
+                })
+                .map((client) => {
+                  const initials = `${client.firstName?.[0] || ""}${client.lastName?.[0] || ""}`.toUpperCase();
+                  const palette = getAvatarPalette(client.firstName + client.lastName);
+                  const appts: any[] = (client as any).appointments || [];
+                  const pastAppts = appts.filter((a: any) => new Date(a.start) <= new Date()).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
+                  const futureAppts = appts.filter((a: any) => new Date(a.start) > new Date()).sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime());
+                  const lastAppt = pastAppts[0];
+                  const nextAppt = futureAppts[0];
+                  const whatsappNumber = (client.phone || "").replace(/\D/g, "");
+                  return (
+                    <tr key={client.id} className={selectedClients.includes(client.id) ? styles.selectedRow : ""}>
+                      <td style={{ textAlign: "center" }}>
+                        <input 
+                          type="checkbox" 
+                          className={styles.rowCheckbox}
+                          checked={selectedClients.includes(client.id)}
+                          onChange={() => handleSelectClient(client.id)}
+                        />
+                      </td>
+                      {columns.filter((c) => c.visible).map((c) => (
+                        <td key={c.key}>
+                          {c.key === "firstName" ? (
+                            <div className={styles.clientAvatarCell}>
+                              <div className={styles.clientAvatar} style={{ background: palette.bg, color: palette.color }}>
+                                {initials || "?"}
+                              </div>
+                              <div className={styles.clientAvatarInfo}>
+                                <Link href={`/dashboard/contacts/${client.id}`} className={styles.clientNameLink}>
+                                  {client.firstName} {client.lastName}
+                                </Link>
+                                {client.phone && (
+                                  <a
+                                    href={`https://wa.me/${whatsappNumber}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.whatsappQuickBtn}
+                                    onClick={e => e.stopPropagation()}
+                                    title="Abrir WhatsApp"
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                    </svg>
+                                    WhatsApp
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ) : c.key === "lastName" ? null
+                          : c.key === "tags" && client.tags ? (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                              {client.tags.split(",").map((tag) => {
+                                const trimmed = tag.trim();
+                                const matchedTag = clientAvailableTags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
+                                const color = matchedTag?.color || "#a0aec0";
+                                return (
+                                  <span 
+                                    key={tag} 
+                                    style={{ 
+                                      backgroundColor: color + "22", 
+                                      color: color, 
+                                      border: `1px solid ${color}44`,
+                                      padding: "2px 8px", 
+                                      borderRadius: "12px", 
+                                      fontSize: "11px", 
+                                      fontWeight: "700" 
+                                    }}
+                                  >
+                                    {trimmed}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : c.key === "lastAppointment" ? (
+                            <div className={styles.appointmentCell}>
+                              <span className={lastAppt ? styles.dateRelative : styles.dateMissing}>
+                                {lastAppt ? getRelativeDate(lastAppt.start) : (nextAppt && getRelativeDate(nextAppt.start) === "Hoy" ? "" : "—")}
                               </span>
-                            );
-                          })}
-                        </div>
-                      ) : (c.key === "firstName" || c.key === "lastName") ? (
-                        <Link href={`/dashboard/contacts/${client.id}`} className={styles.clientNameLink}>
-                          {getRenderedValue(client, c.key)}
+                              {nextAppt && (
+                                <span className={styles.nextApptBadge}>
+                                  📅 {getRelativeDate(nextAppt.start)}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            getRenderedValue(client, c.key)
+                          )}
+                        </td>
+                      ))}
+                      <td>
+                        <Link href={`/dashboard/contacts/${client.id}`} className={styles.actionLink}>
+                          <Icons.Eye size={16} />
+                          <span>{t("profile")}</span>
                         </Link>
-                      ) : (
-                        getRenderedValue(client, c.key)
-                      )}
-                    </td>
-                  ))}
-                  <td>
-                    <Link href={`/dashboard/contacts/${client.id}`} className={styles.actionLink}>
-                      <Icons.Eye size={16} />
-                      <span>{t("profile")}</span>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         )}

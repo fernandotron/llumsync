@@ -3344,7 +3344,7 @@ export default function ClientDetailPage() {
           </Link>
         </div>
 
-        {/* Patient Main Card */}
+        {/* Patient Main Card - Premium redesign */}
         <header className={styles.patientHeaderCard}>
           <div className={styles.avatar}>
             {client.firstName.charAt(0)}{client.lastName.charAt(0)}
@@ -3354,6 +3354,28 @@ export default function ClientDetailPage() {
             <div className={styles.nameRow}>
               <h1>{client.firstName} {client.lastName}</h1>
               <span className={styles.clientNumberBadge}>{t("clientCol")} #{client.clientNumber}</span>
+              {client.allergies && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: "4px",
+                  background: "rgba(239,68,68,0.1)", color: "#dc2626",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  padding: "2px 9px", borderRadius: "999px",
+                  fontSize: "11px", fontWeight: 700
+                }}>
+                  ⚠️ Alergias
+                </span>
+              )}
+              {client.medication && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: "4px",
+                  background: "rgba(249,115,22,0.1)", color: "#ea580c",
+                  border: "1px solid rgba(249,115,22,0.25)",
+                  padding: "2px 9px", borderRadius: "999px",
+                  fontSize: "11px", fontWeight: 700
+                }}>
+                  💊 Medicación
+                </span>
+              )}
             </div>
             <div className={styles.contactChips}>
               {client.phone && (
@@ -3382,88 +3404,162 @@ export default function ClientDetailPage() {
             </div>
           </div>
 
-          {/* Opciones Dropdown */}
-          <div className={styles.optionsWrapper} ref={optionsRef}>
-            <button 
-              className={styles.optionsBtn}
-              onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
-            >
-              <span>{t("options")}</span>
-              <Icons.ChevronDown size={14} />
-            </button>
+          {/* Quick Stats + Next Appointment */}
+          <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-end" }}>
+            {/* Quick stats row */}
+            <div style={{ display: "flex", gap: "12px" }}>
+              {/* Total gastado */}
+              <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-input)", borderRadius: "10px", minWidth: "80px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Gastado</div>
+                <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--primary)" }}>
+                  {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
+                    client.sales?.reduce((s: number, sale: Sale) => s + sale.total, 0) || 0
+                  )}
+                </div>
+              </div>
+              {/* Total citas */}
+              <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-input)", borderRadius: "10px", minWidth: "80px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Citas</div>
+                <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)" }}>
+                  {client.appointments?.length || 0}
+                </div>
+              </div>
+              {/* Última visita */}
+              <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-input)", borderRadius: "10px", minWidth: "90px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Última</div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                  {(() => {
+                    const past = (client.appointments || []).filter((a: Appointment) => new Date(a.start) <= new Date()).sort((a: Appointment, b: Appointment) => new Date(b.start).getTime() - new Date(a.start).getTime());
+                    if (!past.length) return "—";
+                    const diff = Math.floor((Date.now() - new Date(past[0].start).getTime()) / (1000 * 60 * 60 * 24));
+                    if (diff === 0) return "Hoy";
+                    if (diff === 1) return "Ayer";
+                    if (diff < 7) return `Hace ${diff}d`;
+                    if (diff < 30) return `Hace ${Math.floor(diff/7)}sem`;
+                    return `Hace ${Math.floor(diff/30)}m`;
+                  })()}
+                </div>
+              </div>
+            </div>
 
-            {showOptionsDropdown && (
-              <div className={`${styles.optionsDropdown} glass`}>
-                <Link 
+            {/* Próxima cita mini-widget */}
+            {(() => {
+              const next = (client.appointments || []).filter((a: Appointment) => new Date(a.start) > new Date()).sort((a: Appointment, b: Appointment) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
+              return next ? (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  background: "rgba(0,143,163,0.08)", border: "1px solid rgba(0,143,163,0.2)",
+                  borderRadius: "10px", padding: "7px 12px"
+                }}>
+                  <Icons.Calendar size={14} style={{ color: "var(--primary)" }} />
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--primary)", textTransform: "uppercase" }}>Próxima cita</div>
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>
+                      {new Date(next.start).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })} · {new Date(next.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Link
                   href={`/dashboard/agenda?createAppointmentForClientId=${client.id}`}
-                  className={styles.optionItem}
-                  onClick={() => setShowOptionsDropdown(false)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    background: "var(--primary)", color: "#fff",
+                    padding: "7px 14px", borderRadius: "10px",
+                    fontSize: "12px", fontWeight: 700, textDecoration: "none",
+                    transition: "opacity 0.15s"
+                  }}
                 >
-                  <Icons.Calendar size={14} />
-                  <span>{t("timezone") === "Time Zone" ? "New appointment" : t("timezone") === "Zona horària" ? "Nova cita" : t("timezone") === "Ordu-eremua" ? "Hitzordu berria" : "Nueva cita"}</span>
+                  <Icons.Calendar size={13} />
+                  Agendar cita
                 </Link>
-                <button 
-                  className={styles.optionItem}
-                  onClick={() => {
-                    setShowOptionsDropdown(false);
-                    setActiveTab("general");
-                    setTimeout(() => {
-                      const tutorSection = document.getElementById("tutor-section");
-                      if (tutorSection) tutorSection.scrollIntoView({ behavior: "smooth" });
-                    }, 100);
-                  }}
-                >
-                  <Icons.Users size={14} />
-                  <span>{t("timezone") === "Time Zone" ? "New legal guardian" : t("timezone") === "Zona horària" ? "Nou tutor legal" : t("timezone") === "Ordu-eremua" ? "Tutor legal berria" : "Nuevo tutor legal"}</span>
-                </button>
-                <button 
-                  className={styles.optionItem}
-                  onClick={() => {
-                    setShowOptionsDropdown(false);
-                    setShowFullEditModal(true);
-                  }}
-                >
-                  <Icons.Award size={14} />
-                  <span>{t("colTags")}</span>
-                </button>
-                <button 
-                  className={styles.optionItem}
-                  onClick={() => {
-                    setShowOptionsDropdown(false);
-                    setActiveTab("medical");
-                  }}
-                >
-                  <Icons.FileText size={14} />
-                  <span>{t("timezone") === "Time Zone" ? "Notes" : t("timezone") === "Zona horària" ? "Notes" : t("timezone") === "Ordu-eremua" ? "Oharrak" : "Notas"}</span>
-                </button>
-                {client.phone && (
-                  <a 
-                    href={`https://web.whatsapp.com/send?phone=${client.phone.replace(/\+/g, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+              );
+            })()}
+
+            {/* Opciones Dropdown */}
+            <div className={styles.optionsWrapper} ref={optionsRef}>
+              <button 
+                className={styles.optionsBtn}
+                onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
+              >
+                <span>{t("options")}</span>
+                <Icons.ChevronDown size={14} />
+              </button>
+
+              {showOptionsDropdown && (
+                <div className={`${styles.optionsDropdown} glass`}>
+                  <Link 
+                    href={`/dashboard/agenda?createAppointmentForClientId=${client.id}`}
                     className={styles.optionItem}
                     onClick={() => setShowOptionsDropdown(false)}
                   >
-                    <WhatsAppIcon size={14} />
-                    <span>WhatsApp</span>
-                  </a>
-                )}
-                {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Eliminar clientes")) && (
+                    <Icons.Calendar size={14} />
+                    <span>{t("timezone") === "Time Zone" ? "New appointment" : t("timezone") === "Zona horària" ? "Nova cita" : t("timezone") === "Ordu-eremua" ? "Hitzordu berria" : "Nueva cita"}</span>
+                  </Link>
                   <button 
-                    className={`${styles.optionItem} ${styles.optionItemDelete}`}
+                    className={styles.optionItem}
                     onClick={() => {
                       setShowOptionsDropdown(false);
-                      handleSingleDelete();
+                      setActiveTab("general");
+                      setTimeout(() => {
+                        const tutorSection = document.getElementById("tutor-section");
+                        if (tutorSection) tutorSection.scrollIntoView({ behavior: "smooth" });
+                      }, 100);
                     }}
                   >
-                    <Icons.Trash size={14} />
-                    <span>{t("timezone") === "Time Zone" ? "Delete" : t("timezone") === "Zona horària" ? "Eliminar" : t("timezone") === "Ordu-eremua" ? "Ezabatu" : "Eliminar"}</span>
+                    <Icons.Users size={14} />
+                    <span>{t("timezone") === "Time Zone" ? "New legal guardian" : t("timezone") === "Zona horària" ? "Nou tutor legal" : t("timezone") === "Ordu-eremua" ? "Tutor legal berria" : "Nuevo tutor legal"}</span>
                   </button>
-                )}
-              </div>
-            )}
+                  <button 
+                    className={styles.optionItem}
+                    onClick={() => {
+                      setShowOptionsDropdown(false);
+                      setShowFullEditModal(true);
+                    }}
+                  >
+                    <Icons.Award size={14} />
+                    <span>{t("colTags")}</span>
+                  </button>
+                  <button 
+                    className={styles.optionItem}
+                    onClick={() => {
+                      setShowOptionsDropdown(false);
+                      setActiveTab("medical");
+                    }}
+                  >
+                    <Icons.FileText size={14} />
+                    <span>{t("timezone") === "Time Zone" ? "Notes" : t("timezone") === "Zona horària" ? "Notes" : t("timezone") === "Ordu-eremua" ? "Oharrak" : "Notas"}</span>
+                  </button>
+                  {client.phone && (
+                    <a 
+                      href={`https://web.whatsapp.com/send?phone=${client.phone.replace(/\+/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.optionItem}
+                      onClick={() => setShowOptionsDropdown(false)}
+                    >
+                      <WhatsAppIcon size={14} />
+                      <span>WhatsApp</span>
+                    </a>
+                  )}
+                  {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Eliminar clientes")) && (
+                    <button 
+                      className={`${styles.optionItem} ${styles.optionItemDelete}`}
+                      onClick={() => {
+                        setShowOptionsDropdown(false);
+                        handleSingleDelete();
+                      }}
+                    >
+                      <Icons.Trash size={14} />
+                      <span>{t("timezone") === "Time Zone" ? "Delete" : t("timezone") === "Zona horària" ? "Eliminar" : t("timezone") === "Ordu-eremua" ? "Ezabatu" : "Eliminar"}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
+
 
         {/* Profile Section Tabs */}
         <div className={styles.tabsContainer}>
@@ -4153,7 +4249,7 @@ export default function ClientDetailPage() {
                                 title="Descargar archivo"
                                 style={{ color: "#006687", display: "flex", alignItems: "center" }}
                               >
-                                <Icons.Download size={18} style={{ color: "#4f46e5" }} />
+                                <Icons.Download size={18} style={{ color: "var(--primary)" }} />
                               </a>
                               
                               <button
@@ -4279,7 +4375,7 @@ export default function ClientDetailPage() {
                                    }
                                  }}
                                  title={isSigned ? "Ver documento" : "Ver enlace de firma"}
-                                 style={{ background: "none", border: "none", color: "var(--primary-color)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
+                                 style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
                                >
                                  <Icons.Eye size={18} />
                                </button>
@@ -4289,9 +4385,9 @@ export default function ClientDetailPage() {
                                  type="button"
                                  onClick={() => handleDownloadDoc(doc)}
                                  title="Descargar documento (Imprimir/PDF)"
-                                 style={{ background: "none", border: "none", color: "#4f46e5", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
+                                 style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
                                >
-                                 <Icons.Download size={18} style={{ color: "#4f46e5" }} />
+                                 <Icons.Download size={18} style={{ color: "var(--primary)" }} />
                                </button>
 
                                {/* Delete Button */}
@@ -6157,7 +6253,7 @@ export default function ClientDetailPage() {
                                     className={styles.voucherEditBtn}
                                     onClick={() => handleOpenShareVoucherModal(voucher)}
                                     title="Compartir bono"
-                                    style={{ color: "#8b5cf6" }}
+                                    style={{ color: "var(--primary)" }}
                                   >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -6233,8 +6329,8 @@ export default function ClientDetailPage() {
 
                                       {/* Shared clients list */}
                                       {voucher.sharedClientIds && voucher.sharedClientIds.split(",").filter(Boolean).length > 0 && (
-                                        <div style={{ marginBottom: "10px", padding: "8px", background: "rgba(139,92,246,0.06)", borderRadius: "6px", border: "1px solid rgba(139,92,246,0.2)" }}>
-                                          <div style={{ fontSize: "11px", fontWeight: 600, color: "#8b5cf6", marginBottom: "4px" }}>Compartido con:</div>
+                                        <div style={{ marginBottom: "10px", padding: "8px", background: "var(--primary-light)", borderRadius: "6px", border: "1px solid var(--primary)" }}>
+                                          <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--primary)", marginBottom: "4px" }}>Compartido con:</div>
                                           <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                                             {voucher.sharedClientIds.split(",").filter(Boolean).length} persona(s)
                                           </div>
@@ -6398,7 +6494,7 @@ export default function ClientDetailPage() {
                                 </span>
 
                                 {/* Service */}
-                                <span style={{ fontSize: "13px", color: "#0ea5e9", fontWeight: 600, minWidth: "120px" }}>
+                                <span style={{ fontSize: "13px", color: "var(--primary)", fontWeight: 600, minWidth: "120px" }}>
                                   {app.service?.name || "Servicio"}
                                 </span>
 
@@ -6674,7 +6770,7 @@ export default function ClientDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => handlePrintBudget(b)}
-                                style={{ padding: "3px 8px", fontSize: "11px", background: "rgba(99,102,241,0.12)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "4px", cursor: "pointer" }}
+                                style={{ padding: "3px 8px", fontSize: "11px", background: "var(--primary-light)", color: "var(--primary)", border: "1px solid rgba(2,132,199,0.3)", borderRadius: "4px", cursor: "pointer" }}
                               >
                                 🖨️ PDF
                               </button>
