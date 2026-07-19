@@ -85,6 +85,9 @@ export default function Sidebar() {
     ...(hasAccountingAccess ? [
       { name: translate("sales", language), path: "/dashboard/sales", icon: <Icons.Sales size={20} /> }
     ] : []),
+    ...(hasAccountingAccess ? [
+      { name: translate("warehouseInventory", language), path: "/dashboard/almacen", icon: <Icons.Package size={20} /> }
+    ] : []),
     ...(user.role === "ADMIN" || hasPermission(user, "estadisticas", "Ver Estadisticas") ? [
       { name: translate("stats", language), path: "/dashboard/statistics", icon: <Icons.Stats size={20} /> }
     ] : []),

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
@@ -3162,20 +3163,7 @@ export default function SettingsPage() {
                         setIsCreatingClinic(false);
                         setActiveClinic(clinic);
                       }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "12px 16px",
-                        borderRadius: "8px",
-                        border: isActive ? "none" : "1px solid var(--border-color)",
-                        background: isActive ? "#005d7f" : "var(--bg-input)",
-                        color: isActive ? "#ffffff" : "var(--text-primary)",
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        boxShadow: isActive ? "0 4px 6px -1px rgba(0, 93, 127, 0.2)" : "none",
-                        transition: "all 0.2s ease"
-                      }}
+                      className={`${styles.clinicButton} ${isActive ? styles.clinicButtonActive : ""}`}
                     >
                       {clinic.name}
                     </button>
@@ -3193,19 +3181,7 @@ export default function SettingsPage() {
                   setNewClinicEmail("");
                   setNewClinicCountry(activeClinic?.country || "ES");
                 }}
-                style={{
-                  width: "100%",
-                  textAlign: "center",
-                  padding: "12px 16px",
-                  borderRadius: "8px",
-                  border: isCreatingClinic ? "2px solid #005d7f" : "1px solid #005d7f",
-                  background: isCreatingClinic ? "rgba(0, 93, 127, 0.08)" : "transparent",
-                  color: "#005d7f",
-                  fontWeight: 600,
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease"
-                }}
+                className={styles.addClinicBtn}
               >
                 {t("timezone") === "Time Zone" ? "Add new clinic" : t("timezone") === "Zona horària" ? "Afegir nova consulta" : t("timezone") === "Ordu-eremua" ? "Gehitu kontsulta berria" : "Añadir nueva consulta"}
               </button>
@@ -4566,28 +4542,18 @@ export default function SettingsPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "400px", overflowY: "auto" }}>
                 {templates
                   .filter(t => t.name.toLowerCase().includes(templateSearchQuery.toLowerCase()))
-                  .map((t) => (
-                    <div
-                      key={t.id}
-                      onClick={() => handleSelectTemplate(t)}
-                      style={{
-                        padding: "10px 12px",
-                        borderRadius: "6px",
-                        background: selectedTemplateId === t.id ? "var(--primary-light)" : "var(--bg-input)",
-                        border: selectedTemplateId === t.id ? "1px solid var(--primary)" : "1px solid var(--border-color)",
-                        color: selectedTemplateId === t.id ? "var(--primary)" : "var(--text-primary)",
-                        cursor: "pointer",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      📄 {t.name}
-                    </div>
-                  ))}
+                  .map((t) => {
+                    const isActive = selectedTemplateId === t.id;
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => handleSelectTemplate(t)}
+                        className={`${styles.documentSidebarBtn} ${isActive ? styles.documentSidebarBtnActive : ""}`}
+                      >
+                        📄 {t.name}
+                      </div>
+                    );
+                  })}
                 {templates.filter(t => t.name.toLowerCase().includes(templateSearchQuery.toLowerCase())).length === 0 && (
                   <div style={{ textAlign: "center", padding: "16px", fontSize: "12px", color: "var(--text-secondary)" }}>
                     No hay documentos
@@ -5482,6 +5448,45 @@ export default function SettingsPage() {
 
         {/* TAB: Almacén e Inventario */}
         {activeTab === "inventario" && (
+          <div style={{ padding: "32px", display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
+            <div style={{
+              background: "rgba(255, 255, 255, 0.8)",
+              backdropFilter: "blur(12px)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "16px",
+              padding: "40px",
+              maxWidth: "560px",
+              textAlign: "center",
+              boxShadow: "var(--shadow-lg)"
+            }}>
+              <div style={{ fontSize: "54px", marginBottom: "16px" }}>📦</div>
+              <h3 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "12px" }}>
+                Nuevo Módulo Dedicado de Almacén
+              </h3>
+              <p style={{ color: "var(--text-secondary)", fontSize: "14px", lineHeight: "1.6", marginBottom: "28px" }}>
+                Para ofrecerte una mejor experiencia y más espacio de trabajo, el control de stock, movimientos históricos y valorización económica han sido trasladados a una sección dedicada del sistema.
+              </p>
+              <Link
+                href="/dashboard/almacen"
+                className="btn btn-primary"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "12px 24px",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  borderRadius: "8px",
+                  textDecoration: "none"
+                }}
+              >
+                <span>Acceder al Almacén Completo</span>
+                <span style={{ fontSize: "16px" }}>➔</span>
+              </Link>
+            </div>
+          </div>
+        )}
+        {false && activeTab === "inventario" && (
           <div style={{ padding: "32px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
               <div>
@@ -5905,8 +5910,8 @@ export default function SettingsPage() {
 
         {/* TAB: Liquidaciones y Comisiones */}
         {activeTab === "liquidaciones" && (
-          <div style={{ padding: "32px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <div className={styles.liquidationsTabContainer}>
+            <div className={styles.liquidationsHeaderRow}>
               <div>
                 <h3 style={{ margin: "0 0 4px", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)" }}>💵 Liquidaciones y Comisiones</h3>
                 <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "13px" }}>
@@ -5914,36 +5919,18 @@ export default function SettingsPage() {
                 </p>
               </div>
               
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div className={styles.subTabsContainer}>
                 <button
                   type="button"
                   onClick={() => setActiveLiquidationsSubTab("calculo")}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    borderRadius: "6px",
-                    border: "1px solid var(--border-color)",
-                    cursor: "pointer",
-                    background: activeLiquidationsSubTab === "calculo" ? "var(--primary)" : "var(--bg-input)",
-                    color: activeLiquidationsSubTab === "calculo" ? "#fff" : "var(--text-primary)"
-                  }}
+                  className={`${styles.subTabBtn} ${activeLiquidationsSubTab === "calculo" ? styles.subTabBtnActive : ""}`}
                 >
                   Cálculo e Historial
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveLiquidationsSubTab("config")}
-                  style={{
-                    padding: "8px 16px",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    borderRadius: "6px",
-                    border: "1px solid var(--border-color)",
-                    cursor: "pointer",
-                    background: activeLiquidationsSubTab === "config" ? "var(--primary)" : "var(--bg-input)",
-                    color: activeLiquidationsSubTab === "config" ? "#fff" : "var(--text-primary)"
-                  }}
+                  className={`${styles.subTabBtn} ${activeLiquidationsSubTab === "config" ? styles.subTabBtnActive : ""}`}
                 >
                   Configurar Comisiones
                 </button>
@@ -5952,10 +5939,10 @@ export default function SettingsPage() {
 
             {/* SUBTAB 1: CONFIGURAR COMISIONES */}
             {activeLiquidationsSubTab === "config" && (
-              <div style={{ display: "flex", gap: "24px", minHeight: "500px" }}>
+              <div className={styles.liquidationsLayout}>
                 {/* Lateral: Lista de Profesionales */}
-                <div style={{ width: "240px", borderRight: "1px solid var(--border-color)", paddingRight: "16px" }}>
-                  <h4 style={{ fontSize: "13px", fontWeight: 700, margin: "0 0 12px", color: "var(--text-secondary)" }}>
+                <div className={styles.liquidationsSidebar}>
+                  <h4 style={{ fontSize: "12px", fontWeight: 700, margin: "0 0 12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     Profesionales Clínicos
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -5966,21 +5953,10 @@ export default function SettingsPage() {
                           key={u.id}
                           type="button"
                           onClick={() => setSelectedTherapistId(u.id)}
-                          style={{
-                            padding: "10px 12px",
-                            fontSize: "13px",
-                            fontWeight: selectedTherapistId === u.id ? 600 : 400,
-                            borderRadius: "6px",
-                            border: "none",
-                            textAlign: "left",
-                            cursor: "pointer",
-                            background: selectedTherapistId === u.id ? "var(--primary-light)" : "none",
-                            color: selectedTherapistId === u.id ? "var(--primary)" : "var(--text-primary)",
-                            transition: "all 0.15s"
-                          }}
+                          className={`${styles.therapistBtn} ${selectedTherapistId === u.id ? styles.therapistBtnActive : ""}`}
                         >
                           {u.name} {u.lastName || ""}
-                          <span style={{ display: "block", fontSize: "10px", color: "var(--text-secondary)", fontWeight: 400 }}>
+                          <span style={{ display: "block", fontSize: "10px", color: "var(--text-muted)", fontWeight: 400 }}>
                             {u.role === "ADMIN" ? "Administrador" : u.role === "DOCTOR" ? "Médico" : "Terapeuta"}
                           </span>
                         </button>
@@ -6149,7 +6125,7 @@ export default function SettingsPage() {
             {activeLiquidationsSubTab === "calculo" && (
               <div>
                 {/* Formulario de Cálculo */}
-                <div style={{ background: "var(--bg-input)", borderRadius: "8px", padding: "18px 24px", border: "1px solid var(--border-color)", marginBottom: "24px" }}>
+                <div className={styles.calculationCard}>
                   <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
                     🧮 Calcular Liquidación Mensual
                   </h4>
@@ -6755,36 +6731,28 @@ export default function SettingsPage() {
 
         {/* TAB: DATOS FISCALES */}
         {activeTab === "datosFiscales" && (
-          <div style={{ display: "flex", height: "100%", minHeight: "600px" }}>
+          <div className={styles.fiscalTabContainer}>
             {/* Left sidebar: list of profiles */}
-            <div style={{ width: "240px", flexShrink: 0, borderRight: "1px solid var(--border-color)", padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-              <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "var(--text-color)" }}>Título</h4>
+            <div className={styles.fiscalSidebar}>
+              <h4 style={{ margin: "0 0 12px", fontSize: "12px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Perfiles Fiscales</h4>
 
-              {fiscalProfiles.map(fp => (
-                <button
-                  key={fp.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedFiscalProfile(fp);
-                    setFiscalFormOpen(false);
-                    setEditingFiscalProfile(null);
-                  }}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-color)",
-                    background: selectedFiscalProfile?.id === fp.id ? "#0d9488" : "var(--bg-card)",
-                    color: selectedFiscalProfile?.id === fp.id ? "#fff" : "var(--text-color)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    width: "100%",
-                  }}
-                >
-                  {fp.comercialName || "Sin nombre"} ({fp.nif || "-"})
-                </button>
-              ))}
+              {fiscalProfiles.map(fp => {
+                const isActive = selectedFiscalProfile?.id === fp.id;
+                return (
+                  <button
+                    key={fp.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedFiscalProfile(fp);
+                      setFiscalFormOpen(false);
+                      setEditingFiscalProfile(null);
+                    }}
+                    className={`${styles.fiscalProfileBtn} ${isActive ? styles.fiscalProfileBtnActive : ""}`}
+                  >
+                    {fp.comercialName || "Sin nombre"} ({fp.nif || "-"})
+                  </button>
+                );
+              })}
 
               <button
                 type="button"
@@ -6800,18 +6768,7 @@ export default function SettingsPage() {
                   setFpSerieFacturaSimplificada(""); setFpSerieRectificadaSimplificada("");
                   setFpFooterNotes(""); setFpFooterNotesSimplified(""); setFpFirma(""); setFpSello("");
                 }}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--primary)",
-                  background: "transparent",
-                  color: "var(--primary)",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  width: "100%",
-                  marginTop: "4px",
-                }}
+                className={styles.fiscalCreateBtn}
               >
                 Crear nuevo
               </button>
@@ -7267,35 +7224,25 @@ export default function SettingsPage() {
           <div style={{ display: "flex", gap: "24px", minHeight: "600px", padding: "16px" }}>
             {/* Sidebar de notificaciones (izquierda) */}
             <div style={{ width: "240px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
-              {(["recordatorios", "notificaciones", "logs", "config", "whatsapp"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => {
-                    setNotificationsSubTab(t);
-                    setShowReminderForm(false);
-                  }}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    fontSize: "13px",
-                    fontWeight: notificationsSubTab === t ? 600 : 400,
-                    background: notificationsSubTab === t ? "var(--bg-input)" : "transparent",
-                    color: notificationsSubTab === t ? "var(--primary)" : "var(--text-secondary)",
-                    border: "1px solid " + (notificationsSubTab === t ? "var(--border-color)" : "transparent"),
-                    cursor: "pointer",
-                    transition: "all 0.2s"
-                  }}
-                >
-                  {t === "recordatorios" ? "Recordatorios" :
-                   t === "notificaciones" ? "Notificaciones" :
-                   t === "logs" ? "Registro de envíos" :
-                   t === "config" ? "Configuración" : "Conexión WhatsApp"}
-                </button>
-              ))}
+              {(["recordatorios", "notificaciones", "logs", "config", "whatsapp"] as const).map((t) => {
+                const isActive = notificationsSubTab === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setNotificationsSubTab(t);
+                      setShowReminderForm(false);
+                    }}
+                    className={`${styles.notifSidebarBtn} ${isActive ? styles.notifSidebarBtnActive : ""}`}
+                  >
+                    {t === "recordatorios" ? "Recordatorios" :
+                     t === "notificaciones" ? "Notificaciones" :
+                     t === "logs" ? "Registro de envíos" :
+                     t === "config" ? "Configuración" : "Conexión WhatsApp"}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Contenedor principal derecho */}

@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 8px 0;
+  padding: 8px 16px;
 }
 
 /* Toolbar & Filters */
@@ -940,4 +940,23 @@
 
 .skeletonText {
   border-radius: var(--radius-sm);
+}
+
+.gridLine {
+  stroke: var(--border-color);
+  stroke-width: 1px;
+  stroke-dasharray: 4, 4;
+  opacity: 0.6;
+}
+
+.axisLine {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5px;
+  opacity: 0.8;
+}
+
+.chartText {
+  fill: var(--text-secondary);
+  font-family: inherit;
+  font-weight: 600;
 }

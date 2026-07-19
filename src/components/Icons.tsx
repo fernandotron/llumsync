@@ -247,5 +247,13 @@ export const Icons = {
       <polyline points="1 20 1 14 7 14"></polyline>
       <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
     </svg>
+  ),
+  Package: ({ size = 20, ...props }: IconProps) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line>
+      <polygon points="12 22.08 12 12 3 6.92 3 17.08 12 22.08"></polygon>
+      <polygon points="12 22.08 12 12 21 6.92 21 17.08 12 22.08"></polygon>
+      <polygon points="12 12 3 6.92 12 1.84 21 6.92 12 12"></polygon>
+    </svg>
   )
 };

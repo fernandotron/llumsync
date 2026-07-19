@@ -596,7 +596,10 @@
   overflow: visible !important;
 }
 
-.microCard:not(:hover) .appTime,
+.microCard .appTime {
+  display: none !important;
+}
+
 .microCard:not(:hover) .appService {
   display: none !important;
 }

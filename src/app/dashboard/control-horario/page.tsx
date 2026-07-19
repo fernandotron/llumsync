@@ -384,16 +384,23 @@ export default function ControlHorarioPage() {
       <div className={styles.header}>
         <div>
           <h2 className={styles.title}>{translate("clockControlTitle", language)}</h2>
-          <div className={styles.subtitle}>{currentDateStr}</div>
+          <p className={styles.subtitle} style={{ textTransform: "capitalize" }}>
+            {currentDateStr} • Registro de presencia y jornada laboral de profesionales.
+          </p>
         </div>
       </div>
 
       <div className={styles.grid}>
         {/* LEFT COLUMN: Shift action card */}
         <div className={styles.card + " " + styles.clockCard}>
-          <div className={styles.dateDisplay}>{currentTime}</div>
-          <div className={styles.timeDisplay}>
-            {activeEntry && !activeEntry.clockOut ? elapsedTimeStr : "00:00:00"}
+          <div className={styles.clockWidget}>
+            <div className={styles.dateDisplay}>🕒 Hora Actual: {currentTime}</div>
+            <div className={styles.timeDisplay}>
+              {activeEntry && !activeEntry.clockOut ? elapsedTimeStr : "00:00:00"}
+            </div>
+            <div className={styles.elapsedTimer}>
+              ⏱️ {activeEntry && !activeEntry.clockOut ? "Jornada en curso" : "Jornada pausada/inactiva"}
+            </div>
           </div>
 
           {/* Dynamic Status Badge */}
@@ -428,7 +435,7 @@ export default function ControlHorarioPage() {
           {!loadingStatus && (
             <div className={styles.btnGroup}>
               {!activeEntry || activeEntry.clockOut ? (
-                <button type="button" className="btn btn-primary" onClick={handleClockIn} style={{ width: "100%" }}>
+                <button type="button" className={styles.btnClockIn} onClick={handleClockIn}>
                   🚀 Iniciar Entrada (Clock In)
                 </button>
               ) : (
@@ -436,27 +443,24 @@ export default function ControlHorarioPage() {
                   {activeEntry.breakStart ? (
                     <button
                       type="button"
-                      className="btn"
+                      className={styles.btnBreakEnd}
                       onClick={() => handleUpdateStatus("BREAK_END")}
-                      style={{ width: "100%", background: "#10b981", color: "#fff" }}
                     >
                       ▶️ Reanudar Trabajo
                     </button>
                   ) : (
                     <button
                       type="button"
-                      className="btn"
+                      className={styles.btnBreakStart}
                       onClick={() => handleUpdateStatus("BREAK_START")}
-                      style={{ width: "100%", background: "#f59e0b", color: "#fff" }}
                     >
                       ⏸️ Iniciar Descanso (Pausa)
                     </button>
                   )}
                   <button
                     type="button"
-                    className="btn"
+                    className={styles.btnClockOut}
                     onClick={() => handleUpdateStatus("CLOCK_OUT")}
-                    style={{ width: "100%", background: "#ef4444", color: "#fff" }}
                   >
                     ⏹️ Registrar Salida (Clock Out)
                   </button>
@@ -468,10 +472,10 @@ export default function ControlHorarioPage() {
 
         {/* RIGHT COLUMN: History & Admin tabs */}
         <div className={styles.card + " " + styles.historyCard}>
-          <div className={styles.tabs}>
+          <div className={styles.tabControls}>
             <button
               type="button"
-              className={`${styles.tabBtn} ${activeTab === "fichar" ? styles.tabBtnActive : ""}`}
+              className={`${styles.tabButton} ${activeTab === "fichar" ? styles.tabButtonActive : ""}`}
               onClick={() => setActiveTab("fichar")}
             >
               Mi Historial
@@ -479,7 +483,7 @@ export default function ControlHorarioPage() {
             {user?.role === "ADMIN" && (
               <button
                 type="button"
-                className={`${styles.tabBtn} ${activeTab === "admin" ? styles.tabBtnActive : ""}`}
+                className={`${styles.tabButton} ${activeTab === "admin" ? styles.tabButtonActive : ""}`}
                 onClick={() => setActiveTab("admin")}
               >
                 Informes de Plantilla (Admin)

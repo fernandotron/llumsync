@@ -1019,6 +1019,20 @@ export default function StatisticsPage() {
 
                       return (
                         <>
+                          {/* Y Axis Labels */}
+                          <text x="32" y="24" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(maxVal)}{currencySymbol}
+                          </text>
+                          <text x="32" y="84" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(maxVal * 0.65)}{currencySymbol}
+                          </text>
+                          <text x="32" y="144" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(maxVal * 0.3)}{currencySymbol}
+                          </text>
+                          <text x="32" y="194" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            0
+                          </text>
+
                           {dailyIncomeData.map((data, idx) => {
                             const x = 50 + idx * (barWidth + gap);
 
@@ -1109,6 +1123,20 @@ export default function StatisticsPage() {
 
                       return (
                         <>
+                          {/* Y Axis Labels */}
+                          <text x="32" y="24" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(maxVal)}
+                          </text>
+                          <text x="32" y="84" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(maxVal * 0.65)}
+                          </text>
+                          <text x="32" y="144" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(maxVal * 0.3)}
+                          </text>
+                          <text x="32" y="194" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            0
+                          </text>
+
                           <defs>
                             <linearGradient id="citasAreaGrad" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor="#008fa3" stopOpacity="0.2" />
@@ -1195,6 +1223,20 @@ export default function StatisticsPage() {
 
                       return (
                         <>
+                          {/* Y Axis Labels */}
+                          <text x="32" y="24" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(absoluteMax)}
+                          </text>
+                          <text x="32" y="84" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(absoluteMax * 0.65)}
+                          </text>
+                          <text x="32" y="144" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {Math.round(absoluteMax * 0.3)}
+                          </text>
+                          <text x="32" y="194" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            0
+                          </text>
+
                           <path d={pathCitas} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
                           <path d={pathHours} fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeDasharray="3,3" />
                           <path d={pathNew} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
@@ -1406,6 +1448,20 @@ export default function StatisticsPage() {
 
                     return (
                       <>
+                        {/* Y Axis Labels */}
+                        <text x="32" y="24" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                          {Math.round(maxVal)}{currencySymbol}
+                        </text>
+                        <text x="32" y="84" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                          {Math.round(maxVal * 0.65)}{currencySymbol}
+                        </text>
+                        <text x="32" y="144" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                          {Math.round(maxVal * 0.3)}{currencySymbol}
+                        </text>
+                        <text x="32" y="194" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                          0
+                        </text>
+
                         {dailyIncomeData.map((data, idx) => {
                           const x = 50 + idx * (barWidth + gap);
 
@@ -1737,6 +1793,8 @@ export default function StatisticsPage() {
               <h3 className={styles.chartCardTitle} style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "12px", marginTop: "12px" }}>{t("ageGroups")}</h3>
               <div className={styles.chartCanvas} style={{ height: "160px" }}>
                 <svg viewBox="0 0 300 150" className={styles.svgChart}>
+                  <line x1="30" y1="30" x2="280" y2="30" className={styles.gridLine} />
+                  <line x1="30" y1="75" x2="280" y2="75" className={styles.gridLine} />
                   <line x1="30" y1="120" x2="280" y2="120" className={styles.axisLine} />
                   {(() => {
                     const brackets = Object.entries(clientAgesList);
@@ -1744,23 +1802,38 @@ export default function StatisticsPage() {
                     const barWidth = 18;
                     const spacing = 16;
 
-                    return brackets.map(([name, count], idx) => {
-                      const x = 40 + idx * (barWidth + spacing);
-                      const barHeight = (count / maxCount) * 90;
-                      const y = 120 - barHeight;
+                    return (
+                      <>
+                        {/* Y Axis Labels */}
+                        <text x="24" y="32" className={styles.chartText} textAnchor="end" style={{ fontSize: "6.5px" }}>
+                          {Math.round(maxCount)}
+                        </text>
+                        <text x="24" y="77" className={styles.chartText} textAnchor="end" style={{ fontSize: "6.5px" }}>
+                          {Math.round(maxCount * 0.5)}
+                        </text>
+                        <text x="24" y="122" className={styles.chartText} textAnchor="end" style={{ fontSize: "6.5px" }}>
+                          0
+                        </text>
 
-                      return (
-                        <g key={name}>
-                          <rect x={x} y={y} width={barWidth} height={barHeight} fill="#008fa3" rx="2" />
-                          <text x={x + barWidth / 2} y={y - 4} className={styles.chartText} textAnchor="middle" style={{ fontSize: "8px", fontWeight: "700" }}>
-                            {count}
-                          </text>
-                          <text x={x + barWidth / 2} y="132" className={styles.chartText} textAnchor="middle" style={{ fontSize: "7px" }}>
-                            {name}
-                          </text>
-                        </g>
-                      );
-                    });
+                        {brackets.map(([name, count], idx) => {
+                          const x = 40 + idx * (barWidth + spacing);
+                          const barHeight = (count / maxCount) * 90;
+                          const y = 120 - barHeight;
+
+                          return (
+                            <g key={name}>
+                              <rect x={x} y={y} width={barWidth} height={barHeight} fill="#008fa3" rx="2" />
+                              <text x={x + barWidth / 2} y={y - 4} className={styles.chartText} textAnchor="middle" style={{ fontSize: "8px", fontWeight: "700" }}>
+                                {count}
+                              </text>
+                              <text x={x + barWidth / 2} y="132" className={styles.chartText} textAnchor="middle" style={{ fontSize: "7px" }}>
+                                {name}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </>
+                    );
                   })()}
                 </svg>
               </div>
@@ -1860,8 +1933,29 @@ export default function StatisticsPage() {
                       const widthX = 600;
                       const stepX = widthX / (staffDailyIncome.length - 1 || 1);
 
+                      const yLabelVal = (fraction: number) => {
+                        const val = absoluteMax * fraction;
+                        if (performanceMetric === "revenue") {
+                          return `${Math.round(val)}${currencySymbol}`;
+                        }
+                        return Math.round(val).toString();
+                      };
+
                       return (
                         <>
+                          {/* Y Axis Labels */}
+                          <text x="32" y="24" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {yLabelVal(1.0)}
+                          </text>
+                          <text x="32" y="84" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {yLabelVal(0.65)}
+                          </text>
+                          <text x="32" y="144" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            {yLabelVal(0.3)}
+                          </text>
+                          <text x="32" y="194" className={styles.chartText} textAnchor="end" style={{ fontSize: "8.5px" }}>
+                            0
+                          </text>
                           {/* Draw lines for each staff member */}
                           {staffList.map((staff, staffIdx) => {
                             const points = staffDailyIncome.map((row, idx) => {
