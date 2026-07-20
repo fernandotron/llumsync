@@ -50,6 +50,14 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     fs.writeFileSync(filePath, buffer);
 
+    // Para imágenes y documentos de <= 4MB, devolver Data URL Base64 para garantizar
+    // que la imagen persista en la base de datos incluso en entornos efímeros como Railway
+    if (file.size <= 4 * 1024 * 1024) {
+      const mimeType = file.type || "image/png";
+      const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+      return NextResponse.json({ url: dataUrl, fallbackUrl: fileUrl });
+    }
+
     return NextResponse.json({ url: fileUrl });
   } catch (error: any) {
     console.error("Error uploading file:", error);
