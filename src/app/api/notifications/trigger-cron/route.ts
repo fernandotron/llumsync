@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import fs from "fs";
+import path from "path";
 
 // POST /api/notifications/trigger-cron
 export async function POST(request: Request) {
@@ -222,12 +224,55 @@ export async function POST(request: Request) {
                   ? `${clinicApiUrl}/message/sendMedia/${clinicInstance}`
                   : `${clinicApiUrl}/message/sendText/${clinicInstance}`;
 
+                let mediaValue = reminder.imageUrl || "";
+                let mediatype = "image";
+
+                if (hasImage && reminder.imageUrl) {
+                  const cleanUrl = reminder.imageUrl.trim();
+                  if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://") || cleanUrl.startsWith("data:")) {
+                    mediaValue = cleanUrl;
+                  } else {
+                    // Es una ruta relativa de la subida local, ej. "/api/uploads/upload-12345.png"
+                    const filename = path.basename(cleanUrl);
+                    const privatePath = path.join(process.cwd(), "private-uploads", filename);
+                    const publicPath = path.join(process.cwd(), "public", "uploads", filename);
+
+                    let targetFilePath = "";
+                    if (fs.existsSync(privatePath)) {
+                      targetFilePath = privatePath;
+                    } else if (fs.existsSync(publicPath)) {
+                      targetFilePath = publicPath;
+                    }
+
+                    if (targetFilePath) {
+                      const fileBuffer = fs.readFileSync(targetFilePath);
+                      const ext = path.extname(filename).toLowerCase();
+                      let mimeType = "image/jpeg";
+                      if (ext === ".png") mimeType = "image/png";
+                      else if (ext === ".webp") mimeType = "image/webp";
+                      else if (ext === ".gif") mimeType = "image/gif";
+                      else if (ext === ".svg") mimeType = "image/svg+xml";
+                      else if (ext === ".pdf") {
+                        mimeType = "application/pdf";
+                        mediatype = "document";
+                      }
+                      
+                      mediaValue = `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+                    } else {
+                      // Si no existe el archivo localmente, construir URL completa con fallback
+                      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+                      mediaValue = `${baseUrl.replace(/\/$/, "")}${cleanUrl.startsWith("/") ? "" : "/"}${cleanUrl}`;
+                    }
+                  }
+                }
+
                 const requestBody = hasImage
                   ? {
                       number: formattedPhone,
-                      mediatype: "image",
-                      media: reminder.imageUrl,
+                      mediatype: mediatype,
+                      media: mediaValue,
                       caption: message,
+                      fileName: reminder.imageUrl ? path.basename(reminder.imageUrl) : "media",
                       options: {
                         delay: 1200,
                         presence: "composing",
