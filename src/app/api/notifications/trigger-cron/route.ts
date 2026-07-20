@@ -224,18 +224,34 @@ export async function POST(request: Request) {
                   ? `${clinicApiUrl}/message/sendMedia/${clinicInstance}`
                   : `${clinicApiUrl}/message/sendText/${clinicInstance}`;
 
-                let mediaValue = reminder.imageUrl || "";
+                let mediaValue = "";
                 let mediatype = "image";
+                let mimetype = "image/jpeg";
+                let fileName = "imagen.jpg";
 
                 if (hasImage && reminder.imageUrl) {
                   const cleanUrl = reminder.imageUrl.trim();
-                  if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://") || cleanUrl.startsWith("data:")) {
+                  fileName = path.basename(cleanUrl) || "imagen.jpg";
+                  const ext = path.extname(fileName).toLowerCase();
+
+                  if (ext === ".png") mimetype = "image/png";
+                  else if (ext === ".webp") mimetype = "image/webp";
+                  else if (ext === ".gif") mimetype = "image/gif";
+                  else if (ext === ".svg") mimetype = "image/svg+xml";
+                  else if (ext === ".pdf") {
+                    mimetype = "application/pdf";
+                    mediatype = "document";
+                  }
+
+                  if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
                     mediaValue = cleanUrl;
+                  } else if (cleanUrl.startsWith("data:")) {
+                    // Evolution API exige la cadena Base64 PURA sin el prefijo "data:image/...;base64,"
+                    mediaValue = cleanUrl.replace(/^data:[^;]+;base64,/, "");
                   } else {
-                    // Es una ruta relativa de la subida local, ej. "/api/uploads/upload-12345.png"
-                    const filename = path.basename(cleanUrl);
-                    const privatePath = path.join(process.cwd(), "private-uploads", filename);
-                    const publicPath = path.join(process.cwd(), "public", "uploads", filename);
+                    // Es una ruta relativa local (ej. "/api/uploads/upload-12345.png")
+                    const privatePath = path.join(process.cwd(), "private-uploads", fileName);
+                    const publicPath = path.join(process.cwd(), "public", "uploads", fileName);
 
                     let targetFilePath = "";
                     if (fs.existsSync(privatePath)) {
@@ -246,21 +262,15 @@ export async function POST(request: Request) {
 
                     if (targetFilePath) {
                       const fileBuffer = fs.readFileSync(targetFilePath);
-                      const ext = path.extname(filename).toLowerCase();
-                      let mimeType = "image/jpeg";
-                      if (ext === ".png") mimeType = "image/png";
-                      else if (ext === ".webp") mimeType = "image/webp";
-                      else if (ext === ".gif") mimeType = "image/gif";
-                      else if (ext === ".svg") mimeType = "image/svg+xml";
-                      else if (ext === ".pdf") {
-                        mimeType = "application/pdf";
-                        mediatype = "document";
-                      }
-                      
-                      mediaValue = `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+                      // IMPORTANTE: Evolution API requiere la cadena Base64 LIMPIA (sin prefijo data:)
+                      mediaValue = fileBuffer.toString("base64");
                     } else {
-                      // Si no existe el archivo localmente, construir URL completa con fallback
-                      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+                      // Si no está en disco local, formar URL pública absoluta con el origen del request o variables de entorno
+                      const reqUrl = new URL(request.url);
+                      const requestOrigin = `${reqUrl.protocol}//${reqUrl.host}`;
+                      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+                        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
+                        : (process.env.NEXT_PUBLIC_APP_URL || requestOrigin);
                       mediaValue = `${baseUrl.replace(/\/$/, "")}${cleanUrl.startsWith("/") ? "" : "/"}${cleanUrl}`;
                     }
                   }
@@ -270,9 +280,10 @@ export async function POST(request: Request) {
                   ? {
                       number: formattedPhone,
                       mediatype: mediatype,
+                      mimetype: mimetype,
                       media: mediaValue,
                       caption: message,
-                      fileName: reminder.imageUrl ? path.basename(reminder.imageUrl) : "media",
+                      fileName: fileName,
                       options: {
                         delay: 1200,
                         presence: "composing",
