@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { cookies } from "next/headers";
 import fs from "fs";
 import path from "path";
 
@@ -11,34 +9,25 @@ export async function GET(
   try {
     const { filename } = await params;
 
-    // 1. Verify user session from cookies
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("session_user_id")?.value;
-
-    if (!userId) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    // 2. Validate user exists in DB
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    // 3. Prevent Path Traversal by extracting basename
+    // 1. Prevent Path Traversal by extracting basename
     const safeFilename = path.basename(filename);
     const filePath = path.join(process.cwd(), "private-uploads", safeFilename);
+    const publicFilePath = path.join(process.cwd(), "public", "uploads", safeFilename);
 
-    // 4. Check if file exists
-    if (!fs.existsSync(filePath)) {
+    let targetPath = "";
+    if (fs.existsSync(filePath)) {
+      targetPath = filePath;
+    } else if (fs.existsSync(publicFilePath)) {
+      targetPath = publicFilePath;
+    }
+
+    // 2. Check if file exists
+    if (!targetPath) {
       return NextResponse.json({ error: "Archivo no encontrado" }, { status: 404 });
     }
 
-    // 5. Read file
-    const fileBuffer = fs.readFileSync(filePath);
+    // 3. Read file
+    const fileBuffer = fs.readFileSync(targetPath);
 
     // 6. Resolve correct mime type
     const ext = path.extname(safeFilename).toLowerCase();
