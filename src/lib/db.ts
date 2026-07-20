@@ -29,14 +29,32 @@ function encryptClientFields(data: any) {
   return result;
 }
 
-function decryptClientFields(client: any) {
-  if (!client) return client;
-  const result = { ...client };
+function decryptClientFields(data: any): any {
+  if (!data) return data;
+  if (Array.isArray(data)) {
+    return data.map(decryptClientFields);
+  }
+  if (typeof data !== "object") return data;
+
+  const result = { ...data };
+
   for (const field of fieldsToEncrypt) {
     if (field in result && typeof result[field] === "string") {
       result[field] = decrypt(result[field]);
     }
   }
+
+  if (result.content && typeof result.content === "string") {
+    result.content = decrypt(result.content);
+  }
+  if (result.signature && typeof result.signature === "string") {
+    result.signature = decrypt(result.signature);
+  }
+
+  if (result.client && typeof result.client === "object") {
+    result.client = decryptClientFields(result.client);
+  }
+
   return result;
 }
 
@@ -60,125 +78,24 @@ if (globalForPrisma.prisma) {
   
   prismaInstance = rawClient.$extends({
     query: {
-      client: {
-        async create({ args, query }) {
-          if (args.data) {
-            args.data = encryptClientFields(args.data);
-          }
-          const client = await query(args);
-          return decryptClientFields(client);
-        },
-        async update({ args, query }) {
-          if (args.data) {
-            args.data = encryptClientFields(args.data);
-          }
-          const client = await query(args);
-          return decryptClientFields(client);
-        },
-        async updateMany({ args, query }) {
-          if (args.data) {
-            args.data = encryptClientFields(args.data);
-          }
-          return query(args);
-        },
-        async upsert({ args, query }) {
-          if (args.create) {
-            args.create = encryptClientFields(args.create);
-          }
-          if (args.update) {
-            args.update = encryptClientFields(args.update);
-          }
-          const client = await query(args);
-          return decryptClientFields(client);
-        },
-        async findUnique({ args, query }) {
-          const client = await query(args);
-          return decryptClientFields(client);
-        },
-        async findFirst({ args, query }) {
-          const client = await query(args);
-          return decryptClientFields(client);
-        },
-        async findMany({ args, query }) {
-          const clients = await query(args);
-          if (Array.isArray(clients)) {
-            return clients.map(decryptClientFields);
-          }
-          return clients;
-        },
-      },
-      signedDocument: {
-        async create({ args, query }) {
-          if (args.data) {
-            if (typeof args.data.content === "string") {
-              args.data.content = encrypt(args.data.content) as any;
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          const a = args as any;
+          if (operation.startsWith("create") || operation.startsWith("update") || operation.startsWith("upsert")) {
+            if (model === "Client" && a?.data) {
+              a.data = encryptClientFields(a.data);
             }
-            if (typeof args.data.signature === "string") {
-              args.data.signature = encrypt(args.data.signature) as any;
-            }
-          }
-          const doc = await query(args);
-          if (doc) {
-            doc.content = decrypt(doc.content) as string;
-            doc.signature = decrypt(doc.signature);
-          }
-          return doc;
-        },
-        async update({ args, query }) {
-          if (args.data) {
-            if (typeof args.data.content === "string") {
-              args.data.content = encrypt(args.data.content) as any;
-            }
-            if (typeof args.data.signature === "string") {
-              args.data.signature = encrypt(args.data.signature) as any;
-            }
-          }
-          const doc = await query(args);
-          if (doc) {
-            doc.content = decrypt(doc.content) as string;
-            doc.signature = decrypt(doc.signature);
-          }
-          return doc;
-        },
-        async updateMany({ args, query }) {
-          if (args.data) {
-            if (typeof args.data.content === "string") {
-              args.data.content = encrypt(args.data.content) as any;
-            }
-            if (typeof args.data.signature === "string") {
-              args.data.signature = encrypt(args.data.signature) as any;
-            }
-          }
-          return query(args);
-        },
-        async findUnique({ args, query }) {
-          const doc = await query(args);
-          if (doc) {
-            doc.content = decrypt(doc.content) as string;
-            doc.signature = decrypt(doc.signature);
-          }
-          return doc;
-        },
-        async findFirst({ args, query }) {
-          const doc = await query(args);
-          if (doc) {
-            doc.content = decrypt(doc.content) as string;
-            doc.signature = decrypt(doc.signature);
-          }
-          return doc;
-        },
-        async findMany({ args, query }) {
-          const docs = await query(args);
-          if (Array.isArray(docs)) {
-            return docs.map(doc => {
-              if (doc) {
-                doc.content = decrypt(doc.content) as string;
-                doc.signature = decrypt(doc.signature);
+            if (model === "SignedDocument" && a?.data) {
+              if (typeof a.data.content === "string") {
+                a.data.content = encrypt(a.data.content) as any;
               }
-              return doc;
-            });
+              if (typeof a.data.signature === "string") {
+                a.data.signature = encrypt(a.data.signature) as any;
+              }
+            }
           }
-          return docs;
+          const result = await query(args);
+          return decryptClientFields(result);
         }
       }
     }
