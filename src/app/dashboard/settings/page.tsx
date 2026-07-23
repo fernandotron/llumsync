@@ -1217,7 +1217,33 @@ export default function SettingsPage() {
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setClientForms(d); });
     fetchCierreBlocks();
     fetchPapelera();
+    fetchFiscalProfiles();
   };
+
+  const fetchFiscalProfiles = useCallback(async () => {
+    if (!activeClinic?.id) return;
+    try {
+      const res = await fetch(`/api/fiscal-profiles?clinicId=${activeClinic.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : [];
+        setFiscalProfiles(arr);
+        if (arr.length > 0) {
+          setSelectedFiscalProfile((prev: any) => {
+            if (prev) {
+              const match = arr.find((p: any) => p.id === prev.id);
+              return match || arr[0];
+            }
+            return arr[0];
+          });
+        } else {
+          setSelectedFiscalProfile(null);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching fiscal profiles:", err);
+    }
+  }, [activeClinic?.id]);
 
   const fetchPapelera = useCallback(() => {
     if (!activeClinic?.id) return;
@@ -1241,6 +1267,12 @@ export default function SettingsPage() {
       fetchPapelera();
     }
   }, [activeTab, activeClinic?.id, fetchPapelera]);
+
+  useEffect(() => {
+    if ((activeTab === "datosFiscales" || activeTab === null) && activeClinic?.id) {
+      fetchFiscalProfiles();
+    }
+  }, [activeTab, activeClinic?.id, fetchFiscalProfiles]);
 
   useEffect(() => {
     fetchData();

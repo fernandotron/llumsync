@@ -3206,6 +3206,25 @@ export default function SalesPage() {
 
       // Merge real database appointments
       appointments.forEach((app, appIdx) => {
+        const appStatus = (app.status || "").toUpperCase();
+
+        // Citas con estado CANCELADA, PENDIENTE o NO ASISTIO no suponen un ingreso y NO salen en ventas.
+        // Solo salen las citas CONFIRMADAS o COMPLETADAS.
+        const isExcludedStatus = 
+          appStatus === "CANCELLED" || 
+          appStatus === "CANCELADA" || 
+          appStatus === "PENDING" || 
+          appStatus === "PENDIENTE" || 
+          appStatus === "NOSHOW" || 
+          appStatus === "NO_SHOW" || 
+          appStatus === "NO ASISTIO" || 
+          appStatus === "NO ASISTIÓ" ||
+          appStatus === "NO_ASISTIO";
+
+        if (isExcludedStatus) {
+          return;
+        }
+
         const appDate = new Date(app.start);
 
         // Find all database sales that belong to this appointment
