@@ -87,7 +87,18 @@ export async function PUT(
         phone: body.phone,
         email: body.email,
         dniNif: body.dniNif,
-        birthDate: body.birthDate ? new Date(body.birthDate) : null,
+        birthDate: (() => {
+          if (!body.birthDate) return null;
+          if (typeof body.birthDate === "string" && body.birthDate.includes("/")) {
+            const parts = body.birthDate.split("/");
+            if (parts.length === 3) {
+              const parsedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+              return isNaN(parsedDate.getTime()) ? null : parsedDate;
+            }
+          }
+          const d = new Date(body.birthDate);
+          return isNaN(d.getTime()) ? null : d;
+        })(),
         gender: body.gender,
         address: body.address,
         municipality: body.municipality,

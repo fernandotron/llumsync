@@ -112,7 +112,18 @@ export async function POST(request: Request) {
         phone,
         email,
         dniNif,
-        birthDate: birthDate ? new Date(birthDate) : null,
+        birthDate: (() => {
+          if (!birthDate) return null;
+          if (typeof birthDate === "string" && birthDate.includes("/")) {
+            const parts = birthDate.split("/");
+            if (parts.length === 3) {
+              const parsedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+              return isNaN(parsedDate.getTime()) ? null : parsedDate;
+            }
+          }
+          const d = new Date(birthDate);
+          return isNaN(d.getTime()) ? null : d;
+        })(),
         gender,
         address,
         municipality,
