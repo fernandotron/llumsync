@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
@@ -8711,7 +8712,7 @@ export default function SalesPage() {
 
       {/* POS COLLAPSIBLE SLIDE-OUT DRAWER */}
       {/* ── Modal: Sin Datos Fiscales Configurados ─────────────────── */}
-      {showNoFiscalProfileModal && (
+      {showNoFiscalProfileModal && typeof window !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed", inset: 0, zIndex: 9999,
@@ -8785,11 +8786,12 @@ export default function SalesPage() {
               </Link>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Modal: Configuración de Datos Fiscales ─────────────────── */}
-      {showFiscalSetupModal && (
+      {showFiscalSetupModal && typeof window !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed",
@@ -9012,24 +9014,30 @@ export default function SalesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      <div className={`${styles.posDrawerOverlay} ${showPosDrawer ? styles.posDrawerOverlayOpen : ""}`} onClick={() => setShowPosDrawer(false)} />
-      <div className={`${styles.posDrawer} ${showPosDrawer ? styles.posDrawerOpen : ""}`}>
-        <div className={styles.posDrawerHeader}>
-          <h2>Registrar Nueva Venta (POS)</h2>
-          <button onClick={() => setShowPosDrawer(false)} className={styles.closeBtn}>
-            <Icons.Plus size={24} style={{ transform: "rotate(45deg)" }} />
-          </button>
-        </div>
-        <div style={{ padding: "0 24px 24px", height: "calc(100% - 70px)", overflowY: "auto" }}>
-          {renderPosFormContent()}
-        </div>
-      </div>
+      {typeof window !== "undefined" && createPortal(
+        <>
+          <div className={`${styles.posDrawerOverlay} ${showPosDrawer ? styles.posDrawerOverlayOpen : ""}`} onClick={() => setShowPosDrawer(false)} />
+          <div className={`${styles.posDrawer} ${showPosDrawer ? styles.posDrawerOpen : ""}`}>
+            <div className={styles.posDrawerHeader}>
+              <h2>Registrar Nueva Venta (POS)</h2>
+              <button onClick={() => setShowPosDrawer(false)} className={styles.closeBtn}>
+                <Icons.Plus size={24} style={{ transform: "rotate(45deg)" }} />
+              </button>
+            </div>
+            <div style={{ padding: "0 24px 24px", height: "calc(100% - 70px)", overflowY: "auto" }}>
+              {renderPosFormContent()}
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
 
       {/* DETAILED INVOICE MODAL */}
-      {selectedSaleDetail && (
+      {selectedSaleDetail && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
           <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px" }}>
             <div className={styles.modalHeader}>
@@ -9101,11 +9109,12 @@ export default function SalesPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ADD MANUAL MOVEMENT MODAL */}
-      {showMovementModal && (
+      {showMovementModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
           <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px" }}>
             <div className={styles.modalHeader}>
@@ -9183,7 +9192,8 @@ export default function SalesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -1216,7 +1216,31 @@ export default function SettingsPage() {
     fetch(`/api/client-forms?clinicId=${activeClinic.id}`)
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setClientForms(d); });
     fetchCierreBlocks();
+    fetchPapelera();
   };
+
+  const fetchPapelera = useCallback(() => {
+    if (!activeClinic?.id) return;
+    setLoadingPapelera(true);
+    Promise.all([
+      fetch(`/api/papelera/citas?clinicId=${activeClinic.id}`).then(r => r.json()),
+      fetch(`/api/papelera/clientes?clinicId=${activeClinic.id}`).then(r => r.json()),
+      fetch(`/api/papelera/presupuestos?clinicId=${activeClinic.id}`).then(r => r.json()),
+    ])
+      .then(([citas, clientes, presupuestos]) => {
+        setPapeleraCitas(Array.isArray(citas) ? citas : []);
+        setPapeleraClientes(Array.isArray(clientes) ? clientes : []);
+        setPapeleraPresupuestos(Array.isArray(presupuestos) ? presupuestos : []);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingPapelera(false));
+  }, [activeClinic?.id]);
+
+  useEffect(() => {
+    if (activeTab === "papelera" && activeClinic?.id) {
+      fetchPapelera();
+    }
+  }, [activeTab, activeClinic?.id, fetchPapelera]);
 
   useEffect(() => {
     fetchData();
@@ -1275,6 +1299,16 @@ export default function SettingsPage() {
         setActiveTab("users");
       } else if (tab === "import") {
         setActiveTab("import");
+      } else if (tab === "papelera") {
+        setActiveTab("papelera");
+      } else if (tab === "datosFiscales") {
+        setActiveTab("datosFiscales");
+      } else if (tab === "bonos") {
+        setActiveTab("bonos");
+      } else if (tab === "inventario") {
+        setActiveTab("inventario");
+      } else if (tab === "liquidaciones") {
+        setActiveTab("liquidaciones");
       }
     }
   }, []);
@@ -2915,8 +2949,23 @@ export default function SettingsPage() {
       {/* Header */}
       <header className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <h1 className={styles.title}>{translate("settingsTitle", language)}</h1>
-          <span className={styles.clinicSubtitle}>{activeClinic?.name}</span>
+          <h1 className={styles.title}>
+            {activeTab === "clinic" ? "Información general" :
+             activeTab === "services" ? "Servicios Clínicos" :
+             activeTab === "notifications" ? "Notificaciones" :
+             activeTab === "users" ? "Usuarios y Horarios" :
+             activeTab === "liquidaciones" ? "Liquidaciones y Comisiones" :
+             activeTab === "bonos" ? "Bonos" :
+             activeTab === "datosFiscales" ? "Datos Fiscales" :
+             activeTab === "formularios" ? "Formularios Personalizados" :
+             activeTab === "documents" ? "Plantillas de Documentos" :
+             activeTab === "inventario" ? "Almacén e Inventario" :
+             activeTab === "sync" ? "Sincronizar Google" :
+             activeTab === "import" ? "Importar Contactos" :
+             activeTab === "papelera" ? "Papelera" :
+             "Información general"}
+          </h1>
+          <span className={styles.clinicSubtitle}>Configuración • {activeClinic?.name}</span>
         </div>
       </header>
 
@@ -3097,18 +3146,7 @@ export default function SettingsPage() {
                 className={`${styles.sidebarItem} ${activeTab === "papelera" ? styles.sidebarItemActive : ""}`}
                 onClick={() => {
                   setActiveTab("papelera");
-                  if (activeClinic?.id) {
-                    setLoadingPapelera(true);
-                    Promise.all([
-                      fetch(`/api/papelera/citas?clinicId=${activeClinic.id}`).then(r => r.json()),
-                      fetch(`/api/papelera/clientes?clinicId=${activeClinic.id}`).then(r => r.json()),
-                      fetch(`/api/papelera/presupuestos?clinicId=${activeClinic.id}`).then(r => r.json()),
-                    ]).then(([citas, clientes, presupuestos]) => {
-                      setPapeleraCitas(Array.isArray(citas) ? citas : []);
-                      setPapeleraClientes(Array.isArray(clientes) ? clientes : []);
-                      setPapeleraPresupuestos(Array.isArray(presupuestos) ? presupuestos : []);
-                    }).catch(console.error).finally(() => setLoadingPapelera(false));
-                  }
+                  fetchPapelera();
                 }}
               >
                 <Icons.Trash size={16} />

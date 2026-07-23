@@ -3421,7 +3421,7 @@ export default function ClientDetailPage() {
               <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-input)", borderRadius: "10px", minWidth: "80px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Citas</div>
                 <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)" }}>
-                  {client.appointments?.length || 0}
+                  {(client.appointments || []).filter((a: any) => !a.deletedAt).length}
                 </div>
               </div>
               {/* Última visita */}
@@ -3429,7 +3429,7 @@ export default function ClientDetailPage() {
                 <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Última</div>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
                   {(() => {
-                    const past = (client.appointments || []).filter((a: Appointment) => new Date(a.start) <= new Date()).sort((a: Appointment, b: Appointment) => new Date(b.start).getTime() - new Date(a.start).getTime());
+                    const past = (client.appointments || []).filter((a: any) => !a.deletedAt && new Date(a.start) <= new Date()).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
                     if (!past.length) return "—";
                     const diff = Math.floor((Date.now() - new Date(past[0].start).getTime()) / (1000 * 60 * 60 * 24));
                     if (diff === 0) return "Hoy";
@@ -3444,7 +3444,7 @@ export default function ClientDetailPage() {
 
             {/* Próxima cita mini-widget */}
             {(() => {
-              const next = (client.appointments || []).filter((a: Appointment) => new Date(a.start) > new Date()).sort((a: Appointment, b: Appointment) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
+              const next = (client.appointments || []).filter((a: any) => !a.deletedAt && new Date(a.start) > new Date()).sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
               return next ? (
                 <div style={{
                   display: "flex", alignItems: "center", gap: "8px",
@@ -6389,7 +6389,7 @@ export default function ClientDetailPage() {
 
                 {billingSubTab === "citas" && (() => {
                   const now = new Date();
-                  const allApps = client.appointments || [];
+                  const allApps = (client.appointments || []).filter((a: any) => !a.deletedAt);
                   const pastApps = allApps.filter((a: any) => new Date(a.start) < now).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
                   const futureApps = allApps.filter((a: any) => new Date(a.start) >= now).sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime());
                   const displayApps = citasTimeFilter === "pasado" ? pastApps : futureApps;
@@ -6432,8 +6432,23 @@ export default function ClientDetailPage() {
                     }
                   };
 
-                  // A cita is "paid" if its status is COMPLETED
-                  const isPaid = (app: any) => app.status === "COMPLETED";
+                  // Helper: find registered sale for appointment
+                  const getAppointmentSale = (appId: string) => {
+                    if (!client.sales || client.sales.length === 0) return null;
+                    return client.sales.find((s: any) => {
+                      if (s.paymentMethod === "OTHER") return false;
+                      try {
+                        const items = typeof s.itemsJson === "string" ? JSON.parse(s.itemsJson) : (s.itemsJson || []);
+                        return Array.isArray(items) && items.some((i: any) => 
+                          i.id === `db-app-${appId}` || 
+                          i.id === appId || 
+                          i.appointmentId === appId
+                        );
+                      } catch {
+                        return false;
+                      }
+                    }) || null;
+                  };
 
                   return (
                     <div>
@@ -6471,7 +6486,8 @@ export default function ClientDetailPage() {
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           {displayApps.map((app: any) => {
-                            const paid = isPaid(app);
+                            const matchedSale = getAppointmentSale(app.id);
+                            const paid = !!matchedSale;
                             const statusColors = getStatusColor(app.status);
                             const isMenuOpen = citasStatusMenuOpen === app.id;
 
@@ -6583,49 +6599,25 @@ export default function ClientDetailPage() {
                                 </div>
 
                                 {/* Ver venta / Mostrar en Caja */}
-                                {paid ? (() => {
-                                  let saleId = null;
-                                  if (client.sales) {
-                                    const match = client.sales.find((s: any) => {
-                                      if (s.paymentMethod === "OTHER") return false;
-                                      try {
-                                        const items = JSON.parse(s.itemsJson || "[]");
-                                        return items.some((i: any) => 
-                                          i.id === `db-app-${app.id}` || 
-                                          i.id === app.id || 
-                                          i.name === app.service?.name
-                                        );
-                                      } catch {
-                                        return false;
-                                      }
-                                    });
-                                    if (match) saleId = match.id;
-                                  }
-
-                                  const hrefVal = saleId 
-                                    ? `/dashboard/sales?clientId=${id}&saleId=${saleId}`
-                                    : `/dashboard/sales?clientId=${id}&appointmentId=${app.id}`;
-
-                                  return (
-                                    <a
-                                      href={hrefVal}
-                                      style={{
-                                        padding: "4px 14px",
-                                        borderRadius: "6px",
-                                        border: "1px solid var(--border-color)",
-                                        background: "var(--bg-panel-solid)",
-                                        fontSize: "12px",
-                                        color: "var(--text-primary)",
-                                        textDecoration: "none",
-                                        fontWeight: 500,
-                                        flexShrink: 0
-                                      }}
-                                    >
-                                      Ver venta
-                                    </a>
-                                  );
-                                })() : (
-                                  <a
+                                {paid ? (
+                                  <Link
+                                    href={`/dashboard/sales?clientId=${id}&saleId=${matchedSale.id}`}
+                                    style={{
+                                      padding: "4px 14px",
+                                      borderRadius: "6px",
+                                      border: "1px solid var(--border-color)",
+                                      background: "var(--bg-panel-solid)",
+                                      fontSize: "12px",
+                                      color: "var(--text-primary)",
+                                      textDecoration: "none",
+                                      fontWeight: 500,
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    Ver venta
+                                  </Link>
+                                ) : (
+                                  <Link
                                     href={`/dashboard/sales?clientId=${id}&appointmentId=${app.id}`}
                                     style={{
                                       padding: "4px 14px",
@@ -6640,7 +6632,7 @@ export default function ClientDetailPage() {
                                     }}
                                   >
                                     Mostrar en Caja
-                                  </a>
+                                  </Link>
                                 )}
                               </div>
                             );

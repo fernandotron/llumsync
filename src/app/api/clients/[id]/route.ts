@@ -16,6 +16,7 @@ export async function GET(
       where: { id },
       include: {
         appointments: {
+          where: { deletedAt: null },
           include: {
             user: true,
             service: true,
