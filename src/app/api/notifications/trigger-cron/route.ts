@@ -302,7 +302,7 @@ export async function POST(request: Request) {
                       }
                     };
 
-                const res = await fetch(targetUrl, {
+                let res = await fetch(targetUrl, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -310,6 +310,39 @@ export async function POST(request: Request) {
                   },
                   body: JSON.stringify(requestBody),
                 });
+
+                // Si falló el envío con imagen (ej. 404 en URL de imagen efímera), reintentar enviar como mensaje de texto plano
+                if (!res.ok && hasImage) {
+                  const errText = await res.text();
+                  console.warn("Error enviando imagen en Evolution API, reintentando como texto plano:", errText);
+
+                  const fallbackUrl = `${clinicApiUrl}/message/sendText/${clinicInstance}`;
+                  const fallbackBody = {
+                    number: formattedPhone,
+                    text: message,
+                    textMessage: {
+                      text: message
+                    },
+                    options: {
+                      delay: 1200,
+                      presence: "composing",
+                      linkPreview: false
+                    }
+                  };
+
+                  const fallbackRes = await fetch(fallbackUrl, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "apikey": clinicToken,
+                    },
+                    body: JSON.stringify(fallbackBody),
+                  });
+
+                  if (fallbackRes.ok) {
+                    res = fallbackRes;
+                  }
+                }
 
                 if (!res.ok) {
                   const errText = await res.text();
