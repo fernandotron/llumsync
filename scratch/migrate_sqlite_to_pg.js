@@ -57,6 +57,22 @@ const tables = [
 ];
 
 async function runMigration() {
+  const isProduction = process.env.DATABASE_URL && (
+    process.env.DATABASE_URL.includes('rlwy.net') || 
+    process.env.DATABASE_URL.includes('railway') || 
+    (!process.env.DATABASE_URL.includes('localhost') && !process.env.DATABASE_URL.includes('127.0.0.1'))
+  );
+
+  if (isProduction && process.env.ALLOW_DESTRUCTIVE_MIGRATION !== 'true') {
+    console.error('================================================================');
+    console.error('ERROR: DESTRUCTIVE MIGRATION BLOCKED');
+    console.error('DATABASE_URL points to a production or Railway database.');
+    console.error('Running this script will TRUNCATE (delete) all production data!');
+    console.error('To force execution, set ALLOW_DESTRUCTIVE_MIGRATION=true in your environment.');
+    console.error('================================================================');
+    process.exit(1);
+  }
+
   console.log('Starting data migration from SQLite to PostgreSQL...');
 
   try {

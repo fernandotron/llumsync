@@ -5,15 +5,18 @@ import pg from "pg";
 
 const { Pool } = pg;
 
+const connectionString = process.env.DATABASE_URL;
+const isLocal = connectionString?.includes("localhost") || connectionString?.includes("127.0.0.1") || !connectionString;
+
 try {
   console.log("Running prisma db push...");
-  execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
+  const command = isLocal 
+    ? "npx prisma db push --accept-data-loss" 
+    : "npx prisma db push"; // Avoid accidental data loss in production!
+  execSync(command, { stdio: "inherit" });
 } catch (e) {
   console.error("Error during prisma db push:", e);
 }
-
-const connectionString = process.env.DATABASE_URL;
-const isLocal = connectionString?.includes("localhost") || connectionString?.includes("127.0.0.1");
 
 const pool = new Pool({ 
   connectionString,
