@@ -2264,15 +2264,15 @@ export default function SalesPage() {
         <div class="totals-area">
           <div class="totals-row">
             <span>Subtotal:</span>
-            <span>${totalAmount.toFixed(2)} \${currencySymbol}</span>
+            <span>${totalAmount.toFixed(2)} ${currencySymbol}</span>
           </div>
           <div class="totals-row">
-            <span>IVA 0% (\${totalAmount.toFixed(2)}):</span>
-            <span>0,00 \${currencySymbol}</span>
+            <span>IVA 0% (${totalAmount.toFixed(2)}):</span>
+            <span>0,00 ${currencySymbol}</span>
           </div>
           <div class="totals-row grand-total">
             <span>Total:</span>
-            <span>\${totalAmount.toFixed(2)} \${currencySymbol}</span>
+            <span>${totalAmount.toFixed(2)} ${currencySymbol}</span>
           </div>
         </div>
 
@@ -2539,7 +2539,7 @@ export default function SalesPage() {
           <strong>TICKET / FACTURA:</strong> ${invoiceLabel}<br/>
           <strong>FECHA:</strong> ${dateStr}<br/>
           <strong>CLIENTE:</strong> ${activeInvoiceEdit.clientName}<br/>
-          \${activeInvoiceEdit.clientDni !== "-" ? \`<strong>NIF:</strong> \${activeInvoiceEdit.clientDni}<br/>\` : ""}
+          ${activeInvoiceEdit.clientDni !== "-" ? `<strong>NIF:</strong> ${activeInvoiceEdit.clientDni}<br/>` : ""}
         </div>
         <div class="divider"></div>
         <div style="font-weight: bold; display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px;">
@@ -2551,7 +2551,7 @@ export default function SalesPage() {
         <div class="divider"></div>
         <div class="totals">
           <span>TOTAL:</span>
-          <span>\${totalAmount.toFixed(2)} \${currencySymbol}</span>
+          <span>${totalAmount.toFixed(2)} ${currencySymbol}</span>
         </div>
         <div class="divider"></div>
         <div class="center" style="font-size: 10px; margin-top: 15px;">
