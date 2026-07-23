@@ -1,6 +1,10 @@
 const translations: Record<string, Record<string, string>> = {
   Español: {
     // Sidebar & Titles
+    clinicalManagement: "Gestión Clínica",
+    businessAndStock: "Negocio y Stock",
+    performance: "Rendimiento",
+    system: "Sistema",
     agenda: "Agenda",
     contacts: "Contactos",
     sales: "Ventas",
@@ -338,6 +342,10 @@ const translations: Record<string, Record<string, string>> = {
     deleteClinicSuccess: "Consulta eliminada con éxito.",
   },
   Català: {
+    clinicalManagement: "Gestió Clínica",
+    businessAndStock: "Negoci i Stock",
+    performance: "Rendiment",
+    system: "Sistema",
     agenda: "Agenda",
     contacts: "Contactes",
     sales: "Vendes",
@@ -669,6 +677,10 @@ const translations: Record<string, Record<string, string>> = {
     deleteClinicSuccess: "Consulta eliminada correctament.",
   },
   English: {
+    clinicalManagement: "Clinical Management",
+    businessAndStock: "Business & Stock",
+    performance: "Performance",
+    system: "System",
     agenda: "Calendar",
     contacts: "Contacts",
     sales: "Sales",
@@ -1000,6 +1012,10 @@ const translations: Record<string, Record<string, string>> = {
     deleteClinicSuccess: "Clinic deleted successfully.",
   },
   Euskera: {
+    clinicalManagement: "Klinika Kudeaketa",
+    businessAndStock: "Negozioa eta Stocka",
+    performance: "Errendimendua",
+    system: "Sistema",
     agenda: "Agenda",
     contacts: "Kontaktuak",
     sales: "Salmentak",

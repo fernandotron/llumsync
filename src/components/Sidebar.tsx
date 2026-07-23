@@ -77,27 +77,47 @@ export default function Sidebar() {
     hasPermission(user, "contabilidad", "Ingresos y Gastos") ||
     hasPermission(user, "contabilidad", "Solo cobrar");
 
-  const navItems = [
-    { name: translate("agenda", language), path: "/dashboard/agenda", icon: <Icons.Calendar size={20} /> },
-    ...(user.role === "ADMIN" || hasPermission(user, "clientes", "Ver clientes") ? [
-      { name: translate("contacts", language), path: "/dashboard/contacts", icon: <Icons.Users size={20} /> }
-    ] : []),
-    ...(hasAccountingAccess ? [
-      { name: translate("sales", language), path: "/dashboard/sales", icon: <Icons.Sales size={20} /> }
-    ] : []),
-    ...(hasAccountingAccess ? [
-      { name: translate("warehouseInventory", language), path: "/dashboard/almacen", icon: <Icons.Package size={20} /> }
-    ] : []),
-    ...(user.role === "ADMIN" || hasPermission(user, "estadisticas", "Ver Estadisticas") ? [
-      { name: translate("stats", language), path: "/dashboard/statistics", icon: <Icons.Stats size={20} /> }
-    ] : []),
-    ...(activeClinic?.controlHorarioActivo ? [
-      { name: translate("clockControl", language), path: "/dashboard/control-horario", icon: <Icons.CalendarClock size={20} /> }
-    ] : []),
-    ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración") || hasPermission(user, "configuracion", "Editar su propio horario") ? [
-      { name: translate("settings", language), path: "/dashboard/settings", icon: <Icons.Settings size={20} /> }
-    ] : []),
-  ];
+  const sections = [
+    {
+      title: translate("clinicalManagement", language),
+      items: [
+        { name: translate("agenda", language), path: "/dashboard/agenda", icon: <Icons.Calendar size={20} /> },
+        ...(user.role === "ADMIN" || hasPermission(user, "clientes", "Ver clientes") ? [
+          { name: translate("contacts", language), path: "/dashboard/contacts", icon: <Icons.Users size={20} /> }
+        ] : []),
+      ]
+    },
+    {
+      title: translate("businessAndStock", language),
+      items: [
+        ...(hasAccountingAccess ? [
+          { name: translate("sales", language), path: "/dashboard/sales", icon: <Icons.Sales size={20} /> }
+        ] : []),
+        ...(hasAccountingAccess ? [
+          { name: translate("warehouseInventory", language), path: "/dashboard/almacen", icon: <Icons.Package size={20} /> }
+        ] : []),
+      ]
+    },
+    {
+      title: translate("performance", language),
+      items: [
+        ...(user.role === "ADMIN" || hasPermission(user, "estadisticas", "Ver Estadisticas") ? [
+          { name: translate("stats", language), path: "/dashboard/statistics", icon: <Icons.Stats size={20} /> }
+        ] : []),
+        ...(activeClinic?.controlHorarioActivo ? [
+          { name: translate("clockControl", language), path: "/dashboard/control-horario", icon: <Icons.CalendarClock size={20} /> }
+        ] : []),
+      ]
+    },
+    {
+      title: translate("system", language),
+      items: [
+        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración") || hasPermission(user, "configuracion", "Editar su propio horario") ? [
+          { name: translate("settings", language), path: "/dashboard/settings", icon: <Icons.Settings size={20} /> }
+        ] : []),
+      ]
+    }
+  ].filter(section => section.items.length > 0);
 
   return (
     <>
@@ -186,27 +206,38 @@ export default function Sidebar() {
 
       {/* Nav Menu */}
       <nav className={styles.nav}>
-        {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.path);
-          return (
-            <LinkComponent
-              key={item.path}
-              href={item.path}
-              className={`${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
-              title={isCollapsed ? item.name : undefined}
-              onClick={(e) => {
-                if (isActive) {
-                  e.preventDefault();
-                  window.location.href = item.path;
-                }
-              }}
-            >
-              <span className={styles.navIcon}>{item.icon}</span>
-              {!isCollapsed && <span className={styles.navName}>{item.name}</span>}
-              {isActive && !isCollapsed && <div className={styles.activeIndicator} />}
-            </LinkComponent>
-          );
-        })}
+        {sections.map((section, sIdx) => (
+          <div key={sIdx} className={styles.navSection}>
+            {!isCollapsed ? (
+              <h3 className={styles.sectionTitle}>{section.title}</h3>
+            ) : (
+              <div className={styles.sectionDivider} />
+            )}
+            <div className={styles.sectionItems}>
+              {section.items.map((item) => {
+                const isActive = pathname.startsWith(item.path);
+                return (
+                  <LinkComponent
+                    key={item.path}
+                    href={item.path}
+                    className={`${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
+                    title={isCollapsed ? item.name : undefined}
+                    onClick={(e) => {
+                      if (isActive) {
+                        e.preventDefault();
+                        window.location.href = item.path;
+                      }
+                    }}
+                  >
+                    <span className={styles.navIcon}>{item.icon}</span>
+                    {!isCollapsed && <span className={styles.navName}>{item.name}</span>}
+                    {isActive && !isCollapsed && <div className={styles.activeIndicator} />}
+                  </LinkComponent>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* User Area */}
