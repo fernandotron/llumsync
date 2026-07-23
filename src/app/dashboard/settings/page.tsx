@@ -8074,8 +8074,8 @@ export default function SettingsPage() {
                       </div>
 
                       <div style={{ display: "flex", gap: "32px", alignItems: "flex-start", flexWrap: "wrap" }}>
-                        {/* Panel Izquierdo: Ocultado porque se gestiona internamente */}
-                        {false && (
+                        {/* Panel Izquierdo: Configuración de Credenciales (Visible para administradores) */}
+                        {currentUser?.role === "ADMIN" && (
                           <div style={{ flex: "1 1 350px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
                             <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
                               ⚙️ Ajustes de la Instancia QR
