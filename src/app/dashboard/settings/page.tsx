@@ -952,12 +952,13 @@ export default function SettingsPage() {
           setWhatsappQrCode(null);
           setWhatsappStatusMessage("✓ WhatsApp conectado correctamente.");
           // Update active clinic locally
+          const resolvedInstanceName = whatsappInstanceName.trim() || activeClinic.whatsappInstanceName || `clinic-${activeClinic.id.slice(0, 8)}`;
           setActiveClinic({
             ...activeClinic,
             whatsappConnected: true,
-            whatsappApiUrl: whatsappApiUrl.trim(),
-            whatsappInstanceName: whatsappInstanceName.trim(),
-            whatsappApiToken: whatsappApiToken.trim(),
+            whatsappApiUrl: whatsappApiUrl.trim() || activeClinic.whatsappApiUrl,
+            whatsappInstanceName: resolvedInstanceName,
+            whatsappApiToken: whatsappApiToken.trim() || activeClinic.whatsappApiToken,
           });
         } else {
           setWhatsappStatusMessage("La instancia no está conectada. Por favor, escanea el código QR.");
