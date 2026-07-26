@@ -45,6 +45,7 @@ model Clinic {
   liquidations      Liquidation[]
   services            Service[]
   fiscalProfiles    FiscalProfile[]
+  products          Product[]
   whatsappApiUrl    String?
   whatsappInstanceName String?
   whatsappApiToken  String?
@@ -180,6 +181,7 @@ model Client {
   followUps          String?          @default("[]")
   budgets            Budget[]
   photos             ClientPhoto[]
+  clientProducts     ClientProduct[]
 }
 
 model Appointment {
@@ -555,3 +557,34 @@ model FiscalProfile {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  vat       Float    @default(21)
+  price     Float    @default(0)
+  hasStock  Boolean  @default(false)
+  stock     Int      @default(0)
+  clinicId  String
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ClientProduct {
+  id               String   @id @default(uuid())
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  productId        String?
+  productName      String
+  date             DateTime @default(now())
+  price            Float
+  vat              Float    @default(21)
+  total            Float
+  professionalId   String?
+  professionalName String?
+  clinicId         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+

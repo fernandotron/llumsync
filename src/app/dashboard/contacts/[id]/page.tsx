@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -629,6 +629,21 @@ export default function ClientDetailPage() {
   const [clinicVouchers, setClinicVouchers] = useState<any[]>([]);
   const [showAddVoucherModal, setShowAddVoucherModal] = useState(false);
   const [selectedVoucherId, setSelectedVoucherId] = useState("");
+
+  // Client Products & Add Article Menu states
+  const [clientProductsList, setClientProductsList] = useState<any[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [addArticleMenuOpen, setAddArticleMenuOpen] = useState(false);
+  const [showAssignProductModal, setShowAssignProductModal] = useState(false);
+  const [assignProductDate, setAssignProductDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [assignProductId, setAssignProductId] = useState("");
+  const [assignProductName, setAssignProductName] = useState("");
+  const [assignProductPrice, setAssignProductPrice] = useState("0");
+  const [assignProductVat, setAssignProductVat] = useState("21");
+  const [assignProductTotal, setAssignProductTotal] = useState("0");
+  const [assignProductProfessionalId, setAssignProductProfessionalId] = useState("");
+  const [assignProductProfessionalName, setAssignProductProfessionalName] = useState("");
+  const [assignProductSaving, setAssignProductSaving] = useState(false);
   const [showAssociateDocModal, setShowAssociateDocModal] = useState(false);
   const [docWizardStep, setDocWizardStep] = useState<"select_and_edit" | "preview_and_sign">("select_and_edit");
   const [patientSignature, setPatientSignature] = useState<string | null>(null);
@@ -857,6 +872,119 @@ export default function ClientDetailPage() {
         console.error("Error fetching client details:", err);
         router.push("/dashboard/contacts");
       });
+  };
+
+  const fetchClientProducts = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/client-products?clientId=${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setClientProductsList(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Error fetching client products:", err);
+    }
+  }, [id]);
+
+  const fetchAvailableProducts = useCallback(async () => {
+    if (!activeClinic?.id) return;
+    try {
+      const res = await fetch(`/api/products?clinicId=${activeClinic.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableProducts(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Error fetching clinic products:", err);
+    }
+  }, [activeClinic?.id]);
+
+  useEffect(() => {
+    if (activeTab === "billing" && id) {
+      fetchClientProducts();
+      fetchAvailableProducts();
+    }
+  }, [activeTab, id, fetchClientProducts, fetchAvailableProducts]);
+
+  const handleSelectProductToAssign = (productId: string) => {
+    setAssignProductId(productId);
+    if (!productId) {
+      setAssignProductName("");
+      setAssignProductPrice("0");
+      setAssignProductVat("21");
+      setAssignProductTotal("0");
+      return;
+    }
+    const found = availableProducts.find((p) => p.id === productId);
+    if (found) {
+      setAssignProductName(found.name);
+      const pPrice = found.price || 0;
+      const pVat = found.vat !== undefined ? found.vat : 21;
+      const pTotal = pPrice * (1 + pVat / 100);
+      setAssignProductPrice(pPrice.toString());
+      setAssignProductVat(pVat.toString());
+      setAssignProductTotal(pTotal.toFixed(2));
+    }
+  };
+
+  const handleSaveAssignProduct = async () => {
+    if (!client || !activeClinic?.id) return;
+    if (!assignProductName.trim() && !assignProductId) {
+      toast.error("Selecciona un producto.");
+      return;
+    }
+    setAssignProductSaving(true);
+    try {
+      const payload = {
+        clientId: client.id,
+        productId: assignProductId || null,
+        productName: assignProductName || "Producto",
+        date: assignProductDate ? new Date(assignProductDate) : new Date(),
+        price: parseFloat(assignProductPrice || "0"),
+        vat: parseFloat(assignProductVat || "21"),
+        total: parseFloat(assignProductTotal || "0"),
+        professionalId: assignProductProfessionalId || null,
+        professionalName: assignProductProfessionalName || null,
+        clinicId: activeClinic.id,
+      };
+
+      const res = await fetch("/api/client-products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        toast.success("Producto asignado al paciente.");
+        setShowAssignProductModal(false);
+        fetchClientProducts();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Error al asignar producto.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al asignar producto.");
+    } finally {
+      setAssignProductSaving(false);
+    }
+  };
+
+  const handleDeleteClientProduct = async (prodId: string) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este producto asociado?")) return;
+    try {
+      const res = await fetch(`/api/client-products/${prodId}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Producto eliminado.");
+        fetchClientProducts();
+      } else {
+        toast.error("Error al eliminar.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error en el servidor.");
+    }
   };
 
   useEffect(() => {
@@ -7133,24 +7261,164 @@ export default function ClientDetailPage() {
                   ))}
                 </div>
 
-                <button
-                  type="button"
-                  className={styles.btnAddArticle}
-                  onClick={() => {
-                    if (billingSubTab === "bonos") {
-                      setShowAddVoucherModal(true);
-                    } else {
-                      alert(`Añadir ${billingSubTab} no está implementado de forma personalizada.`);
-                    }
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="16" />
-                    <line x1="8" y1="12" x2="16" y2="12" />
-                  </svg>
-                  <span>Añadir artículo</span>
-                </button>
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    className={styles.btnAddArticle}
+                    onClick={() => setAddArticleMenuOpen(!addArticleMenuOpen)}
+                    style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="16" />
+                      <line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
+                    <span>Añadir artículo</span>
+                  </button>
+
+                  {addArticleMenuOpen && (
+                    <div style={{
+                      position: "absolute",
+                      top: "100%",
+                      right: 0,
+                      marginTop: "6px",
+                      background: "var(--bg-panel-solid)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                      zIndex: 100,
+                      minWidth: "180px",
+                      padding: "6px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "4px"
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddArticleMenuOpen(false);
+                          router.push(`/dashboard/agenda?clientId=${id}`);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          width: "100%",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span>📅</span> Cita
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddArticleMenuOpen(false);
+                          setBillingSubTab("productos");
+                          setShowAssignProductModal(true);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          width: "100%",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span>🛍️</span> Producto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddArticleMenuOpen(false);
+                          setBillingSubTab("bonos");
+                          setShowAddVoucherModal(true);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          width: "100%",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span>📄</span> Bono
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddArticleMenuOpen(false);
+                          setBillingSubTab("suscripciones");
+                          toast.info("Módulo de suscripciones");
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          width: "100%",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span>💲</span> Suscripción
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddArticleMenuOpen(false);
+                          setBillingSubTab("presupuestos");
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "var(--text-primary)",
+                          width: "100%",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span>📝</span> Presupuesto
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Sub-tab content */}
@@ -7567,27 +7835,46 @@ export default function ClientDetailPage() {
 
                 {billingSubTab === "productos" && (
                   <div>
-                    <h4 className={styles.sectionSubtitle}>Productos adquiridos</h4>
-                    {client.sales.length === 0 ? (
-                      <div className={styles.emptyState}>No hay compras de productos registradas para este paciente.</div>
+                    <h4 className={styles.sectionSubtitle} style={{ color: "var(--primary)", fontWeight: 700, fontSize: "15px", marginBottom: "16px" }}>
+                      Productos asociados
+                    </h4>
+                    {clientProductsList.length === 0 ? (
+                      <div className={styles.emptyState} style={{ padding: "30px 0", color: "var(--text-muted)", fontSize: "14px", textAlign: "left" }}>
+                        No hay productos asociados
+                      </div>
                     ) : (
                       <div className="table-container">
                         <table className="table" style={{ fontSize: "13px" }}>
                           <thead>
                             <tr>
-                              <th>Factura</th>
                               <th>Fecha</th>
-                              <th>Pago</th>
+                              <th>Producto</th>
+                              <th>Profesional</th>
+                              <th>Precio</th>
+                              <th>IVA</th>
                               <th>Total</th>
+                              <th style={{ textAlign: "right" }}>Acciones</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {client.sales.map((sale) => (
-                              <tr key={sale.id}>
-                                <td><strong>{sale.invoiceNumber}</strong></td>
-                                <td>{new Date(sale.createdAt).toLocaleDateString("es-ES")}</td>
-                                <td>{sale.paymentMethod === "CARD" ? "Tarjeta" : "Efectivo"}</td>
-                                <td><strong>{sale.total.toFixed(2)}€</strong></td>
+                            {clientProductsList.map((cp) => (
+                              <tr key={cp.id}>
+                                <td>{new Date(cp.date || cp.createdAt).toLocaleDateString("es-ES")}</td>
+                                <td><strong>{cp.productName}</strong></td>
+                                <td>{cp.professionalName || "-"}</td>
+                                <td>{cp.price?.toFixed(2)}€</td>
+                                <td>{cp.vat}%</td>
+                                <td><strong>{cp.total?.toFixed(2)}€</strong></td>
+                                <td style={{ textAlign: "right" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteClientProduct(cp.id)}
+                                    style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "14px" }}
+                                    title="Eliminar producto"
+                                  >
+                                    🗑️
+                                  </button>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -10890,6 +11177,252 @@ export default function ClientDetailPage() {
         onClose={() => setIsCameraModalOpen(false)}
         onCapture={handlePhotoUpload}
       />
+
+      {/* MODAL / DRAWER: Asignar producto (Image 5) */}
+      {showAssignProductModal && typeof document !== "undefined" && createPortal(
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(15, 23, 42, 0.4)",
+          backdropFilter: "blur(4px)",
+          zIndex: 9999,
+          display: "flex",
+          justifyContent: "flex-end"
+        }}>
+          <div style={{
+            width: "100%",
+            maxWidth: "460px",
+            height: "100%",
+            background: "#ffffff",
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "-10px 0 30px rgba(0,0,0,0.15)",
+            animation: "slideInRight 0.2s ease-out forwards"
+          }}>
+            {/* Header */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "20px 24px",
+              borderBottom: "1px solid #e2e8f0"
+            }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+                Asignar producto
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAssignProductModal(false)}
+                style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#64748b" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* FECHA */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  FECHA
+                </label>
+                <input
+                  type="date"
+                  value={assignProductDate}
+                  onChange={(e) => setAssignProductDate(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "13px",
+                    color: "#1e293b",
+                    outline: "none"
+                  }}
+                />
+              </div>
+
+              {/* PRODUCTO */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  PRODUCTO
+                </label>
+                <select
+                  value={assignProductId}
+                  onChange={(e) => handleSelectProductToAssign(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "13px",
+                    color: "#1e293b",
+                    outline: "none",
+                    background: "#ffffff"
+                  }}
+                >
+                  <option value="">Sin asignar</option>
+                  {availableProducts.map((prod) => (
+                    <option key={prod.id} value={prod.id}>
+                      {prod.name} ({prod.price}€)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* PRECIO *, IVA *, TOTAL * */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#dc2626", textTransform: "uppercase" }}>
+                    PRECIO *
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={assignProductPrice}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAssignProductPrice(val);
+                        const pPrice = parseFloat(val || "0");
+                        const pVat = parseFloat(assignProductVat || "21");
+                        setAssignProductTotal((pPrice * (1 + pVat / 100)).toFixed(2));
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px 22px 10px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        fontSize: "13px",
+                        color: "#1e293b",
+                        outline: "none"
+                      }}
+                    />
+                    <span style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "#64748b" }}>€</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#dc2626", textTransform: "uppercase" }}>
+                    IVA *
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="number"
+                      value={assignProductVat}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAssignProductVat(val);
+                        const pPrice = parseFloat(assignProductPrice || "0");
+                        const pVat = parseFloat(val || "21");
+                        setAssignProductTotal((pPrice * (1 + pVat / 100)).toFixed(2));
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px 22px 10px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        fontSize: "13px",
+                        color: "#1e293b",
+                        outline: "none"
+                      }}
+                    />
+                    <span style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "#64748b" }}>%</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#dc2626", textTransform: "uppercase" }}>
+                    TOTAL *
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={assignProductTotal}
+                      onChange={(e) => setAssignProductTotal(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "10px 22px 10px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        fontSize: "13px",
+                        color: "#1e293b",
+                        outline: "none",
+                        fontWeight: 700
+                      }}
+                    />
+                    <span style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "#64748b" }}>€</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PROFESIONAL */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  PROFESIONAL
+                </label>
+                <select
+                  value={assignProductProfessionalId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAssignProductProfessionalId(val);
+                    const found = (allStaff || []).find((s: any) => s.id === val);
+                    setAssignProductProfessionalName(found ? `${found.name} ${found.lastName || ""}`.trim() : "");
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "13px",
+                    color: "#1e293b",
+                    outline: "none",
+                    background: "#ffffff"
+                  }}
+                >
+                  <option value="">Sin asignar</option>
+                  {(allStaff || []).map((s: any) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.lastName || ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: "12px",
+              padding: "16px 24px",
+              borderTop: "1px solid #e2e8f0",
+              background: "#f8fafc"
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowAssignProductModal(false)}
+                className="btn btn-secondary"
+                style={{ padding: "8px 18px", fontSize: "13px" }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={assignProductSaving}
+                onClick={handleSaveAssignProduct}
+                className="btn btn-primary"
+                style={{ padding: "8px 22px", fontSize: "13px", background: "var(--primary)", borderColor: "var(--primary)" }}
+              >
+                {assignProductSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

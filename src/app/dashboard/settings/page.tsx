@@ -105,7 +105,18 @@ export default function SettingsPage() {
     }
     return `${currencySymbol}${amount.toFixed(2)}`;
   };
-  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales" | null>(null);
+  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "productos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales" | null>(null);
+
+  // Commercial Products module states
+  const [commProductsList, setCommProductsList] = useState<any[]>([]);
+  const [selectedCommProduct, setSelectedCommProduct] = useState<any | null>(null);
+  const [commProductSearch, setCommProductSearch] = useState("");
+  const [commProductFormName, setCommProductFormName] = useState("");
+  const [commProductFormVat, setCommProductFormVat] = useState("21");
+  const [commProductFormPrice, setCommProductFormPrice] = useState("0");
+  const [commProductFormHasStock, setCommProductFormHasStock] = useState(false);
+  const [commProductFormStock, setCommProductFormStock] = useState("0");
+  const [commProductSaving, setCommProductSaving] = useState(false);
 
   // Datos Fiscales states
   const [fiscalProfiles, setFiscalProfiles] = useState<any[]>([]);
@@ -1268,6 +1279,25 @@ export default function SettingsPage() {
       fetchPapelera();
     }
   }, [activeTab, activeClinic?.id, fetchPapelera]);
+
+  const fetchCommProducts = useCallback(async () => {
+    if (!activeClinic?.id) return;
+    try {
+      const res = await fetch(`/api/products?clinicId=${activeClinic.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCommProductsList(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Error fetching commercial products:", err);
+    }
+  }, [activeClinic?.id]);
+
+  useEffect(() => {
+    if (activeTab === "productos" && activeClinic?.id) {
+      fetchCommProducts();
+    }
+  }, [activeTab, activeClinic?.id, fetchCommProducts]);
 
   useEffect(() => {
     if ((activeTab === "datosFiscales" || activeTab === null) && activeClinic?.id) {
@@ -2712,6 +2742,91 @@ export default function SettingsPage() {
     }
   };
 
+  // Commercial Product management handlers
+  const handleResetCommProductForm = () => {
+    setSelectedCommProduct(null);
+    setCommProductFormName("");
+    setCommProductFormVat("21");
+    setCommProductFormPrice("0");
+    setCommProductFormHasStock(false);
+    setCommProductFormStock("0");
+  };
+
+  const handleSelectCommProduct = (p: any) => {
+    setSelectedCommProduct(p);
+    setCommProductFormName(p.name);
+    setCommProductFormVat(p.vat?.toString() || "21");
+    setCommProductFormPrice(p.price?.toString() || "0");
+    setCommProductFormHasStock(Boolean(p.hasStock));
+    setCommProductFormStock(p.stock?.toString() || "0");
+  };
+
+  const handleSaveCommProduct = async () => {
+    if (!activeClinic?.id) return;
+    if (!commProductFormName.trim()) {
+      toast.error("Ingresa el nombre del producto.");
+      return;
+    }
+    setCommProductSaving(true);
+    try {
+      const payload = {
+        name: commProductFormName.trim(),
+        vat: parseFloat(commProductFormVat || "21"),
+        price: parseFloat(commProductFormPrice || "0"),
+        hasStock: commProductFormHasStock,
+        stock: commProductFormHasStock ? parseInt(commProductFormStock || "0", 10) : 0,
+        clinicId: activeClinic.id,
+      };
+
+      let res;
+      if (selectedCommProduct) {
+        res = await fetch(`/api/products/${selectedCommProduct.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (res.ok) {
+        const saved = await res.json();
+        toast.success(selectedCommProduct ? "Producto actualizado." : "Producto creado.");
+        fetchCommProducts();
+        handleSelectCommProduct(saved);
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Error al guardar el producto.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error en el servidor al guardar el producto.");
+    } finally {
+      setCommProductSaving(false);
+    }
+  };
+
+  const handleDeleteCommProduct = async (id: string) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este producto?")) return;
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Producto eliminado.");
+        handleResetCommProductForm();
+        fetchCommProducts();
+      } else {
+        toast.error("Error al eliminar el producto.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error en el servidor.");
+    }
+  };
+
   const handlePrevWeek = () => {
     setScheduleWeekStart((prev) => {
       const d = new Date(prev);
@@ -3117,6 +3232,16 @@ export default function SettingsPage() {
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"></path><path d="M12 5v14"></path></svg>
                 <span>{t("bonusSection")}</span>
+              </button>
+            )}
+            {currentUser?.role === "ADMIN" && (
+              <button 
+                type="button"
+                className={`${styles.sidebarItem} ${activeTab === "productos" ? styles.sidebarItemActive : ""}`}
+                onClick={() => setActiveTab("productos")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                <span>Productos</span>
               </button>
             )}
           </div>
@@ -5233,6 +5358,278 @@ export default function SettingsPage() {
                   Selecciona un bono de la lista para editarlo o pulsa en "Nuevo bono".
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: Productos Management */}
+        {activeTab === "productos" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {/* Top Header Row with Breadcrumb & Save/Cancel buttons */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "16px", borderBottom: "1px solid var(--border-color)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "var(--text-muted)", fontWeight: 500 }}>
+                <span>Configuración</span>
+                <span>›</span>
+                <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>Productos</span>
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handleResetCommProductForm()}
+                  style={{ padding: "8px 18px", fontSize: "13px" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={commProductSaving}
+                  onClick={handleSaveCommProduct}
+                  style={{ padding: "8px 22px", fontSize: "13px", background: "var(--primary)", borderColor: "var(--primary)" }}
+                >
+                  {commProductSaving ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+
+            {/* Main Two-Column Layout */}
+            <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: "32px", alignItems: "start" }}>
+              
+              {/* Left Column: Products List & Search */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>Productos</h3>
+                
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", fontSize: "13px" }}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Buscar productos"
+                    value={commProductSearch}
+                    onChange={(e) => setCommProductSearch(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px 9px 34px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-color)",
+                      background: "var(--bg-input)",
+                      color: "var(--text-primary)",
+                      fontSize: "13px",
+                      outline: "none"
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "420px", overflowY: "auto" }}>
+                  {commProductsList.filter((p) => p.name.toLowerCase().includes(commProductSearch.toLowerCase())).length === 0 ? (
+                    <div style={{ padding: "16px", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
+                      No hay productos guardados
+                    </div>
+                  ) : (
+                    commProductsList.filter((p) => p.name.toLowerCase().includes(commProductSearch.toLowerCase())).map((prod) => {
+                      const isSelected = selectedCommProduct?.id === prod.id;
+                      return (
+                        <div
+                          key={prod.id}
+                          onClick={() => handleSelectCommProduct(prod)}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: isSelected ? "1.5px solid var(--primary)" : "1px solid var(--border-color)",
+                            background: isSelected ? "var(--primary-light)" : "var(--bg-card)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            transition: "all 0.15s ease"
+                          }}
+                        >
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <span style={{ fontWeight: 600, fontSize: "13px", color: isSelected ? "var(--primary)" : "var(--text-primary)" }}>
+                              {prod.name}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                              {prod.price} € {prod.hasStock ? `· Stock: ${prod.stock}` : ""}
+                            </span>
+                          </div>
+                          {isSelected && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteCommProduct(prod.id); }}
+                              title="Eliminar producto"
+                              style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "14px", padding: "2px" }}
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetCommProductForm}
+                  style={{
+                    width: "100%",
+                    padding: "9px",
+                    borderRadius: "8px",
+                    border: "1.5px solid var(--primary)",
+                    background: "transparent",
+                    color: "var(--primary)",
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    marginTop: "6px"
+                  }}
+                >
+                  Nuevo producto
+                </button>
+              </div>
+
+              {/* Right Column: Edit / Create Form */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <h3 style={{ fontSize: "15px", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>
+                  {selectedCommProduct ? `Editar: ${selectedCommProduct.name}` : "Nuevo"}
+                </h3>
+
+                <div style={{
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "14px",
+                  padding: "24px",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "20px"
+                }}>
+                  {/* Top Row: Nombre * and Stock (if stock is enabled) */}
+                  <div style={{ display: "grid", gridTemplateColumns: commProductFormHasStock ? "1fr 160px" : "1fr", gap: "16px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>Nombre *</label>
+                      <input
+                        type="text"
+                        placeholder="Nombre"
+                        value={commProductFormName}
+                        onChange={(e) => setCommProductFormName(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          border: "1px solid var(--border-color)",
+                          background: "var(--bg-input)",
+                          color: "var(--text-primary)",
+                          fontSize: "13px",
+                          outline: "none"
+                        }}
+                      />
+                    </div>
+
+                    {commProductFormHasStock && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>Stock</label>
+                        <input
+                          type="number"
+                          placeholder="Stock"
+                          value={commProductFormStock}
+                          onChange={(e) => setCommProductFormStock(e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-color)",
+                            background: "var(--bg-input)",
+                            color: "var(--text-primary)",
+                            fontSize: "13px",
+                            outline: "none"
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Row: IVA * and Precio * */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>IVA *</label>
+                      <input
+                        type="text"
+                        placeholder="IVA"
+                        value={commProductFormVat}
+                        onChange={(e) => setCommProductFormVat(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          border: "1px solid var(--border-color)",
+                          background: "var(--bg-input)",
+                          color: "var(--text-primary)",
+                          fontSize: "13px",
+                          outline: "none"
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)" }}>Precio *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="0€"
+                        value={commProductFormPrice}
+                        onChange={(e) => setCommProductFormPrice(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "8px",
+                          border: "1px solid var(--border-color)",
+                          background: "var(--bg-input)",
+                          color: "var(--text-primary)",
+                          fontSize: "13px",
+                          outline: "none"
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Toggle switch: Tiene stock */}
+                  <div style={{ paddingTop: "4px" }}>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" }}>
+                      <input
+                        type="checkbox"
+                        checked={commProductFormHasStock}
+                        onChange={(e) => setCommProductFormHasStock(e.target.checked)}
+                        style={{ display: "none" }}
+                      />
+                      <div style={{
+                        width: "44px",
+                        height: "24px",
+                        borderRadius: "12px",
+                        background: commProductFormHasStock ? "#3b82f6" : "#cbd5e1",
+                        position: "relative",
+                        transition: "background 0.2s"
+                      }}>
+                        <div style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: "#ffffff",
+                          position: "absolute",
+                          top: "2px",
+                          left: commProductFormHasStock ? "22px" : "2px",
+                          transition: "left 0.2s",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                        }} />
+                      </div>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                        Tiene stock
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
