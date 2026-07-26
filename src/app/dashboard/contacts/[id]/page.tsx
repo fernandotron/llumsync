@@ -633,7 +633,12 @@ export default function ClientDetailPage() {
   const [docWizardStep, setDocWizardStep] = useState<"select_and_edit" | "preview_and_sign">("select_and_edit");
   const [patientSignature, setPatientSignature] = useState<string | null>(null);
   const [doctorSignature, setDoctorSignature] = useState<string | null>(null);
-  const [activeSignee, setActiveSignee] = useState<"patient" | "doctor" | "">("");
+  const [activeSignee, setActiveSignee] = useState<"patient" | "doctor" | "">("patient");
+  const [inlineSignatures, setInlineSignatures] = useState<Record<string, string | null>>({});
+  const [activeInlineField, setActiveInlineField] = useState<string | null>(null);
+  const [inlineIsDrawing, setInlineIsDrawing] = useState(false);
+  const inlineCanvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
+  const [docSignatureFields, setDocSignatureFields] = useState<Array<{id: string; type: "ordinary" | "certified"}>>([]);
   const [showDocVariablesDropdown, setShowDocVariablesDropdown] = useState(false);
   const [showDocOptionsDropdown, setShowDocOptionsDropdown] = useState(false);
   const [showDocHtmlModal, setShowDocHtmlModal] = useState(false);
@@ -3082,20 +3087,37 @@ export default function ClientDetailPage() {
 
   const handleDocWizardContinue = () => {
     const content = associateEditorRef.current ? associateEditorRef.current.innerHTML : generatedDocContent;
+
+    // Extract all signature fields from the content
+    const fields: Array<{id: string; type: "ordinary" | "certified"}> = [];
     
-    // Detección ultra robusta de firma digital usando expresiones regulares
-    const hasDigitalAttr = /data-type=["']?digital["']?/i.test(content);
-    const hasDigitalText = /\[Campo_firma_digital\]/i.test(content) || /firma.*digital/i.test(content);
-    const hasDigitalVar = /signature\.digital/i.test(content);
-    
-    const isDigitalSignature = hasDigitalAttr || hasDigitalText || hasDigitalVar;
-                               
-    if (isDigitalSignature) {
-      handleCreateRemoteSignatureRequest();
-    } else {
-      // Go to Step 2 for ordinary tablet signature
-      setDocWizardStep("preview_and_sign");
+    // Find ordinary signature badges
+    const ordinaryMatches = content.match(/data-type=[\"']?ordinary[\"']?/gi) || [];
+    ordinaryMatches.forEach((_, idx) => {
+      fields.push({ id: `ordinary_${idx}`, type: "ordinary" });
+    });
+    // Also detect text-based [Campo_firma_ordinaria]
+    if (ordinaryMatches.length === 0 && /\[Campo_firma_ordinaria\]/i.test(content)) {
+      fields.push({ id: "ordinary_0", type: "ordinary" });
     }
+
+    // Find certified signature badges
+    const certifiedMatches = content.match(/data-type=[\"']?certified[\"']?/gi) || [];
+    certifiedMatches.forEach((_, idx) => {
+      fields.push({ id: `certified_${idx}`, type: "certified" });
+    });
+    // Also detect text-based [Campo_firma_certificada]
+    if (certifiedMatches.length === 0 && /\[Campo_firma_certificada\]/i.test(content)) {
+      fields.push({ id: "certified_0", type: "certified" });
+    }
+
+    // Reset inline signatures for the new step
+    setDocSignatureFields(fields);
+    setInlineSignatures({});
+    inlineCanvasRefs.current = {};
+
+    // Always go to Step 2 for both types — step 2 handles the distinction
+    setDocWizardStep("preview_and_sign");
   };
 
   const handleDocCommand = (command: string, value: string = '') => {
@@ -3363,38 +3385,51 @@ export default function ClientDetailPage() {
 
     let finalContent = generatedDocContent;
 
-    // Replace patient signature placeholder or badges with final images if signed
+    // Replace ordinary signature fields with their inline-signed images
+    let ordinaryIdx = 0;
+    let certifiedIdx = 0;
+    
+    // Replace each signature badge with corresponding inline signature image
+    finalContent = finalContent.replace(
+      /(<span[^>]*data-type=["']?ordinary["']?[^>]*>)(.*?)(<\/span>)/gi,
+      (_match, _open, _inner, _close) => {
+        const fieldId = `ordinary_${ordinaryIdx++}`;
+        const sig = inlineSignatures[fieldId] || patientSignature;
+        if (sig) {
+          return `<div style="display:inline-block; text-align:center; vertical-align:middle; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; min-width:160px; min-height:60px;">
+            <img src="${sig}" style="max-height:80px; max-width:180px; display:block; margin:0 auto;" alt="Firma Paciente" />
+            <span style="font-size:10px; color:#64748b; display:block; margin-top:4px;">Firmado el ${new Date().toLocaleDateString("es-ES")}</span>
+          </div>`;
+        }
+        return `<div style="display:inline-block; border:1px dashed #cbd5e1; border-radius:6px; padding:8px 12px; min-width:160px; min-height:60px; text-align:center; color:#94a3b8; font-size:12px; vertical-align:middle;">Sin firmar</div>`;
+      }
+    );
+
+    // Replace certified signature fields — these require remote, save as "pendiente"
+    finalContent = finalContent.replace(
+      /(<span[^>]*data-type=["']?certified["']?[^>]*>)(.*?)(<\/span>)/gi,
+      () => {
+        certifiedIdx++;
+        return `<div style="display:inline-block; border:1px dashed #f59e0b; border-radius:6px; padding:8px 12px; min-width:160px; min-height:60px; text-align:center; color:#d97706; font-size:12px; vertical-align:middle; background:rgba(251,191,36,0.08);">⏳ Firma Certificada Pendiente</div>`;
+      }
+    );
+
+    // Fallback: handle text-based badges not in span tags
     if (patientSignature) {
-      const patientSigHTML = `
-        <div style="text-align: center; display: inline-block;">
-          <img src="${patientSignature}" style="max-height: 90px; max-width: 180px; display: block;" alt="Firma Paciente" />
-          <span style="font-size: 10px; color: #64748b; display: block; margin-top: 4px; font-family: sans-serif;">
-            Firmado por el Paciente el ${new Date().toLocaleDateString("es-ES")}
-          </span>
-        </div>
-      `;
+      const patientSigHTML = `<div style="display:inline-block; text-align:center;">
+        <img src="${patientSignature}" style="max-height:80px; max-width:180px; display:block; margin:0 auto;" alt="Firma Paciente" />
+        <span style="font-size:10px; color:#64748b; display:block; margin-top:4px;">Firmado el ${new Date().toLocaleDateString("es-ES")}</span>
+      </div>`;
       finalContent = finalContent.replaceAll("[Campo_firma_ordinaria]", patientSigHTML);
-      finalContent = finalContent.replaceAll("[Campo_firma_certificada]", patientSigHTML); // ordinaria / certificada
-      finalContent = finalContent.replace("<em>[Espacio de Firma Digital]</em>", patientSigHTML);
     }
 
-    if (doctorSignature) {
-      const doctorSigHTML = `
-        <div style="text-align: center; display: inline-block;">
-          <img src="${doctorSignature}" style="max-height: 90px; max-width: 180px; display: block;" alt="Firma Médico" />
-          <span style="font-size: 10px; color: #64748b; display: block; margin-top: 4px; font-family: sans-serif;">
-            Firmado por el Médico el ${new Date().toLocaleDateString("es-ES")}
-          </span>
-        </div>
-      `;
-      finalContent = finalContent.replaceAll("[Campo_firma_certificada]", doctorSigHTML);
-    }
+    const firstInlineSig = Object.values(inlineSignatures).find(Boolean);
 
     const payload = {
       clientId: client.id,
       name: generatedDocName,
       content: finalContent,
-      signature: patientSignature || doctorSignature || null,
+      signature: firstInlineSig || patientSignature || doctorSignature || null,
     };
 
     const res = await fetch("/api/documents/signed", {
@@ -3410,6 +3445,8 @@ export default function ClientDetailPage() {
       setGeneratedDocName("");
       setPatientSignature(null);
       setDoctorSignature(null);
+      setInlineSignatures({});
+      setDocSignatureFields([]);
       setDocWizardStep("select_and_edit");
       fetchClientDetails(true);
       toast.success("Documento guardado y asociado correctamente.");
@@ -5041,26 +5078,366 @@ export default function ClientDetailPage() {
                       )}
 
                       {/* Step 2: Final Preview and Interactive Signatures */}
-                      {docWizardStep === "preview_and_sign" && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                          <div style={{
-                            background: "#ffffff",
-                            border: "1px solid var(--border-color)",
-                            borderRadius: "12px",
-                            padding: "32px 40px",
-                            boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-                            minHeight: "380px"
-                          }}>
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: generatedDocContent }} 
-                              style={{ fontSize: "14px", lineHeight: "1.6", color: "#1e293b", fontFamily: "sans-serif" }}
-                            />
-                            <div style={{ textAlign: "center", marginTop: "32px", fontSize: "12px", fontWeight: 600, color: "#64748b" }}>
-                              FECHA: {new Date().toLocaleDateString("es-ES")}
+                      {docWizardStep === "preview_and_sign" && (() => {
+                        const hasCertified = docSignatureFields.some(f => f.type === "certified");
+                        const hasOrdinary = docSignatureFields.some(f => f.type === "ordinary");
+                        const ordinaryFields = docSignatureFields.filter(f => f.type === "ordinary");
+                        const certifiedFields = docSignatureFields.filter(f => f.type === "certified");
+                        const allOrdinarySigned = ordinaryFields.every(f => inlineSignatures[f.id]);
+
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                            {/* Document preview (read-only) */}
+                            <div style={{
+                              background: "#ffffff",
+                              border: "1px solid var(--border-color)",
+                              borderRadius: "12px",
+                              padding: "28px 32px",
+                              boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                              minHeight: "260px"
+                            }}>
+                              <div
+                                dangerouslySetInnerHTML={{ __html: generatedDocContent }}
+                                style={{ fontSize: "14px", lineHeight: "1.6", color: "#1e293b", fontFamily: "sans-serif" }}
+                              />
+                              <div style={{ textAlign: "center", marginTop: "24px", fontSize: "12px", fontWeight: 600, color: "#64748b" }}>
+                                FECHA: {new Date().toLocaleDateString("es-ES")}
+                              </div>
                             </div>
+
+                            {/* Signature Fields Section */}
+                            {docSignatureFields.length > 0 && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+                                {/* Ordinary (inline) signature fields */}
+                                {ordinaryFields.map((field, idx) => (
+                                  <div key={field.id} style={{
+                                    background: "var(--bg-panel-solid)",
+                                    border: inlineSignatures[field.id] ? "1.5px solid #10b981" : "1.5px solid rgba(0,143,163,0.3)",
+                                    borderRadius: "14px",
+                                    padding: "20px",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "14px"
+                                  }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <div style={{
+                                          width: "36px", height: "36px", borderRadius: "50%",
+                                          background: inlineSignatures[field.id] ? "rgba(16,185,129,0.12)" : "rgba(0,143,163,0.12)",
+                                          display: "flex", alignItems: "center", justifyContent: "center",
+                                          fontSize: "18px"
+                                        }}>
+                                          {inlineSignatures[field.id] ? "✅" : "✍️"}
+                                        </div>
+                                        <div>
+                                          <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>
+                                            Firma Ordinaria {ordinaryFields.length > 1 ? `#${idx + 1}` : ""}
+                                          </div>
+                                          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                                            {inlineSignatures[field.id] ? "✓ Firmado correctamente" : "El paciente firma aquí mismo en pantalla"}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div style={{ display: "flex", gap: "8px" }}>
+                                        {inlineSignatures[field.id] && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setInlineSignatures(prev => ({ ...prev, [field.id]: null }));
+                                            }}
+                                            style={{
+                                              padding: "6px 12px", background: "none",
+                                              border: "1px solid var(--border-color)", borderRadius: "8px",
+                                              fontSize: "12px", cursor: "pointer", color: "var(--text-muted)"
+                                            }}
+                                          >
+                                            🔄 Re-firmar
+                                          </button>
+                                        )}
+                                        {!inlineSignatures[field.id] && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setActiveInlineField(field.id);
+                                              // Initialize canvas after render
+                                              setTimeout(() => {
+                                                const canvas = inlineCanvasRefs.current[field.id];
+                                                if (canvas) {
+                                                  const rect = canvas.getBoundingClientRect();
+                                                  canvas.width = rect.width || 400;
+                                                  canvas.height = rect.height || 160;
+                                                  const ctx = canvas.getContext("2d");
+                                                  if (ctx) {
+                                                    ctx.strokeStyle = "#1e293b";
+                                                    ctx.lineWidth = 2.5;
+                                                    ctx.lineCap = "round";
+                                                    ctx.lineJoin = "round";
+                                                  }
+                                                }
+                                              }, 50);
+                                            }}
+                                            style={{
+                                              padding: "8px 16px",
+                                              background: "var(--primary)",
+                                              color: "white",
+                                              border: "none",
+                                              borderRadius: "8px",
+                                              fontSize: "13px",
+                                              fontWeight: 700,
+                                              cursor: "pointer",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "6px"
+                                            }}
+                                          >
+                                            ✍️ Firmar Ahora
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Canvas pad - shows when this field is active */}
+                                    {activeInlineField === field.id && (
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                        <div style={{
+                                          fontSize: "12px", color: "var(--text-muted)",
+                                          display: "flex", alignItems: "center", gap: "6px"
+                                        }}>
+                                          <span>👆</span> Dibuja tu firma en el área de abajo (con ratón, dedo o stylus)
+                                        </div>
+                                        <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden", border: "1.5px solid var(--primary)", background: "#f8fafc" }}>
+                                          <canvas
+                                            ref={(el) => { inlineCanvasRefs.current[field.id] = el; }}
+                                            style={{ width: "100%", height: "160px", display: "block", touchAction: "none", cursor: "crosshair" }}
+                                            onMouseDown={(e) => {
+                                              setInlineIsDrawing(true);
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width;
+                                              const scaleY = canvas.height / rect.height;
+                                              ctx.beginPath();
+                                              ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+                                            }}
+                                            onMouseMove={(e) => {
+                                              if (!inlineIsDrawing) return;
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width;
+                                              const scaleY = canvas.height / rect.height;
+                                              ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+                                              ctx.stroke();
+                                            }}
+                                            onMouseUp={() => setInlineIsDrawing(false)}
+                                            onMouseLeave={() => setInlineIsDrawing(false)}
+                                            onTouchStart={(e) => {
+                                              e.preventDefault();
+                                              setInlineIsDrawing(true);
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width;
+                                              const scaleY = canvas.height / rect.height;
+                                              const t = e.touches[0];
+                                              ctx.beginPath();
+                                              ctx.moveTo((t.clientX - rect.left) * scaleX, (t.clientY - rect.top) * scaleY);
+                                            }}
+                                            onTouchMove={(e) => {
+                                              e.preventDefault();
+                                              if (!inlineIsDrawing) return;
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width;
+                                              const scaleY = canvas.height / rect.height;
+                                              const t = e.touches[0];
+                                              ctx.lineTo((t.clientX - rect.left) * scaleX, (t.clientY - rect.top) * scaleY);
+                                              ctx.stroke();
+                                            }}
+                                            onTouchEnd={() => setInlineIsDrawing(false)}
+                                          />
+                                          <div style={{
+                                            position: "absolute", bottom: "8px", left: "50%",
+                                            transform: "translateX(-50%)",
+                                            fontSize: "11px", color: "#94a3b8", pointerEvents: "none",
+                                            fontStyle: "italic"
+                                          }}>
+                                            Firme aquí
+                                          </div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              if (canvas) {
+                                                const ctx = canvas.getContext("2d");
+                                                if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                              }
+                                            }}
+                                            style={{
+                                              padding: "7px 14px", background: "none",
+                                              border: "1px solid var(--border-color)", borderRadius: "8px",
+                                              fontSize: "12px", cursor: "pointer", color: "var(--text-muted)"
+                                            }}
+                                          >
+                                            🗑 Borrar
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              if (!canvas) return;
+                                              const dataUrl = canvas.toDataURL("image/png");
+                                              setInlineSignatures(prev => ({ ...prev, [field.id]: dataUrl }));
+                                              setPatientSignature(dataUrl); // also set legacy state
+                                              setActiveInlineField(null);
+                                            }}
+                                            style={{
+                                              padding: "7px 16px",
+                                              background: "#10b981",
+                                              color: "white",
+                                              border: "none",
+                                              borderRadius: "8px",
+                                              fontSize: "13px",
+                                              fontWeight: 700,
+                                              cursor: "pointer"
+                                            }}
+                                          >
+                                            ✓ Confirmar Firma
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setActiveInlineField(null)}
+                                            style={{
+                                              padding: "7px 14px", background: "none",
+                                              border: "1px solid var(--border-color)", borderRadius: "8px",
+                                              fontSize: "12px", cursor: "pointer", color: "var(--text-muted)"
+                                            }}
+                                          >
+                                            Cancelar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Show completed signature preview */}
+                                    {inlineSignatures[field.id] && (
+                                      <div style={{
+                                        border: "1px solid #d1fae5", borderRadius: "10px",
+                                        padding: "12px 16px", background: "rgba(16,185,129,0.04)",
+                                        display: "flex", alignItems: "center", gap: "16px"
+                                      }}>
+                                        <img
+                                          src={inlineSignatures[field.id]!}
+                                          alt="Firma capturada"
+                                          style={{ maxHeight: "70px", maxWidth: "200px", border: "1px solid #e2e8f0", borderRadius: "6px", background: "white", padding: "4px" }}
+                                        />
+                                        <div style={{ fontSize: "12px", color: "#059669" }}>
+                                          <strong>✓ Firma capturada</strong><br/>
+                                          <span style={{ color: "var(--text-muted)" }}>{new Date().toLocaleString("es-ES")}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+
+                                {/* Certified signature fields (remote only) */}
+                                {certifiedFields.map((field, idx) => (
+                                  <div key={field.id} style={{
+                                    background: "rgba(251,191,36,0.06)",
+                                    border: "1.5px solid rgba(234,179,8,0.4)",
+                                    borderRadius: "14px",
+                                    padding: "20px",
+                                    display: "flex",
+                                    gap: "16px",
+                                    alignItems: "flex-start"
+                                  }}>
+                                    <div style={{ fontSize: "28px", flexShrink: 0 }}>🔏</div>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: 700, fontSize: "14px", color: "#92400e", marginBottom: "4px" }}>
+                                        Firma Certificada {certifiedFields.length > 1 ? `#${idx + 1}` : ""} — Requiere Envío Remoto
+                                      </div>
+                                      <div style={{ fontSize: "13px", color: "#78350f", lineHeight: "1.5", marginBottom: "12px" }}>
+                                        Este campo de firma tiene validez legal certificada. El paciente debe firmar a través del enlace seguro que se enviará por <strong>WhatsApp</strong> o <strong>Email</strong>. No es posible firmar este tipo de campo directamente en pantalla.
+                                      </div>
+                                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setShowDocOptionsDropdown(false);
+                                            setShowAssociateDocModal(false);
+                                            handleCreateRemoteSignatureRequest("whatsapp");
+                                          }}
+                                          style={{
+                                            padding: "8px 16px",
+                                            background: "#25d366",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: "8px",
+                                            fontSize: "13px",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "6px"
+                                          }}
+                                        >
+                                          💬 Enviar por WhatsApp
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setShowDocOptionsDropdown(false);
+                                            setShowAssociateDocModal(false);
+                                            handleCreateRemoteSignatureRequest("email");
+                                          }}
+                                          style={{
+                                            padding: "8px 16px",
+                                            background: "#2563eb",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: "8px",
+                                            fontSize: "13px",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "6px"
+                                          }}
+                                        >
+                                          ✉️ Enviar por Email
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+
+                                {/* No signature fields detected */}
+                                {docSignatureFields.length === 0 && (
+                                  <div style={{
+                                    background: "rgba(148,163,184,0.06)",
+                                    border: "1px dashed var(--border-color)",
+                                    borderRadius: "12px",
+                                    padding: "20px",
+                                    textAlign: "center",
+                                    color: "var(--text-muted)",
+                                    fontSize: "13px"
+                                  }}>
+                                    📄 Este documento no contiene campos de firma. Puedes guardarlo directamente.
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     {/* Modal Footer */}
@@ -5087,89 +5464,108 @@ export default function ClientDetailPage() {
                             Continuar a Firma →
                           </button>
                         </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setDocWizardStep("select_and_edit")}
-                            className="btn btn-secondary"
-                          >
-                            ← Volver a Editar
-                          </button>
+                      ) : (() => {
+                          const hasCertifiedOnly = docSignatureFields.length > 0 &&
+                            docSignatureFields.every(f => f.type === "certified");
+                          const ordinaryFields = docSignatureFields.filter(f => f.type === "ordinary");
+                          const allOrdinarySigned = ordinaryFields.length === 0 ||
+                            ordinaryFields.every(f => inlineSignatures[f.id]);
 
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div style={{ position: "relative" }}>
+                          return (
+                            <>
                               <button
                                 type="button"
+                                onClick={() => setDocWizardStep("select_and_edit")}
                                 className="btn btn-secondary"
-                                onClick={() => setShowDocOptionsDropdown(!showDocOptionsDropdown)}
-                                style={{ display: "flex", alignItems: "center", gap: "6px" }}
                               >
-                                ⚙️ Opciones ▾
+                                ← Volver a Editar
                               </button>
-                              {showDocOptionsDropdown && (
-                                <div style={{
-                                  position: "absolute",
-                                  bottom: "100%",
-                                  right: 0,
-                                  background: "var(--bg-card)",
-                                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                                  border: "1px solid var(--border-color)",
-                                  borderRadius: "8px",
-                                  width: "170px",
-                                  zIndex: 100,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  padding: "6px 0",
-                                  marginBottom: "6px"
-                                }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setShowDocOptionsDropdown(false);
-                                      setShowAssociateDocModal(false);
-                                      handleCreateRemoteSignatureRequest("whatsapp");
-                                    }}
-                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
-                                  >
-                                    <span>💬</span> Vía WhatsApp
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setShowDocOptionsDropdown(false);
-                                      setShowAssociateDocModal(false);
-                                      handleCreateRemoteSignatureRequest("email");
-                                    }}
-                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
-                                  >
-                                    <span>✉️</span> Vía Email
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setShowDocOptionsDropdown(false);
-                                      handlePrintDocument();
-                                    }}
-                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
-                                  >
-                                    <span>🖨️</span> Imprimir
-                                  </button>
-                                </div>
-                              )}
-                            </div>
 
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              onClick={handleSaveAssociatedDocument}
-                              style={{ background: "#10b981", borderColor: "#10b981", color: "white" }}
-                            >
-                              ✓ Guardar Documento
-                            </button>
-                          </div>
-                        </>
-                      )}
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <div style={{ position: "relative" }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowDocOptionsDropdown(!showDocOptionsDropdown)}
+                                    style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                                  >
+                                    ⚙️ Opciones ▾
+                                  </button>
+                                  {showDocOptionsDropdown && (
+                                    <div style={{
+                                      position: "absolute",
+                                      bottom: "100%",
+                                      right: 0,
+                                      background: "var(--bg-card)",
+                                      boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                                      border: "1px solid var(--border-color)",
+                                      borderRadius: "8px",
+                                      width: "170px",
+                                      zIndex: 100,
+                                      display: "flex",
+                                      flexDirection: "column",
+                                      padding: "6px 0",
+                                      marginBottom: "6px"
+                                    }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShowDocOptionsDropdown(false);
+                                          setShowAssociateDocModal(false);
+                                          handleCreateRemoteSignatureRequest("whatsapp");
+                                        }}
+                                        style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
+                                      >
+                                        <span>💬</span> Vía WhatsApp
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShowDocOptionsDropdown(false);
+                                          setShowAssociateDocModal(false);
+                                          handleCreateRemoteSignatureRequest("email");
+                                        }}
+                                        style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
+                                      >
+                                        <span>✉️</span> Vía Email
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShowDocOptionsDropdown(false);
+                                          handlePrintDocument();
+                                        }}
+                                        style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
+                                      >
+                                        <span>🖨️</span> Imprimir
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Hide Guardar if ONLY certified fields exist (remote only) */}
+                                {!hasCertifiedOnly && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={handleSaveAssociatedDocument}
+                                    disabled={!allOrdinarySigned && ordinaryFields.length > 0}
+                                    title={!allOrdinarySigned && ordinaryFields.length > 0 ? "Firma todos los campos de firma ordinaria antes de guardar" : ""}
+                                    style={{
+                                      background: allOrdinarySigned ? "#10b981" : "#94a3b8",
+                                      borderColor: allOrdinarySigned ? "#10b981" : "#94a3b8",
+                                      color: "white",
+                                      opacity: !allOrdinarySigned && ordinaryFields.length > 0 ? 0.7 : 1,
+                                      cursor: !allOrdinarySigned && ordinaryFields.length > 0 ? "not-allowed" : "pointer"
+                                    }}
+                                  >
+                                    {allOrdinarySigned || ordinaryFields.length === 0 ? "✓ Guardar Documento" : "✍️ Pendiente de Firma"}
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                     </div>
                   </div>
                 </div>,
