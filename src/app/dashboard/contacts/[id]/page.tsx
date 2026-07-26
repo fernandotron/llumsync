@@ -650,6 +650,53 @@ export default function ClientDetailPage() {
   const [editVoucherExpiration, setEditVoucherExpiration] = useState("");
   const [docTemplateSearch, setDocTemplateSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+  };
+
+  const handleDropFile = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = e.dataTransfer.files;
+      setUploadingFile(true);
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const formData = new FormData();
+          formData.append("file", files[i]);
+
+          const res = await fetch(`/api/clients/${id}/files`, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            alert(err.error || `Error al subir el archivo ${files[i].name}`);
+          }
+        }
+        fetchClientDetails(true);
+      } catch (err) {
+        console.error(err);
+        alert("Error al subir archivo.");
+      } finally {
+        setUploadingFile(false);
+      }
+    }
+  };
 
   // Share Client Voucher states
   const [showShareVoucherModal, setShowShareVoucherModal] = useState(false);
@@ -1480,26 +1527,32 @@ export default function ClientDetailPage() {
 
   // File Upload Handlers
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !client) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
-
+    setUploadingFile(true);
     try {
-      const res = await fetch(`/api/clients/${id}/files`, {
-        method: "POST",
-        body: formData,
-      });
+      for (let i = 0; i < files.length; i++) {
+        const formData = new FormData();
+        formData.append("file", files[i]);
 
-      if (!res.ok) throw new Error("Error al subir archivo");
-      
-      // Reload client details to get updated files list
-      fetchClientDetails();
-      alert("Archivo subido con éxito");
+        const res = await fetch(`/api/clients/${id}/files`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || `Error al subir el archivo ${files[i].name}`);
+        }
+      }
+      fetchClientDetails(true);
     } catch (err) {
       console.error(err);
       alert("Error al subir el archivo.");
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -4230,146 +4283,409 @@ export default function ClientDetailPage() {
             </div>
           )}
 
-          {/* TAB 2: Documentos */}
+          {/* TAB 2: Documentos y Consentimientos */}
           {activeTab === "documents" && (
-            <div className={styles.documentsPanel} style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "24px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: "32px", alignItems: "start" }}>
-                
-                {/* COLUMNA IZQUIERDA: BOTONES DE ACCIÓN + ARCHIVOS SUBIDOS */}
-                <div>
-                  {/* Action Buttons Row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
-                    <button 
-                      type="button" 
-                      onClick={() => { setShowAssociateDocModal(true); setDocTemplateSearch(""); setSelectedTemplateId(""); }}
-                      style={{
-                        height: "120px",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "12px",
-                        background: "#ffffff",
-                        border: "1.5px solid #006687",
-                        borderRadius: "8px",
-                        color: "#006687",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease"
-                      }}
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                      </svg>
-                      <span style={{ fontSize: "13px", fontWeight: 600 }}>Asociar documento</span>
-                    </button>
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
-                    <button 
-                      type="button" 
-                      onClick={() => fileInputRef.current?.click()}
-                      style={{
-                        height: "120px",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "12px",
-                        background: "#ffffff",
-                        border: "1.5px solid #006687",
-                        borderRadius: "8px",
-                        color: "#006687",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease"
-                      }}
-                    >
+              {/* Action Cards Header Section */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
+                
+                {/* Card 1: Asociar Documento / Consentimiento Informado */}
+                <div 
+                  onClick={() => { setShowAssociateDocModal(true); setDocTemplateSearch(""); setSelectedTemplateId(""); }}
+                  style={{
+                    background: "var(--bg-card)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "14px",
+                    padding: "20px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.03)"
+                  }}
+                  className={styles.docActionCardHover}
+                >
+                  <div style={{
+                    width: "52px",
+                    height: "52px",
+                    borderRadius: "12px",
+                    background: "linear-gradient(135deg, rgba(0,143,163,0.18), rgba(0,143,163,0.06))",
+                    border: "1px solid rgba(0,143,163,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--primary)",
+                    flexShrink: 0
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <path d="m10 13 2 2 4-4"/>
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                        Asociar Documento / Consentimiento
+                      </h4>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--primary)", background: "rgba(0,143,163,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
+                        + Generar
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                      Selecciona una plantilla de la clínica (consentimientos, RGPD, instrucciones) para rellenar y enviar a firma.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 2: Adjuntar Archivos / Informes (With Drag & Drop) */}
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDropFile}
+                  style={{
+                    background: isDraggingFile ? "rgba(0,143,163,0.08)" : "var(--bg-card)",
+                    border: `2px ${isDraggingFile ? "dashed var(--primary)" : "solid var(--border-color)"}`,
+                    borderRadius: "14px",
+                    padding: "20px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.03)"
+                  }}
+                  className={styles.docActionCardHover}
+                >
+                  <div style={{
+                    width: "52px",
+                    height: "52px",
+                    borderRadius: "12px",
+                    background: "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(59,130,246,0.06))",
+                    border: "1px solid rgba(59,130,246,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#2563eb",
+                    flexShrink: 0
+                  }}>
+                    {uploadingFile ? (
+                      <div className="spinner" style={{ width: "22px", height: "22px", border: "2px solid #2563eb", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    ) : (
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M17.5 19A5.5 5.5 0 0 0 18 8h-1.26A8 8 0 1 0 4 15.25" />
                         <path d="m10 13 2-2 2 2" />
                         <path d="M12 11v9" />
                       </svg>
-                      <span style={{ fontSize: "13px", fontWeight: 600 }}>Adjuntar archivos</span>
-                    </button>
-                    
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleFileUpload} 
-                      style={{ display: "none" }} 
-                    />
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                        {uploadingFile ? "Subiendo archivo..." : "Adjuntar Archivos / Informes"}
+                      </h4>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#2563eb", background: "rgba(59,130,246,0.1)", padding: "2px 8px", borderRadius: "12px" }}>
+                        📁 Subir
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                      Arrastra y suelta aquí cualquier archivo (PDF, radiografías, imágenes) o haz clic para examinar tu equipo.
+                    </p>
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    multiple
+                    onChange={handleFileUpload} 
+                    style={{ display: "none" }} 
+                  />
+                </div>
+
+              </div>
+
+              {/* Main Content Grid: 2 Clean Sections */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "24px" }}>
+
+                {/* Left Section: Documentos asociados / Consentimientos */}
+                <div style={{
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "14px",
+                  padding: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: "340px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", paddingBottom: "12px", borderBottom: "1px solid var(--border-color)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                        Documentos asociados
+                      </h3>
+                    </div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-input)", padding: "2px 8px", borderRadius: "10px" }}>
+                      {client.documents ? client.documents.length : 0}
+                    </span>
                   </div>
 
-                  {/* Section: Archivos subidos */}
-                  <div>
-                    <h3 style={{ fontSize: "14px", fontWeight: "700", marginBottom: "12px", color: "#006687" }}>
-                      Archivos subidos
-                    </h3>
-                    {(!client.files || client.files.length === 0) ? (
-                      <div className={styles.emptyState}>No hay archivos subidos.</div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                        {client.files.map((file: any) => (
-                          <div 
-                            key={file.id} 
-                            style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}
+                  {(!client.documents || client.documents.length === 0) ? (
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px 20px", textAlign: "center" }}>
+                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bg-input)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", marginBottom: "12px" }}>
+                        <Icons.FileText size={24} />
+                      </div>
+                      <h5 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>No hay documentos asociados</h5>
+                      <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)", maxWidth: "240px" }}>
+                        Genera consentimientos informados o documentos firmados desde el botón superior.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {client.documents.map((doc: any) => {
+                        const isSigned = !!doc.signature;
+                        return (
+                          <div
+                            key={doc.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "12px 14px",
+                              borderRadius: "10px",
+                              border: "1px solid var(--border-color)",
+                              background: "var(--bg-panel-solid)",
+                              transition: "all 0.15s ease"
+                            }}
                           >
-                            {/* File Name Display */}
-                            <input
-                              type="text"
-                              readOnly
-                              value={file.name}
-                              style={{
-                                flexGrow: 1,
-                                padding: "8px 12px",
-                                borderRadius: "6px",
-                                border: "1px solid #cbd5e1",
-                                fontSize: "13px",
-                                color: "#334155",
-                                background: "#ffffff",
-                                outline: "none"
-                              }}
-                            />
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
+                              <div style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "8px",
+                                background: isSigned ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
+                                color: isSigned ? "#10b981" : "#f59e0b",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0
+                              }}>
+                                {isSigned ? <Icons.Check size={18} /> : <Icons.Clock size={18} />}
+                              </div>
 
-                            {/* File Badge */}
-                            <span style={{
-                              background: "#f1f5f9",
-                              border: "1px solid #e2e8f0",
-                              color: "#475569",
-                              borderRadius: "4px",
-                              padding: "4px 10px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              whiteSpace: "nowrap",
-                              textAlign: "center",
-                              width: "60px",
-                              display: "inline-block"
-                            }}>
-                              FILE
-                            </span>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {doc.name}
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
+                                  <span style={{
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    padding: "1px 6px",
+                                    borderRadius: "4px",
+                                    backgroundColor: isSigned ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                                    color: isSigned ? "#065f46" : "#b45309"
+                                  }}>
+                                    {isSigned ? "✓ Firmado" : "Sin firma"}
+                                  </span>
+                                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                                    {new Date(doc.createdAt).toLocaleDateString("es-ES")}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
 
-                            {/* File Date */}
-                            <span style={{
-                              fontSize: "12px",
-                              color: "#64748b",
-                              whiteSpace: "nowrap",
-                              width: "80px",
-                              textAlign: "center"
-                            }}>
-                              {new Date(file.createdAt).toLocaleDateString("es-ES").replace(/\//g, ".")}
-                            </span>
+                            {/* Actions toolbar */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "12px" }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isSigned) {
+                                    setViewingSignedDoc(doc);
+                                  } else {
+                                    setRemoteSignLink(`${window.location.origin}/sign/${doc.id}`);
+                                    setRemoteSignPin(doc.pin || "");
+                                    setShowRemoteSignModal(true);
+                                  }
+                                }}
+                                title={isSigned ? "Ver documento" : "Ver enlace de firma"}
+                                style={{
+                                  background: "var(--bg-input)",
+                                  border: "1px solid var(--border-color)",
+                                  borderRadius: "6px",
+                                  padding: "6px 8px",
+                                  color: "var(--primary)",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center"
+                                }}
+                              >
+                                <Icons.Eye size={15} />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadDoc(doc)}
+                                title="Descargar / Imprimir"
+                                style={{
+                                  background: "var(--bg-input)",
+                                  border: "1px solid var(--border-color)",
+                                  borderRadius: "6px",
+                                  padding: "6px 8px",
+                                  color: "var(--text-secondary)",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center"
+                                }}
+                              >
+                                <Icons.Download size={15} />
+                              </button>
+
+                              {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Eliminar clientes")) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDocToDelete(doc.id);
+                                  }}
+                                  title="Eliminar"
+                                  style={{
+                                    background: "rgba(239,68,68,0.08)",
+                                    border: "1px solid rgba(239,68,68,0.2)",
+                                    borderRadius: "6px",
+                                    padding: "6px 8px",
+                                    color: "#ef4444",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center"
+                                  }}
+                                >
+                                  <Icons.Trash size={15} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Section: Archivos subidos */}
+                <div style={{
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "14px",
+                  padding: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: "340px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", paddingBottom: "12px", borderBottom: "1px solid var(--border-color)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                      </svg>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                        Archivos subidos
+                      </h3>
+                    </div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-input)", padding: "2px 8px", borderRadius: "10px" }}>
+                      {client.files ? client.files.length : 0}
+                    </span>
+                  </div>
+
+                  {(!client.files || client.files.length === 0) ? (
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px 20px", textAlign: "center" }}>
+                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bg-input)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", marginBottom: "12px" }}>
+                        <Icons.Download size={24} />
+                      </div>
+                      <h5 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>No hay archivos subidos</h5>
+                      <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)", maxWidth: "240px" }}>
+                        Arrastra o adjunta informes, analíticas o documentos externos en formato PDF o imagen.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {client.files.map((file: any) => {
+                        const isPdf = file.name.toLowerCase().endsWith(".pdf");
+                        const isImg = /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+                        return (
+                          <div
+                            key={file.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "12px 14px",
+                              borderRadius: "10px",
+                              border: "1px solid var(--border-color)",
+                              background: "var(--bg-panel-solid)",
+                              transition: "all 0.15s ease"
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
+                              <div style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "8px",
+                                background: isPdf ? "rgba(239,68,68,0.12)" : isImg ? "rgba(168,85,247,0.12)" : "rgba(59,130,246,0.12)",
+                                color: isPdf ? "#ef4444" : isImg ? "#a855f7" : "#2563eb",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0
+                              }}>
+                                {isPdf ? <Icons.FileText size={18} /> : isImg ? <Icons.Camera size={18} /> : <Icons.FileText size={18} />}
+                              </div>
+
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {file.name}
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
+                                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                                    {new Date(file.createdAt).toLocaleDateString("es-ES")}
+                                  </span>
+                                  {file.fileSize && (
+                                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                                      · {Math.round(file.fileSize / 1024)} KB
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
 
                             {/* File Actions */}
-                            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
-                              <a 
-                                href={file.fileUrl} 
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "12px" }}>
+                              <a
+                                href={file.fileUrl}
                                 download={file.name}
-                                target="_blank" 
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 title="Descargar archivo"
-                                style={{ color: "#006687", display: "flex", alignItems: "center" }}
+                                style={{
+                                  background: "var(--bg-input)",
+                                  border: "1px solid var(--border-color)",
+                                  borderRadius: "6px",
+                                  padding: "6px 8px",
+                                  color: "#2563eb",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  textDecoration: "none"
+                                }}
                               >
-                                <Icons.Download size={18} style={{ color: "var(--primary)" }} />
+                                <Icons.Download size={15} />
                               </a>
-                              
+
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -4377,155 +4693,22 @@ export default function ClientDetailPage() {
                                   handleFileDelete(file.id);
                                 }}
                                 title="Eliminar archivo"
-                                style={{ 
-                                  background: "none", 
-                                  border: "none", 
-                                  color: "#ef4444", 
-                                  cursor: "pointer", 
-                                  display: "flex", 
-                                  alignItems: "center", 
-                                  padding: 0 
+                                style={{
+                                  background: "rgba(239,68,68,0.08)",
+                                  border: "1px solid rgba(239,68,68,0.2)",
+                                  borderRadius: "6px",
+                                  padding: "6px 8px",
+                                  color: "#ef4444",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center"
                                 }}
                               >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ background: "#fecaca", borderRadius: "50%", padding: "2px", color: "#ef4444" }}>
-                                  <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
+                                <Icons.Trash size={15} />
                               </button>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* COLUMNA DERECHA: DOCUMENTOS ASOCIADOS */}
-                <div>
-                  <h3 style={{ fontSize: "14px", fontWeight: "700", marginBottom: "12px", color: "#006687" }}>
-                    Documentos asociados
-                  </h3>
-                  {client.documents.length === 0 ? (
-                    <div className={styles.emptyState}>No hay documentos asociados.</div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {client.documents.map((doc) => {
-                         const isSigned = !!doc.signature;
-                         return (
-                           <div 
-                             key={doc.id} 
-                             style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}
-                           >
-                             {/* Document Name Display */}
-                             <input
-                               type="text"
-                               readOnly
-                               value={doc.name}
-                               style={{
-                                 flexGrow: 1,
-                                 padding: "8px 12px",
-                                 borderRadius: "6px",
-                                 border: "1px solid #cbd5e1",
-                                 fontSize: "13px",
-                                 color: "#334155",
-                                 background: "#ffffff",
-                                 outline: "none"
-                               }}
-                             />
-                             
-                             {/* Status Badge */}
-                             {isSigned ? (
-                               <span style={{
-                                 background: "rgba(16, 185, 129, 0.08)",
-                                 border: "1px solid rgba(16, 185, 129, 0.3)",
-                                 color: "#065f46",
-                                 borderRadius: "4px",
-                                 padding: "4px 10px",
-                                 fontSize: "11px",
-                                 fontWeight: 600,
-                                 whiteSpace: "nowrap",
-                                 textAlign: "center",
-                                 width: "80px",
-                                 display: "inline-block"
-                               }}>
-                                 ✓ Firmado
-                               </span>
-                             ) : (
-                               <span style={{
-                                 background: "#f1f5f9",
-                                 border: "1px solid #e2e8f0",
-                                 color: "#475569",
-                                 borderRadius: "4px",
-                                 padding: "4px 10px",
-                                 fontSize: "11px",
-                                 fontWeight: 600,
-                                 whiteSpace: "nowrap",
-                                 textAlign: "center",
-                                 width: "80px",
-                                 display: "inline-block"
-                               }}>
-                                 Sin firma
-                               </span>
-                             )}
-
-                             {/* Date */}
-                             <span style={{
-                               fontSize: "12px",
-                               color: "#64748b",
-                               whiteSpace: "nowrap",
-                               width: "80px",
-                               textAlign: "center"
-                             }}>
-                               {new Date(doc.createdAt).toLocaleDateString("es-ES").replace(/\//g, ".")}
-                             </span>
-
-                             {/* Actions Menu */}
-                             <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
-                               {/* Eye Button */}
-                               <button
-                                 type="button"
-                                 onClick={() => {
-                                   if (isSigned) {
-                                     setViewingSignedDoc(doc);
-                                   } else {
-                                     setRemoteSignLink(`${window.location.origin}/sign/${doc.id}`);
-                                     setRemoteSignPin(doc.pin || "");
-                                     setShowRemoteSignModal(true);
-                                   }
-                                 }}
-                                 title={isSigned ? "Ver documento" : "Ver enlace de firma"}
-                                 style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
-                               >
-                                 <Icons.Eye size={18} />
-                               </button>
-
-                               {/* Download/Print Button */}
-                               <button
-                                 type="button"
-                                 onClick={() => handleDownloadDoc(doc)}
-                                 title="Descargar documento (Imprimir/PDF)"
-                                 style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
-                               >
-                                 <Icons.Download size={18} style={{ color: "var(--primary)" }} />
-                               </button>
-
-                               {/* Delete Button */}
-                               {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Eliminar clientes")) && (
-                                 <button
-                                   type="button"
-                                   onClick={(e) => {
-                                     e.preventDefault();
-                                     e.stopPropagation();
-                                     setDocToDelete(doc.id);
-                                   }}
-                                   title="Eliminar documento"
-                                   style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
-                                 >
-                                   <Icons.Trash size={18} />
-                                 </button>
-                               )}
-                             </div>
-                           </div>
-                         );
+                        );
                       })}
                     </div>
                   )}
@@ -4533,10 +4716,8 @@ export default function ClientDetailPage() {
 
               </div>
             </div>
-          )}
 
-              {/* ── NUEVO DOCUMENTO MODAL ── */}
-              {/* ── NUEVO DOCUMENTO MODAL (WIZARD) ── */}
+            {/* ── NUEVO DOCUMENTO MODAL (WIZARD) ── */}
               {showAssociateDocModal && (
                 <div className={styles.modalOverlay}>
                   <div 
@@ -4937,6 +5118,8 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
               )}
+            </>
+          )}
 
           {/* TAB 3: Formularios */}
           {activeTab === "forms" && (
