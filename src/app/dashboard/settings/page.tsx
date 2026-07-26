@@ -1279,9 +1279,16 @@ export default function SettingsPage() {
     setClinicSubTab("general");
   }, [activeClinic]);
 
-  // Default to clinic tab on desktop if none selected
+  // Default to URL search param or clinic tab on desktop if none selected
   useEffect(() => {
     if (activeTab === null && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabFromUrl = params.get("tab");
+      if (tabFromUrl) {
+        setActiveTab(tabFromUrl as any);
+        return;
+      }
+
       const handleDefaultTab = () => {
         if (window.innerWidth >= 768) {
           setActiveTab("clinic");

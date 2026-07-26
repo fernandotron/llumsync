@@ -4699,77 +4699,389 @@ export default function ClientDetailPage() {
                                   borderRadius: "6px",
                                   padding: "6px 8px",
                                   color: "#ef4444",
-                                  cursor: "pointer",
-                                  display: "flex",
-                                  alignItems: "center"
+                                  cursor: "pointer"
                                 }}
                               >
                                 <Icons.Trash size={15} />
                               </button>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
+          </div>
 
-            {/* ── NUEVO DOCUMENTO MODAL (WIZARD) ── */}
-              {showAssociateDocModal && (
-                <div className={styles.modalOverlay}>
+              {/* ── ASOCIAR DOCUMENTO MODAL (WIZARD REDESIGNED) ── */}
+              {showAssociateDocModal && typeof window !== "undefined" && createPortal(
+                <div className={styles.associateDocOverlay} onClick={() => setShowAssociateDocModal(false)}>
                   <div 
-                    className={`${styles.modalContent} glass fade-in`} 
+                    className={styles.associateDocModal} 
+                    onClick={(e) => e.stopPropagation()}
                     style={{ 
-                      maxWidth: docWizardStep === "preview_and_sign" ? "750px" : "850px", 
-                      padding: "24px", 
-                      width: "90%",
-                      maxHeight: "90vh",
-                      overflowY: "auto",
-                      boxSizing: "border-box"
+                      maxWidth: docWizardStep === "preview_and_sign" ? "820px" : "900px" 
                     }}
                   >
-                    {/* Header Controls */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "16px", marginBottom: "20px" }}>
-                      <span style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)" }}>
-                        {docWizardStep === "preview_and_sign" ? "VISTA PREVIA DE CONSENTIMIENTO" : "NUEVO DOCUMENTO"}
-                      </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                        {docWizardStep === "select_and_edit" ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowAssociateDocModal(false);
-                                setDocWizardStep("select_and_edit");
-                              }}
-                              style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              disabled={!selectedTemplateId}
-                              onClick={handleDocWizardContinue}
-                              style={{ background: "var(--primary)", color: "white" }}
-                            >
-                              Continuar
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => setDocWizardStep("select_and_edit")}
-                              style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}
-                            >
-                              Atrás
-                            </button>
-                            
-                            {/* Opciones Dropdown */}
+                    {/* Modal Header */}
+                    <div className={styles.associateDocHeader}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "10px",
+                          background: "linear-gradient(135deg, rgba(0,143,163,0.18), rgba(0,143,163,0.06))",
+                          border: "1px solid rgba(0,143,163,0.25)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "var(--primary)",
+                          flexShrink: 0
+                        }}>
+                          <Icons.FileText size={20} />
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--text-primary)" }}>
+                            {docWizardStep === "preview_and_sign" ? "Vista Previa y Firma de Documento" : "Asociar Documento / Consentimiento"}
+                          </h3>
+                          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                            Cliente: <strong>{client?.firstName} {client?.lastName}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Steps Indicator Badges */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: "20px",
+                          background: docWizardStep === "select_and_edit" ? "var(--primary)" : "var(--bg-input)",
+                          color: docWizardStep === "select_and_edit" ? "#ffffff" : "var(--text-muted)",
+                          border: docWizardStep === "select_and_edit" ? "none" : "1px solid var(--border-color)"
+                        }}>
+                          1. Plantilla y Contenido
+                        </span>
+                        <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>→</span>
+                        <span style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: "20px",
+                          background: docWizardStep === "preview_and_sign" ? "var(--primary)" : "var(--bg-input)",
+                          color: docWizardStep === "preview_and_sign" ? "#ffffff" : "var(--text-muted)",
+                          border: docWizardStep === "preview_and_sign" ? "none" : "1px solid var(--border-color)"
+                        }}>
+                          2. Firma y Finalizar
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowAssociateDocModal(false)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--text-muted)",
+                            fontSize: "22px",
+                            cursor: "pointer",
+                            padding: "0 4px",
+                            marginLeft: "8px",
+                            lineHeight: 1
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Modal Body */}
+                    <div className={styles.associateDocBody}>
+                      {docWizardStep === "select_and_edit" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                          
+                          {/* Template Selector Card */}
+                          <div style={{
+                            background: "var(--bg-panel-solid)",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: "12px",
+                            padding: "16px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "12px"
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                              <label style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span>📄 Modelo de Plantilla</span>
+                                <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 400 }}>(RGPD, Consentimientos, Indicaciones)</span>
+                              </label>
+                              
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowAssociateDocModal(false);
+                                  router.push('/dashboard/settings?tab=documents');
+                                }}
+                                style={{
+                                  background: "rgba(0,143,163,0.08)",
+                                  border: "1px solid rgba(0,143,163,0.25)",
+                                  color: "var(--primary)",
+                                  padding: "5px 12px",
+                                  borderRadius: "8px",
+                                  fontSize: "12px",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  transition: "all 0.15s ease"
+                                }}
+                              >
+                                <Icons.Plus size={14} /> + Crear Plantilla
+                              </button>
+                            </div>
+
+                            {templates.length === 0 ? (
+                              <div style={{
+                                padding: "24px 16px",
+                                textAlign: "center",
+                                background: "var(--bg-card)",
+                                border: "1.5px dashed var(--border-color)",
+                                borderRadius: "10px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: "10px"
+                              }}>
+                                <div style={{
+                                  width: "44px",
+                                  height: "44px",
+                                  borderRadius: "50%",
+                                  background: "var(--bg-input)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "var(--text-muted)"
+                                }}>
+                                  <Icons.FileText size={22} />
+                                </div>
+                                <div>
+                                  <h5 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
+                                    No hay plantillas de documentos creadas
+                                  </h5>
+                                  <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)" }}>
+                                    Crea modelos reutilizables de consentimientos informados desde la configuración de la clínica.
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setShowAssociateDocModal(false);
+                                    router.push('/dashboard/settings?tab=documents');
+                                  }}
+                                  className="btn btn-primary"
+                                  style={{ fontSize: "12px", padding: "8px 16px", marginTop: "4px" }}
+                                >
+                                  + Crear Plantilla en Configuración
+                                </button>
+                              </div>
+                            ) : (
+                              <select
+                                className="input"
+                                value={selectedTemplateId}
+                                onChange={(e) => handleSelectTemplate(e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  background: "var(--bg-card)",
+                                  color: "var(--text-primary)",
+                                  border: "1px solid var(--border-color)",
+                                  borderRadius: "8px",
+                                  padding: "10px 14px",
+                                  fontSize: "14px",
+                                  fontWeight: 500
+                                }}
+                              >
+                                <option value="">-- Selecciona una plantilla de la clínica --</option>
+                                {templates.map((t) => (
+                                  <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+
+                          {/* Rich Text Editor when template is selected */}
+                          {selectedTemplateId && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                              {/* Editor Toolbar */}
+                              <div style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "10px",
+                                background: "var(--bg-panel-solid)",
+                                border: "1px solid var(--border-color)",
+                                padding: "10px 14px",
+                                borderRadius: "10px"
+                              }}>
+                                {/* Formatting controls */}
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <button type="button" onClick={() => handleDocCommand('bold')} title="Negrita" style={{ padding: "6px 10px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", color: "var(--text-primary)" }}>B</button>
+                                  <button type="button" onClick={() => handleDocCommand('italic')} title="Cursiva" style={{ padding: "6px 10px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "6px", fontStyle: "italic", cursor: "pointer", color: "var(--text-primary)" }}>I</button>
+                                  <button type="button" onClick={() => handleDocCommand('underline')} title="Subrayado" style={{ padding: "6px 10px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "6px", textDecoration: "underline", cursor: "pointer", color: "var(--text-primary)" }}>U</button>
+                                  <button type="button" onClick={() => {
+                                    const color = prompt("Color hexadecimal (ej: #ef4444):");
+                                    if (color) handleDocCommand('foreColor', color);
+                                  }} title="Color del texto" style={{ padding: "6px 10px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "6px", cursor: "pointer", color: "var(--text-primary)" }}>🎨 Color</button>
+                                </div>
+
+                                {/* Variables Inserter Dropdown */}
+                                <div style={{ position: "relative" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowDocVariablesDropdown(!showDocVariablesDropdown)}
+                                    style={{
+                                      padding: "6px 12px",
+                                      background: "rgba(0,143,163,0.1)",
+                                      border: "1px solid rgba(0,143,163,0.25)",
+                                      color: "var(--primary)",
+                                      borderRadius: "6px",
+                                      fontSize: "12px",
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "6px"
+                                    }}
+                                  >
+                                    <span>🏷️ Insertar campo autocompletable</span> ▾
+                                  </button>
+
+                                  {showDocVariablesDropdown && (
+                                    <div style={{
+                                      position: "absolute",
+                                      top: "100%",
+                                      right: 0,
+                                      background: "var(--bg-card)",
+                                      boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                                      border: "1px solid var(--border-color)",
+                                      borderRadius: "10px",
+                                      width: "240px",
+                                      maxHeight: "320px",
+                                      overflowY: "auto",
+                                      padding: "6px 0",
+                                      marginTop: "6px",
+                                      zIndex: 100
+                                    }}>
+                                      <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", background: "var(--bg-input)", letterSpacing: "0.5px" }}>PACIENTE</div>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{client.firstName}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Nombre Paciente</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{client.lastName}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Apellidos Paciente</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Cliente:Dirección_Cliente}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Dirección Paciente</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{client.dniNif}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>NIF Paciente</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{client.birthDate}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>F. Nacimiento</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{client.allergies}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Alergias</button>
+
+                                      <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", background: "var(--bg-input)", letterSpacing: "0.5px" }}>CLÍNICA / CONSULTA</div>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{clinic.name}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Nombre Clínica</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Dirección_Consulta}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Dirección Clínica</button>
+
+                                      <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", background: "var(--bg-input)", letterSpacing: "0.5px" }}>FIRMAS REQUERIDAS</div>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{signature.client}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Campo Firma Paciente</button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Content Workspace */}
+                              <div style={{ display: "flex", flexDirection: "column" }}>
+                                <label style={{ fontWeight: 600, fontSize: "12px", marginBottom: "6px", color: "var(--text-muted)" }}>Contenido del documento (Editable)</label>
+                                <div
+                                  ref={associateEditorRef}
+                                  contentEditable={true}
+                                  onInput={handleDocEditorInput}
+                                  style={{
+                                    minHeight: "320px",
+                                    border: "1px solid var(--border-color)",
+                                    borderRadius: "10px",
+                                    padding: "20px",
+                                    fontFamily: "var(--font-sans, sans-serif)",
+                                    fontSize: "14px",
+                                    lineHeight: "1.6",
+                                    color: "var(--text-primary)",
+                                    outline: "none",
+                                    background: "var(--bg-panel-solid)",
+                                    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)",
+                                    overflowY: "auto",
+                                    boxSizing: "border-box",
+                                    width: "100%"
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+
+                      {/* Step 2: Final Preview and Interactive Signatures */}
+                      {docWizardStep === "preview_and_sign" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                          <div style={{
+                            background: "#ffffff",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: "12px",
+                            padding: "32px 40px",
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                            minHeight: "380px"
+                          }}>
+                            <div 
+                              dangerouslySetInnerHTML={{ __html: generatedDocContent }} 
+                              style={{ fontSize: "14px", lineHeight: "1.6", color: "#1e293b", fontFamily: "sans-serif" }}
+                            />
+                            <div style={{ textAlign: "center", marginTop: "32px", fontSize: "12px", fontWeight: 600, color: "#64748b" }}>
+                              FECHA: {new Date().toLocaleDateString("es-ES")}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className={styles.associateDocFooter}>
+                      {docWizardStep === "select_and_edit" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAssociateDocModal(false);
+                              setDocWizardStep("select_and_edit");
+                            }}
+                            className="btn btn-secondary"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={!selectedTemplateId}
+                            onClick={handleDocWizardContinue}
+                            style={{ opacity: !selectedTemplateId ? 0.5 : 1 }}
+                          >
+                            Continuar a Firma →
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setDocWizardStep("select_and_edit")}
+                            className="btn btn-secondary"
+                          >
+                            ← Volver a Editar
+                          </button>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <div style={{ position: "relative" }}>
                               <button
                                 type="button"
@@ -4780,7 +5092,21 @@ export default function ClientDetailPage() {
                                 ⚙️ Opciones ▾
                               </button>
                               {showDocOptionsDropdown && (
-                                <div style={{ position: "absolute", top: "100%", right: 0, background: "white", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", border: "1px solid #e2e8f0", borderRadius: "6px", width: "160px", zIndex: 10, display: "flex", flexDirection: "column", padding: "4px 0", marginTop: "4px" }}>
+                                <div style={{
+                                  position: "absolute",
+                                  bottom: "100%",
+                                  right: 0,
+                                  background: "var(--bg-card)",
+                                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                                  border: "1px solid var(--border-color)",
+                                  borderRadius: "8px",
+                                  width: "170px",
+                                  zIndex: 100,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  padding: "6px 0",
+                                  marginBottom: "6px"
+                                }}>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -4788,9 +5114,9 @@ export default function ClientDetailPage() {
                                       setShowAssociateDocModal(false);
                                       handleCreateRemoteSignatureRequest("whatsapp");
                                     }}
-                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", gap: "8px" }}
+                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
                                   >
-                                    <span>💬</span> Via whatsapp
+                                    <span>💬</span> Vía WhatsApp
                                   </button>
                                   <button
                                     type="button"
@@ -4799,9 +5125,9 @@ export default function ClientDetailPage() {
                                       setShowAssociateDocModal(false);
                                       handleCreateRemoteSignatureRequest("email");
                                     }}
-                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", gap: "8px" }}
+                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
                                   >
-                                    <span>✉️</span> Via Email
+                                    <span>✉️</span> Vía Email
                                   </button>
                                   <button
                                     type="button"
@@ -4809,7 +5135,7 @@ export default function ClientDetailPage() {
                                       setShowDocOptionsDropdown(false);
                                       handlePrintDocument();
                                     }}
-                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", gap: "8px" }}
+                                    style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", gap: "8px" }}
                                   >
                                     <span>🖨️</span> Imprimir
                                   </button>
@@ -4823,300 +5149,15 @@ export default function ClientDetailPage() {
                               onClick={handleSaveAssociatedDocument}
                               style={{ background: "#10b981", borderColor: "#10b981", color: "white" }}
                             >
-                              Guardar
+                              ✓ Guardar Documento
                             </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Step 1: Select Template and Edit Content */}
-                    {docWizardStep === "select_and_edit" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontWeight: 600, fontSize: "12px" }}>Selecciona un modelo de documento</label>
-                          <select
-                            className="input"
-                            value={selectedTemplateId}
-                            onChange={(e) => handleSelectTemplate(e.target.value)}
-                            style={{ width: "100%", background: "var(--bg-input)" }}
-                          >
-                            <option value="">-- Selecciona una plantilla --</option>
-                            {templates.map((t) => (
-                              <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {selectedTemplateId && (
-                          <>
-                            {/* Editor Toolbar */}
-                            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "8px", borderRadius: "6px" }}>
-                              <button type="button" onClick={() => handleDocCommand('bold')} style={{ padding: "6px 10px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", fontWeight: "bold", cursor: "pointer" }}>B</button>
-                              <button type="button" onClick={() => handleDocCommand('italic')} style={{ padding: "6px 10px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", fontStyle: "italic", cursor: "pointer" }}>i</button>
-                              <button type="button" onClick={() => handleDocCommand('underline')} style={{ padding: "6px 10px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", textDecoration: "underline", cursor: "pointer" }}>U</button>
-                              <button type="button" onClick={() => {
-                                const color = prompt("Color hexadecimal (ej: #ef4444):");
-                                if (color) handleDocCommand('foreColor', color);
-                              }} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>A🎨</button>
-                              
-                              <span style={{ width: "1px", height: "20px", background: "#cbd5e1", margin: "0 4px" }} />
-
-                              <button type="button" onClick={() => handleDocCommand('justifyLeft')} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>Align L</button>
-                              <button type="button" onClick={() => handleDocCommand('justifyCenter')} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>Align C</button>
-                              <button type="button" onClick={() => handleDocCommand('justifyRight')} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>Align R</button>
-                              
-                              <span style={{ width: "1px", height: "20px", background: "#cbd5e1", margin: "0 4px" }} />
-
-                              <button type="button" onClick={() => {
-                                const url = prompt("Introduce la URL del enlace:");
-                                if (url) handleDocCommand('createLink', url);
-                              }} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>🔗 Enlace</button>
-                              
-                              <button type="button" onClick={() => {
-                                const url = prompt("Introduce la URL de la imagen:");
-                                if (url) handleDocCommand('insertImage', url);
-                              }} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>🖼️ Imagen</button>
-                              
-                              <span style={{ width: "1px", height: "20px", background: "#cbd5e1", margin: "0 4px" }} />
-
-                              <button type="button" onClick={() => handleDocCommand('undo')} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>↩️</button>
-                              <button type="button" onClick={() => handleDocCommand('redo')} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer" }}>↪️</button>
-                              
-                              <span style={{ width: "1px", height: "20px", background: "#cbd5e1", margin: "0 4px" }} />
-
-                              <button type="button" onClick={() => {
-                                setDocHtmlModalContent(generatedDocContent);
-                                setShowDocHtmlModal(true);
-                              }} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
-                                <span>&lt;/&gt;</span>
-                                <span>HTML</span>
-                              </button>
-                              
-                              <span style={{ width: "1px", height: "20px", background: "#cbd5e1", margin: "0 4px" }} />
-
-                              {/* Variables Dropdown */}
-                              <div style={{ position: "relative" }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowDocVariablesDropdown(!showDocVariablesDropdown)}
-                                  style={{ padding: "6px 12px", background: "var(--primary)", color: "white", border: "none", borderRadius: "4px", fontWeight: 600, cursor: "pointer" }}
-                                >
-                                  Variables ▾
-                                </button>
-                                {showDocVariablesDropdown && (
-                                  <div style={{ 
-                                    position: "absolute", 
-                                    top: "100%", 
-                                    left: 0, 
-                                    background: "white", 
-                                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)", 
-                                    border: "1px solid #e2e8f0", 
-                                    borderRadius: "6px", 
-                                    width: "240px", 
-                                    zIndex: 10, 
-                                    maxHeight: "300px", 
-                                    overflowY: "auto", 
-                                    padding: "6px 0", 
-                                    marginTop: "4px" 
-                                  }}>
-                                    <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>PACIENTE</div>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{client.firstName}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Paciente</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{client.lastName}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Apellidos Paciente</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Cliente:Dirección_Cliente}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Dirección Paciente</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{client.dniNif}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>NIF Paciente</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{client.birthDate}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>F. Nacimiento</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{client.allergies}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Alergias</button>
-
-                                    <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>CLÍNICA / CONSULTA</div>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{clinic.name}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Clínica</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Dirección_Consulta}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Dirección Clínica</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{clinic.municipality}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Municipio Clínica</button>
-
-                                    <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>CITA</div>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Fecha_Hora_Cita}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Fecha/Hora Cita</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Fecha_larga}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Fecha Larga Cita</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Hora_Cita}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Hora Cita</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Nombre_Servicio}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Servicio</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Recurso}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Recurso/Cabina</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Zona_horaria}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Zona Horaria</button>
-
-                                    <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>LINKS</div>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Link_VideoConsulta}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Videoconsulta</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Link_Cancelar_Cita}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Cancelar Cita</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Link_Mover_Cita}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Mover Cita</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Link_Confirmar_Cita}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Confirmar Cita</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Link_Pago_Online}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Pago Online</button>
-
-                                    <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>EMPLEADO / TUTOR</div>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Empleado_Nombre_Completo}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Completo</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Empleado_Nombre}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Empleado</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Empleado_Apellidos}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Apellidos Empleado</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Empleado_Correo}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Correo Empleado</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Empleado_Teléfono}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Teléfono Empleado</button>
-
-                                    <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>OTRO</div>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{Deuda}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Deuda Pendiente</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{document.date}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Fecha Documento</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{signature.client}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", color: "var(--accent)", width: "100%" }}>Firma Paciente (Ordinary)</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{signature.certified}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", color: "var(--accent)", width: "100%" }}>Firma Médico (Certified)</button>
-                                    <button type="button" onClick={() => { handleInsertDocVariable("{{signature.digital}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", color: "var(--accent)", width: "100%" }}>Firma Digital (Remote Link)</button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Workspace */}
-                            <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
-                              <label className="form-label" style={{ fontWeight: 600, fontSize: "12px", marginBottom: "6px" }}>Contenido del documento (Editable)</label>
-                              <div
-                                ref={associateEditorRef}
-                                contentEditable={true}
-                                onInput={handleDocEditorInput}
-                                style={{
-                                  minHeight: "350px",
-                                  border: "1px solid #cbd5e1",
-                                  borderRadius: "8px",
-                                  padding: "24px",
-                                  fontFamily: "var(--font-sans, sans-serif)",
-                                  fontSize: "14px",
-                                  lineHeight: "1.6",
-                                  color: "#334155",
-                                  outline: "none",
-                                  background: "#ffffff",
-                                  boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)",
-                                  overflowY: "auto",
-                                  boxSizing: "border-box",
-                                  width: "100%"
-                                }}
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Step 2: Final Preview and Interactive Signatures */}
-                    {docWizardStep === "preview_and_sign" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                        {/* Paper Sheet Preview Container */}
-                        <div 
-                          style={{ 
-                            background: "#ffffff", 
-                            border: "1px solid #cbd5e1", 
-                            borderRadius: "8px", 
-                            padding: "32px 40px", 
-                            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
-                            minHeight: "400px"
-                          }}
-                        >
-
-
-                          {/* Raw HTML Content */}
-                          <div 
-                            dangerouslySetInnerHTML={{ __html: generatedDocContent }} 
-                            style={{ fontSize: "14px", lineHeight: "1.6", color: "#1e293b", fontFamily: "sans-serif" }}
-                          />
-
-                          {/* Interactive Signatures Box Grid */}
-                          {(showPatientSignatureBox || showDoctorSignatureBox) && (
-                            <div 
-                              style={{ 
-                                display: "grid", 
-                                gridTemplateColumns: (showPatientSignatureBox && showDoctorSignatureBox) ? "1fr 1fr" : "1fr", 
-                                gap: "32px", 
-                                marginTop: "48px", 
-                                borderTop: "1px solid #e2e8f0", 
-                                paddingTop: "24px" 
-                              }}
-                            >
-                              {/* Patient Sign block */}
-                              {showPatientSignatureBox && (
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>FIRMA DEL PACIENTE</span>
-                                  <div 
-                                    onClick={() => {
-                                      setActiveSignee("patient");
-                                      setShowSignModal(true);
-                                    }}
-                                    style={{
-                                      border: "1px solid #cbd5e1",
-                                      borderRadius: "8px",
-                                      width: "220px",
-                                      height: "120px",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      cursor: "pointer",
-                                      background: "#f8fafc",
-                                      transition: "all 0.2s",
-                                      overflow: "hidden"
-                                    }}
-                                  >
-                                    {patientSignature ? (
-                                      <img src={patientSignature} style={{ maxHeight: "100px", maxWidth: "200px", display: "block" }} alt="Firma Paciente" />
-                                    ) : (
-                                      <div style={{ textAlign: "center", color: "#94a3b8" }}>
-                                        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ display: "block", margin: "0 auto 4px" }}>
-                                          <path d="M12 20h9"/>
-                                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                                        </svg>
-                                        <span style={{ fontSize: "10px", fontWeight: 600 }}>Haga clic para firmar</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Doctor Sign block */}
-                              {showDoctorSignatureBox && (
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "8px" }}>FIRMA MÉDICO</span>
-                                  <div 
-                                    onClick={() => {
-                                      setActiveSignee("doctor");
-                                      setShowSignModal(true);
-                                    }}
-                                    style={{
-                                      border: "1px solid #cbd5e1",
-                                      borderRadius: "8px",
-                                      width: "220px",
-                                      height: "120px",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      cursor: "pointer",
-                                      background: "#f8fafc",
-                                      transition: "all 0.2s",
-                                      overflow: "hidden"
-                                    }}
-                                  >
-                                    {doctorSignature ? (
-                                      <img src={doctorSignature} style={{ maxHeight: "100px", maxWidth: "200px", display: "block" }} alt="Firma Médico" />
-                                    ) : (
-                                      <div style={{ textAlign: "center", color: "#94a3b8" }}>
-                                        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ display: "block", margin: "0 auto 4px" }}>
-                                          <path d="M12 20h9"/>
-                                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                                        </svg>
-                                        <span style={{ fontSize: "10px", fontWeight: 600 }}>Haga clic para firmar</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Document Date Bottom */}
-                          <div style={{ textAlign: "center", marginTop: "32px", fontSize: "12px", fontWeight: 600, color: "#64748b" }}>
-                            FECHA: {new Date().toLocaleDateString("es-ES")}
                           </div>
-                        </div>
-                      </div>
-                    )}
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </>
           )}
