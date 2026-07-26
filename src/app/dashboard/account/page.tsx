@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "@/components/ToastContainer";
 import { useApp } from "@/context/AppContext";
 import { translate } from "@/lib/translations";
 import styles from "./Account.module.css";
@@ -483,7 +484,7 @@ export default function AccountPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => alert("MFA Activation flow simulation")}
+                  onClick={() => toast.success("MFA Activation flow simulation")}
                   className={styles.primaryActionBtn}
                   style={{ background: "#0ea5e9" }}
                 >
@@ -676,7 +677,7 @@ export default function AccountPage() {
                           <td className={styles.td}><span className={styles.badge}>{t("invoicePaid")}</span></td>
                           <td className={styles.td}>
                             <button 
-                              onClick={() => alert(`${t("invoiceDownload")} ${sale.invoiceNumber}.pdf...`)} 
+                              onClick={() => toast.success(`${t("invoiceDownload")} ${sale.invoiceNumber}.pdf...`)} 
                               className={styles.primaryActionBtn} 
                               style={{ padding: "6px 12px", fontSize: "12px" }}
                             >

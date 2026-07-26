@@ -10,6 +10,7 @@ import { hasPermission } from "@/lib/permissions";
 import styles from "./Sales.module.css";
 import { translate } from "@/lib/translations";
 import { getCountryConfig } from "@/lib/countries";
+import { toast } from "@/components/ToastContainer";
 
 interface Client {
   id: string;
@@ -775,7 +776,7 @@ export default function SalesPage() {
       !fiscalMunicipality.trim() || 
       !fiscalPostalCode.trim()
     ) {
-      alert("Por favor, rellene todos los campos obligatorios.");
+      toast.warning("Por favor, rellene todos los campos obligatorios.");
       return;
     }
 
@@ -813,7 +814,7 @@ export default function SalesPage() {
       }
     } catch (err) {
       console.error(err);
-      alert("Error al guardar los datos fiscales.");
+      toast.error("Error al guardar los datos fiscales.");
     } finally {
       setIsSavingFiscal(false);
     }
@@ -1588,11 +1589,11 @@ export default function SalesPage() {
 
   const handleRegisterSale = async () => {
     if (!selectedClientId) {
-      alert("Por favor, selecciona un paciente.");
+      toast.warning("Por favor, selecciona un paciente.");
       return;
     }
     if (cart.length === 0) {
-      alert("El carrito está vacío.");
+      toast.warning("El carrito está vacío.");
       return;
     }
     if (!activeClinic) return;
@@ -1629,9 +1630,9 @@ export default function SalesPage() {
       setDiscountPercent(0);
       setShowPosDrawer(false);
       fetchSalesData();
-      alert("Venta registrada con éxito.");
+      toast.success("Venta registrada con éxito.");
     } else {
-      alert("Error al procesar la venta.");
+      toast.error("Error al procesar la venta.");
     }
   };
 
@@ -1670,7 +1671,7 @@ export default function SalesPage() {
       setShowMovementModal(false);
       fetchSalesData();
     } else {
-      alert(editingMovementId ? "Error al actualizar el movimiento de caja." : "Error al guardar el movimiento de caja.");
+      toast.error(editingMovementId ? "Error al actualizar el movimiento de caja." : "Error al guardar el movimiento de caja.");
     }
   };
 
@@ -1701,7 +1702,7 @@ export default function SalesPage() {
   const printReceipt = (sale: any, clinic: any) => {
     const printWindow = window.open("", "_blank", "width=800,height=600");
     if (!printWindow) {
-      alert("Por favor, permite las ventanas emergentes para poder imprimir el comprobante.");
+      toast.warning("Por favor, permite las ventanas emergentes para poder imprimir el comprobante.");
       return;
     }
 
@@ -2088,7 +2089,7 @@ export default function SalesPage() {
   const handleExportArticlesExcel = async () => {
     const list = getArticlesList();
     if (list.length === 0) {
-      alert("No hay datos para exportar.");
+      toast.success("No hay datos para exportar.");
       return;
     }
 
@@ -2158,7 +2159,7 @@ export default function SalesPage() {
   const printInvoice = (inv: any, clinic: any, fiscalProfile?: any) => {
     const printWindow = window.open("", "_blank", "width=800,height=600");
     if (!printWindow) {
-      alert("Por favor, permite las ventanas emergentes para poder imprimir/descargar la factura.");
+      toast.warning("Por favor, permite las ventanas emergentes para poder imprimir/descargar la factura.");
       return;
     }
 
@@ -2351,7 +2352,7 @@ export default function SalesPage() {
       });
 
       if (!saleRes.ok) {
-        alert("Error al guardar la factura.");
+        toast.error("Error al guardar la factura.");
         return;
       }
 
@@ -2384,7 +2385,7 @@ export default function SalesPage() {
       await fetchSalesData();
     } catch (e) {
       console.error("Error creating invoice:", e);
-      alert("Error de red al guardar la factura.");
+      toast.error("Error de red al guardar la factura.");
     }
   };
 
@@ -2420,16 +2421,16 @@ export default function SalesPage() {
       });
 
       if (!res.ok) {
-        alert("Error al modificar la factura.");
+        toast.error("Error al modificar la factura.");
         return;
       }
 
-      alert("Factura modificada correctamente.");
+      toast.success("Factura modificada correctamente.");
       setActiveInvoiceEdit(null);
       await fetchSalesData();
     } catch (e) {
       console.error("Error updating invoice:", e);
-      alert("Error de red al modificar la factura.");
+      toast.error("Error de red al modificar la factura.");
     }
   };
 
@@ -2488,7 +2489,7 @@ export default function SalesPage() {
     if (!activeInvoiceEdit) return;
     const printWindow = window.open("", "_blank", "width=400,height=600");
     if (!printWindow) {
-      alert("Por favor, permite las ventanas emergentes para poder imprimir.");
+      toast.warning("Por favor, permite las ventanas emergentes para poder imprimir.");
       return;
     }
 
@@ -2704,7 +2705,7 @@ export default function SalesPage() {
       doc.save(`Factura-${invoiceLabel}.pdf`);
     } catch (e) {
       console.error(e);
-      alert("Error al generar el PDF.");
+      toast.error("Error al generar el PDF.");
     }
   };
 
@@ -2735,14 +2736,14 @@ export default function SalesPage() {
       });
 
       if (res.ok) {
-        alert("Correo enviado con éxito.");
+        toast.success("Correo enviado con éxito.");
       } else {
         const err = await res.json();
-        alert("Error al enviar el correo: " + (err.error || ""));
+        toast.error("Error al enviar el correo: " + (err.error || ""));
       }
     } catch (e) {
       console.error(e);
-      alert("Error de red al enviar el correo.");
+      toast.error("Error de red al enviar el correo.");
     }
   };
 
@@ -2792,7 +2793,7 @@ export default function SalesPage() {
     });
 
     setShowOpcionesDropdown(false);
-    alert(`Se ha generado una factura rectificativa con importes negativos en base a la factura original ${origInvoiceLabel}. Por favor, revise y haga clic en "Crear factura" para guardarla.`);
+    toast.warning(`Se ha generado una factura rectificativa con importes negativos en base a la factura original ${origInvoiceLabel}. Por favor, revise y haga clic en "Crear factura" para guardarla.`);
   };
 
   const handleDeleteInvoice = async () => {
@@ -2807,15 +2808,15 @@ export default function SalesPage() {
       });
 
       if (res.ok) {
-        alert("Factura eliminada correctamente.");
+        toast.info("Factura eliminada correctamente.");
         setActiveInvoiceEdit(null);
         await fetchSalesData();
       } else {
-        alert("Error al eliminar la factura.");
+        toast.success("Error al eliminar la factura.");
       }
     } catch (e) {
       console.error(e);
-      alert("Error de red al eliminar la factura.");
+      toast.success("Error de red al eliminar la factura.");
     }
   };
 
@@ -2849,7 +2850,7 @@ export default function SalesPage() {
         body: JSON.stringify(editClientForm),
       });
       if (!res.ok) {
-        alert("Error al actualizar contacto.");
+        toast.error("Error al actualizar contacto.");
         return;
       }
       
@@ -2886,7 +2887,7 @@ export default function SalesPage() {
       setShowEditClientModal(false);
     } catch (err) {
       console.error(err);
-      alert("Error al guardar cambios.");
+      toast.error("Error al guardar cambios.");
     }
   };
 
@@ -2932,7 +2933,7 @@ export default function SalesPage() {
     }
 
     if (!silent) {
-      alert("Cambios guardados con éxito.");
+      toast.success("Cambios guardados con éxito.");
     }
     setInvoiceRequested("NONE");
     setSelectedItemForPayment(null);
@@ -5384,12 +5385,12 @@ export default function SalesPage() {
                                       });
                                       if (!res.ok) {
                                         console.error("Failed to delete sale from database:", await res.text());
-                                        alert("Error al eliminar el pago de la base de datos.");
+                                        toast.success("Error al eliminar el pago de la base de datos.");
                                         return;
                                       }
                                     } catch (err) {
                                       console.error("Error deleting sale:", err);
-                                      alert("Error al eliminar el pago de la base de datos.");
+                                      toast.success("Error al eliminar el pago de la base de datos.");
                                       return;
                                     }
                                   }
@@ -5743,7 +5744,7 @@ export default function SalesPage() {
                           className={`${styles.methodBtn} ${styles.methodBtnBono}`}
                           onClick={() => {
                             if (selectedClientVouchers.length === 0) {
-                              alert("Este cliente no tiene ningún bono activo.");
+                              toast.success("Este cliente no tiene ningún bono activo.");
                               return;
                             }
                             setSelectedCheckoutVoucherId("");
@@ -6335,7 +6336,7 @@ export default function SalesPage() {
                         const label = key.toUpperCase();
                         const exists = tempPaymentMethods.some(m => m.key.toLowerCase() === key.toLowerCase());
                         if (exists) {
-                          alert("Este método de pago ya existe.");
+                          toast.success("Este método de pago ya existe.");
                           return;
                         }
                         const newMethod: PaymentMethodItem = {
@@ -6958,7 +6959,7 @@ export default function SalesPage() {
                         className={styles.btnApply}
                         onClick={() => {
                           if (pickerStart && pickerEnd && pickerEnd < pickerStart) {
-                            alert("La fecha final no puede ser anterior a la fecha de inicio.");
+                            toast.warning("La fecha final no puede ser anterior a la fecha de inicio.");
                             return;
                           }
                           setDateFilterStart(pickerStart);
@@ -8457,7 +8458,7 @@ export default function SalesPage() {
                                     if (res.ok) {
                                       fetchSalesData();
                                     } else {
-                                      alert("Error al eliminar el movimiento");
+                                      toast.success("Error al eliminar el movimiento");
                                     }
                                     setConfirmDeleteMovId(null);
                                     setOpenDropdownMovId(null);

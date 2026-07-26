@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { toast } from "@/components/ToastContainer";
 import { createPortal } from "react-dom";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
@@ -273,11 +274,11 @@ export default function AlmacenPage() {
           fetchTransactions();
         }
       } else {
-        alert("Error al eliminar el producto.");
+        toast.success("Error al eliminar el producto.");
       }
     } catch (e) {
       console.error(e);
-      alert("Error de conexión.");
+      toast.error("Error de conexión.");
     }
   };
 
@@ -360,7 +361,7 @@ export default function AlmacenPage() {
       XLSX.writeFile(wb, filename);
     } catch (e) {
       console.error("Error exporting to Excel:", e);
-      alert("Error al exportar a Excel.");
+      toast.error("Error al exportar a Excel.");
     }
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { toast } from "@/components/ToastContainer";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import styles from "./ControlHorario.module.css";
@@ -226,11 +227,11 @@ export default function ControlHorarioPage() {
         fetchMyHistory();
       } else {
         const err = await res.json();
-        alert(err.error || "Error al fichar entrada.");
+        toast.error(err.error || "Error al fichar entrada.");
       }
     } catch (e) {
       console.error(e);
-      alert("Error de red.");
+      toast.error("Error de red.");
     }
   };
 
@@ -258,11 +259,11 @@ export default function ControlHorarioPage() {
         fetchMyHistory();
       } else {
         const err = await res.json();
-        alert(err.error || "Error al actualizar estado.");
+        toast.error(err.error || "Error al actualizar estado.");
       }
     } catch (e) {
       console.error(e);
-      alert("Error de red.");
+      toast.error("Error de red.");
     }
   };
 

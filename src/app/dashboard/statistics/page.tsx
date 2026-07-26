@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { toast } from "@/components/ToastContainer";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
@@ -865,7 +866,7 @@ export default function StatisticsPage() {
                   className={styles.btnApply}
                   onClick={() => {
                     if (pickerStart && pickerEnd && pickerEnd < pickerStart) {
-                      alert("La fecha final no puede ser anterior a la de inicio.");
+                      toast.warning("La fecha final no puede ser anterior a la de inicio.");
                       return;
                     }
                     setDateFilterStart(pickerStart);

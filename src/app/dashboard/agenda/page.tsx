@@ -10,6 +10,7 @@ import styles from "./Agenda.module.css";
 import { getCountryConfig } from "@/lib/countries";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import { CameraCaptureModal } from "@/components/CameraCaptureModal";
+import { toast } from "@/components/ToastContainer";
 
 interface Service {
   id: string;
@@ -299,7 +300,7 @@ export default function AgendaPage() {
   const handlePrintAgenda = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert("Por favor, permite las ventanas emergentes para poder imprimir la agenda.");
+      toast.warning("Por favor, permite las ventanas emergentes para poder imprimir la agenda.");
       return;
     }
 
@@ -918,7 +919,7 @@ export default function AgendaPage() {
     if (!name.trim()) return;
     const tagName = name.trim().toUpperCase();
     if (availableTags.some(t => t.name === tagName)) {
-      alert("Esta etiqueta ya existe.");
+      toast.success("Esta etiqueta ya existe.");
       return;
     }
     const updated = [...availableTags, { name: tagName, color }];
@@ -1887,10 +1888,10 @@ export default function AgendaPage() {
       if (Array.isArray(updatedPhotos)) {
         setAppointmentPhotos(updatedPhotos);
       }
-      alert("Foto guardada con éxito");
+      toast.success("Foto guardada con éxito");
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Error al subir la foto.");
+      toast.error(err.message || "Error al subir la foto.");
     } finally {
       setUploadingAgendaPhoto(false);
     }
@@ -1917,7 +1918,7 @@ export default function AgendaPage() {
           setAppointmentPhotos(updatedPhotos);
         }
       } else {
-        alert("Error al eliminar la foto");
+        toast.success("Error al eliminar la foto");
       }
     } catch (err) {
       console.error(err);
@@ -1969,7 +1970,7 @@ export default function AgendaPage() {
   const handleSendWhatsAppReminder = async (app: any) => {
     const cleanPhone = (app.client.phone || "").replace(/\D/g, "");
     if (!cleanPhone) {
-      alert("El cliente no tiene un número de teléfono configurado.");
+      toast.success("El cliente no tiene un número de teléfono configurado.");
       return;
     }
 
@@ -2026,7 +2027,7 @@ export default function AgendaPage() {
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedAppointment) return;
     if (!canCreateOrEditAppointment(currentUser)) {
-      alert("No tienes permisos para modificar citas (Sólo lectura).");
+      toast.success("No tienes permisos para modificar citas (Sólo lectura).");
       return;
     }
 
@@ -2133,14 +2134,14 @@ export default function AgendaPage() {
     if (walkIn) {
       setFormClientId(walkIn.id);
     } else {
-      alert("No se pudo crear o seleccionar el Cliente de paso");
+      toast.warning("No se pudo crear o seleccionar el Cliente de paso");
     }
   };
 
   const handleCreateContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formPatFirstName || !formPatLastName || !activeClinic) {
-      alert("Nombre y apellidos son obligatorios");
+      toast.warning("Nombre y apellidos son obligatorios");
       return;
     }
     const newClientPayload = {
@@ -2176,7 +2177,7 @@ export default function AgendaPage() {
 
       if (!clientRes.ok) {
         const errData = await clientRes.json();
-        alert(`Error al registrar el cliente: ${errData.error || "error desconocido"}`);
+        toast.error(`Error al registrar el cliente: ${errData.error || "error desconocido"}`);
         return;
       }
 
@@ -2216,7 +2217,7 @@ export default function AgendaPage() {
       setFormPatBic("");
     } catch (err) {
       console.error(err);
-      alert("Error al registrar el cliente");
+      toast.error("Error al registrar el cliente");
     }
   };
 
@@ -2224,7 +2225,7 @@ export default function AgendaPage() {
   const handleCreateAppointment = async (e: React.FormEvent, forceProceed = false, andCheckout = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!canCreateOrEditAppointment(currentUser)) {
-      alert("No tienes permisos para crear citas (Sólo lectura).");
+      toast.success("No tienes permisos para crear citas (Sólo lectura).");
       return null;
     }
 
@@ -2244,7 +2245,7 @@ export default function AgendaPage() {
 
     if (isNewPatient) {
       if (!formPatFirstName || !formPatLastName || !activeClinic) {
-        alert("Nombre y apellidos son obligatorios para registrar al paciente");
+        toast.warning("Nombre y apellidos son obligatorios para registrar al paciente");
         return;
       }
 
@@ -2279,7 +2280,7 @@ export default function AgendaPage() {
 
       if (!clientRes.ok) {
         const errData = await clientRes.json();
-        alert(`Error al registrar el paciente: ${errData.error || "error desconocido"}`);
+        toast.error(`Error al registrar el paciente: ${errData.error || "error desconocido"}`);
         return;
       }
 
@@ -2289,7 +2290,7 @@ export default function AgendaPage() {
     }
 
     if (!clientIdToUse || !formUserId || !formServiceId || !formDate || !formTime || !formClinicId) {
-      alert("Por favor, selecciona o crea un paciente y rellena todos los campos.");
+      toast.warning("Por favor, selecciona o crea un paciente y rellena todos los campos.");
       return;
     }
 
@@ -2386,7 +2387,7 @@ export default function AgendaPage() {
       }
       return createdApp;
     } else {
-      alert("Error al reservar la cita");
+      toast.error("Error al reservar la cita");
       return null;
     }
   };
@@ -2395,7 +2396,7 @@ export default function AgendaPage() {
   const handleUpdateAppointment = async (e: React.FormEvent | null, forceProceed = false, shouldRedirectToCaja = false) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!canCreateOrEditAppointment(currentUser)) {
-      alert("No tienes permisos para modificar citas (Sólo lectura).");
+      toast.success("No tienes permisos para modificar citas (Sólo lectura).");
       return;
     }
     if (!selectedAppointment || !formUserId || !formServiceId || !formDate || !formTime || !formEndTime) return;
@@ -2419,7 +2420,7 @@ export default function AgendaPage() {
     const endMinTotal = parseInt(endHourMin[0], 10) * 60 + parseInt(endHourMin[1], 10);
     let duration = endMinTotal - startMinTotal;
     if (duration <= 0) {
-      alert("La hora de fin debe ser posterior a la de inicio.");
+      toast.warning("La hora de fin debe ser posterior a la de inicio.");
       return;
     }
 
@@ -2480,7 +2481,7 @@ export default function AgendaPage() {
   const handleDeleteAppointment = async () => {
     if (!selectedAppointment) return;
     if (!canDeleteAppointment(currentUser)) {
-      alert("No tienes permisos para eliminar citas.");
+      toast.success("No tienes permisos para eliminar citas.");
       return;
     }
 
@@ -2502,7 +2503,7 @@ export default function AgendaPage() {
   // Drag and Drop Handlers
   const handleMoveAppointment = async (app: Appointment, newUserId: string, newDateStr: string, newTimeStr: string) => {
     if (!canCreateOrEditAppointment(currentUser)) {
-      alert("No tienes permisos para modificar citas.");
+      toast.success("No tienes permisos para modificar citas.");
       return;
     }
 
@@ -2561,12 +2562,12 @@ export default function AgendaPage() {
         fetchAppointments();
         triggerAutoSync();
       } else {
-        alert("Error al mover la cita.");
+        toast.error("Error al mover la cita.");
         setAppointments(oldAppointments); // Rollback
       }
     } catch (err) {
       console.error("Error moving appointment:", err);
-      alert("Error al conectar con el servidor.");
+      toast.error("Error al conectar con el servidor.");
       setAppointments(oldAppointments); // Rollback
     } finally {
       setSavingAppIds(prev => prev.filter(id => id !== app.id));
@@ -2642,13 +2643,13 @@ export default function AgendaPage() {
         setSelectedAppointment(updatedApp);
         fetchAppointments();
         triggerAutoSync();
-        alert("Seguimiento guardado correctamente.");
+        toast.success("Seguimiento guardado correctamente.");
       } else {
-        alert("Error al guardar el seguimiento.");
+        toast.error("Error al guardar el seguimiento.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error al guardar el seguimiento.");
+      toast.error("Error al guardar el seguimiento.");
     }
   };
 
@@ -2665,7 +2666,7 @@ export default function AgendaPage() {
     });
 
     if (!blockTitle || !formUserId || selectedBlockDates.length === 0 || !blockStartTime || !blockEndTime || !activeClinic) {
-      alert("Por favor, rellene todos los campos para crear el bloqueo.");
+      toast.warning("Por favor, rellene todos los campos para crear el bloqueo.");
       return;
     }
 
@@ -2704,7 +2705,7 @@ export default function AgendaPage() {
       triggerAutoSync();
     } catch (err: any) {
       console.error("Error creating time blocks:", err);
-      alert(`Error al crear el bloqueo: ${err.message || err}`);
+      toast.error(`Error al crear el bloqueo: ${err.message || err}`);
     }
   };
 
@@ -2720,11 +2721,11 @@ export default function AgendaPage() {
         fetchAppointments();
         triggerAutoSync();
       } else {
-        alert("Error al eliminar el bloqueo");
+        toast.success("Error al eliminar el bloqueo");
       }
     } catch (err) {
       console.error("Error deleting time block:", err);
-      alert("Error en el servidor");
+      toast.error("Error en el servidor");
     }
   };
 
@@ -2742,7 +2743,7 @@ export default function AgendaPage() {
     const endDateTime = new Date(`${dateFormatted}T${blockEndTime}`);
 
     if (endDateTime.getTime() <= startDateTime.getTime()) {
-      alert("La hora final debe ser posterior a la hora de inicio.");
+      toast.warning("La hora final debe ser posterior a la hora de inicio.");
       return;
     }
 
@@ -2769,7 +2770,7 @@ export default function AgendaPage() {
       triggerAutoSync();
     } catch (err: any) {
       console.error("Error updating time block:", err);
-      alert(`Error al actualizar el bloqueo: ${err.message || err}`);
+      toast.error(`Error al actualizar el bloqueo: ${err.message || err}`);
     }
   };
 
@@ -2794,7 +2795,7 @@ export default function AgendaPage() {
       });
 
       if (!deleteRes.ok) {
-        alert("Error al eliminar la reserva de tiempo para la conversión.");
+        toast.success("Error al eliminar la reserva de tiempo para la conversión.");
         return;
       }
 
@@ -2818,24 +2819,24 @@ export default function AgendaPage() {
       });
 
       if (!createRes.ok) {
-        alert("Error al crear la cita.");
+        toast.error("Error al crear la cita.");
         return;
       }
 
       setShowConvertModal(false);
       setSelectedTimeBlock(null);
       fetchAppointments();
-      alert("Reserva de tiempo convertida en cita con éxito.");
+      toast.success("Reserva de tiempo convertida en cita con éxito.");
     } catch (err) {
       console.error("Error converting block to appointment:", err);
-      alert("Error al realizar la conversión.");
+      toast.error("Error al realizar la conversión.");
     }
   };
 
   const handleAddToWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!waitlistClientId || !activeClinic) {
-      alert("Por favor, selecciona un paciente.");
+      toast.warning("Por favor, selecciona un paciente.");
       return;
     }
 
@@ -2859,13 +2860,13 @@ export default function AgendaPage() {
       if (res.ok) {
         fetchWaitlist();
         setWaitlistSubView("list");
-        alert("Paciente añadido a la lista de espera con éxito.");
+        toast.success("Paciente añadido a la lista de espera con éxito.");
       } else {
-        alert("Error al añadir a la lista de espera.");
+        toast.error("Error al añadir a la lista de espera.");
       }
     } catch (err) {
       console.error("Error adding to waitlist:", err);
-      alert("Error al procesar la solicitud.");
+      toast.error("Error al procesar la solicitud.");
     }
   };
 
@@ -2879,13 +2880,13 @@ export default function AgendaPage() {
 
       if (res.ok) {
         fetchWaitlist();
-        alert("Entrada eliminada con éxito.");
+        toast.info("Entrada eliminada con éxito.");
       } else {
-        alert("Error al eliminar de la lista de espera.");
+        toast.success("Error al eliminar de la lista de espera.");
       }
     } catch (err) {
       console.error("Error deleting waitlist entry:", err);
-      alert("Error al procesar la solicitud.");
+      toast.error("Error al procesar la solicitud.");
     }
   };
 
@@ -4949,7 +4950,7 @@ export default function AgendaPage() {
                                 onClick={() => {
                                   const name = newCreateTagName.trim().toUpperCase();
                                   if (availableTags.some(t => t.name === name)) {
-                                    alert("Esta etiqueta ya existe.");
+                                    toast.success("Esta etiqueta ya existe.");
                                     return;
                                   }
                                   const updated = [...availableTags, { name, color: newCreateTagColor }];
@@ -7828,7 +7829,7 @@ export default function AgendaPage() {
                                 navigator.clipboard.writeText(
                                   `Cita: ${selectedAppointment.client.firstName} ${selectedAppointment.client.lastName} - ${selectedAppointment.service.name} el ${new Date(selectedAppointment.start).toLocaleDateString("es-ES")}`
                                 );
-                                alert("Cita copiada al portapapeles");
+                                toast.success("Cita copiada al portapapeles");
                                 setShowMoreOptions(false);
                               }}
                             >
@@ -8088,7 +8089,7 @@ export default function AgendaPage() {
                               if (selectedBlockDates.length > 1) {
                                   setSelectedBlockDates(selectedBlockDates.filter(x => x !== d));
                               } else {
-                                alert("Debe haber al menos un día seleccionado.");
+                                toast.warning("Debe haber al menos un día seleccionado.");
                               }
                             }}
                           >
@@ -8791,7 +8792,7 @@ export default function AgendaPage() {
                         onClick={() => {
                           const tagName = newGlobalTagName.trim().toUpperCase();
                           if (availableTags.some(t => t.name === tagName)) {
-                            alert("Esta etiqueta ya existe.");
+                            toast.success("Esta etiqueta ya existe.");
                             return;
                           }
                           const updated = [...availableTags, { name: tagName, color: newGlobalTagColor }];

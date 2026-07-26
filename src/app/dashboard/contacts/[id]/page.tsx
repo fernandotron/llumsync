@@ -13,6 +13,7 @@ import { translate } from "@/lib/translations";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import { CameraCaptureModal } from "@/components/CameraCaptureModal";
 import { WhiteboardEditor } from "@/components/WhiteboardEditor";
+import { toast } from "@/components/ToastContainer";
 
 interface Client {
   id: string;
@@ -2412,24 +2413,24 @@ export default function ClientDetailPage() {
       if (res.ok) {
         setShowBudgetModal(false);
         fetchBudgets();
-        alert("Presupuesto guardado correctamente.");
+        toast.success("Presupuesto guardado correctamente.");
       } else {
         const err = await res.json();
-        alert(err.error || "Error al guardar presupuesto.");
+        toast.error(err.error || "Error al guardar presupuesto.");
       }
     } catch (e) {
       console.error(e);
-      alert("Error de red.");
+      toast.error("Error de red.");
     }
   };
 
   const handleSaveAsTemplate = async () => {
     if (!budgetTitleInput.trim()) {
-      alert("Introduce un nombre para la plantilla.");
+      toast.warning("Introduce un nombre para la plantilla.");
       return;
     }
     if (budgetItems.length === 0) {
-      alert("La plantilla debe contener al menos un artículo.");
+      toast.warning("La plantilla debe contener al menos un artículo.");
       return;
     }
     if (!activeClinic) return;
@@ -2451,10 +2452,10 @@ export default function ClientDetailPage() {
 
       if (res.ok) {
         fetchBudgetTemplates();
-        alert("Plantilla de presupuesto creada con éxito.");
+        toast.success("Plantilla de presupuesto creada con éxito.");
       } else {
         const err = await res.json();
-        alert(err.error || "Error al crear plantilla.");
+        toast.error(err.error || "Error al crear plantilla.");
       }
     } catch (e) {
       console.error(e);
@@ -2481,9 +2482,9 @@ export default function ClientDetailPage() {
       });
       if (res.ok) {
         fetchBudgets();
-        alert("Presupuesto aceptado. Saldo monedero habilitado.");
+        toast.success("Presupuesto aceptado. Saldo monedero habilitado.");
       } else {
-        alert("Error al aceptar presupuesto.");
+        toast.error("Error al aceptar presupuesto.");
       }
     } catch (e) {
       console.error(e);
@@ -2498,9 +2499,9 @@ export default function ClientDetailPage() {
       });
       if (res.ok) {
         fetchBudgets();
-        alert("Presupuesto enviado a la papelera.");
+        toast.info("Presupuesto enviado a la papelera.");
       } else {
-        alert("Error al eliminar presupuesto.");
+        toast.error("Error al eliminar presupuesto.");
       }
     } catch (e) {
       console.error(e);
@@ -2686,8 +2687,9 @@ export default function ClientDetailPage() {
       setShowFullEditModal(false);
       fetchClientDetails();
       fetchSidebarClientsList();
+      toast.success("Datos del cliente actualizados con éxito.");
     } else {
-      alert("Error al actualizar los datos");
+      toast.error("Error al actualizar los datos.");
     }
   };
 
@@ -2821,10 +2823,10 @@ export default function ClientDetailPage() {
       })
     });
     if (res.ok) {
-      alert("Permisos actualizados correctamente");
+      toast.success("Permisos actualizados correctamente.");
       fetchClientDetails();
     } else {
-      alert("Error al actualizar permisos");
+      toast.error("Error al actualizar permisos.");
     }
   };
 
@@ -2928,9 +2930,10 @@ export default function ClientDetailPage() {
       
       // Update lists and navigate to details
       fetchSidebarClientsList();
+      toast.success("Cliente creado correctamente.");
       router.push(`/dashboard/contacts/${newClient.id}`);
     } else {
-      alert("Error al crear cliente");
+      toast.error("Error al crear cliente.");
     }
   };
 
@@ -2946,11 +2949,11 @@ export default function ClientDetailPage() {
         // Force full reload so the contacts list re-fetches and excludes the deleted client
         window.location.href = "/dashboard/contacts";
       } else {
-        alert("Error al eliminar cliente");
+        toast.error("Error al eliminar cliente.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error de red");
+      toast.error("Error de red.");
     }
   };
 
@@ -3409,8 +3412,9 @@ export default function ClientDetailPage() {
       setDoctorSignature(null);
       setDocWizardStep("select_and_edit");
       fetchClientDetails(true);
+      toast.success("Documento guardado y asociado correctamente.");
     } else {
-      alert("Error al guardar el documento firmado");
+      toast.error("Error al guardar el documento firmado.");
     }
   };
 

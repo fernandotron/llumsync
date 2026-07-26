@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
+import { ToastContainer } from "@/components/ToastContainer";
 
 export const metadata: Metadata = {
   title: "LlumSync - Gestión Integral de Centros Clínicos",
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body>
         <AppProvider>
           {children}
+          <ToastContainer />
         </AppProvider>
       </body>
     </html>

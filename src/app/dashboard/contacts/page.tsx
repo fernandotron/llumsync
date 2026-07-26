@@ -10,6 +10,7 @@ import { hasPermission } from "@/lib/permissions";
 import styles from "./Contacts.module.css";
 import { translate } from "@/lib/translations";
 import { getCountryConfig } from "@/lib/countries";
+import { toast } from "@/components/ToastContainer";
 
 interface Client {
   id: string;
@@ -556,11 +557,11 @@ export default function ContactsPage() {
         setSelectedClients([]);
         fetchClients();
       } else {
-        alert("Error al eliminar clientes");
+        toast.success("Error al eliminar clientes");
       }
     } catch (err) {
       console.error(err);
-      alert("Error de red");
+      toast.error("Error de red");
     }
   };
 
@@ -576,11 +577,11 @@ export default function ContactsPage() {
         setSelectedClients([]);
         fetchClients();
       } else {
-        alert("Error al actualizar permisos");
+        toast.error("Error al actualizar permisos");
       }
     } catch (err) {
       console.error(err);
-      alert("Error de red");
+      toast.error("Error de red");
     }
   };
 
@@ -611,11 +612,11 @@ export default function ContactsPage() {
         setSelectedClients([]);
         fetchClients();
       } else {
-        alert("Error al actualizar etiquetas");
+        toast.error("Error al actualizar etiquetas");
       }
     } catch (err) {
       console.error(err);
-      alert("Error de red");
+      toast.error("Error de red");
     }
   };
 
@@ -803,7 +804,7 @@ export default function ContactsPage() {
       setFormTutorMunicipality("");
       fetchClients();
     } else {
-      alert("Error al crear cliente");
+      toast.error("Error al crear cliente");
     }
   };
 
@@ -2228,7 +2229,7 @@ export default function ContactsPage() {
                               onClick={() => {
                                 const name = newCreateTagName.trim().toUpperCase();
                                 if (clientAvailableTags.some(t => t.name === name)) {
-                                  alert("Esta etiqueta ya existe.");
+                                  toast.success("Esta etiqueta ya existe.");
                                   return;
                                 }
                                 const updated = [...clientAvailableTags, { name, color: newCreateTagColor }];
