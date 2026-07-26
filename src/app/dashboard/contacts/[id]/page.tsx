@@ -3089,36 +3089,47 @@ export default function ClientDetailPage() {
     const content = associateEditorRef.current ? associateEditorRef.current.innerHTML : generatedDocContent;
 
     // Extract all signature fields from the content
-    const fields: Array<{id: string; type: "ordinary" | "certified"}> = [];
+    const fields: Array<{id: string; type: "ordinary" | "doctor_ordinary" | "certified"}> = [];
     
-    // Find ordinary signature badges
-    const ordinaryMatches = content.match(/data-type=[\"']?ordinary[\"']?/gi) || [];
+    // Find ordinary patient signature badges
+    const ordinaryMatches = content.match(/data-type=["']?ordinary["']?(?!_)/gi) || [];
     ordinaryMatches.forEach((_, idx) => {
       fields.push({ id: `ordinary_${idx}`, type: "ordinary" });
     });
-    // Also detect text-based [Campo_firma_ordinaria]
-    if (ordinaryMatches.length === 0 && /\[Campo_firma_ordinaria\]/i.test(content)) {
+    // Also detect text-based [Firma Paciente] or [Campo_firma_ordinaria]
+    if (ordinaryMatches.length === 0 && (/\[Campo_firma_ordinaria\]/i.test(content) || /\[Firma Paciente\]/i.test(content))) {
       fields.push({ id: "ordinary_0", type: "ordinary" });
     }
 
+    // Find doctor ordinary signature badges
+    const doctorMatches = content.match(/data-type=["']?doctor_ordinary["']?/gi) || [];
+    doctorMatches.forEach((_, idx) => {
+      fields.push({ id: `doctor_ordinary_${idx}`, type: "doctor_ordinary" });
+    });
+    // Also detect text-based [Firma Médico]
+    if (doctorMatches.length === 0 && /\[Firma M[eé]dico\]/i.test(content)) {
+      fields.push({ id: "doctor_ordinary_0", type: "doctor_ordinary" });
+    }
+
     // Find certified signature badges
-    const certifiedMatches = content.match(/data-type=[\"']?certified[\"']?/gi) || [];
+    const certifiedMatches = content.match(/data-type=["']?certified["']?/gi) || [];
     certifiedMatches.forEach((_, idx) => {
       fields.push({ id: `certified_${idx}`, type: "certified" });
     });
-    // Also detect text-based [Campo_firma_certificada]
-    if (certifiedMatches.length === 0 && /\[Campo_firma_certificada\]/i.test(content)) {
+    // Also detect text-based [Campo_firma_certificada] or [Firma Certificada]
+    if (certifiedMatches.length === 0 && (/\[Campo_firma_certificada\]/i.test(content) || /\[Firma Certificada\]/i.test(content))) {
       fields.push({ id: "certified_0", type: "certified" });
     }
 
     // Reset inline signatures for the new step
-    setDocSignatureFields(fields);
+    setDocSignatureFields(fields as any);
     setInlineSignatures({});
     inlineCanvasRefs.current = {};
 
     // Always go to Step 2 for both types — step 2 handles the distinction
     setDocWizardStep("preview_and_sign");
   };
+
 
   const handleDocCommand = (command: string, value: string = '') => {
     document.execCommand(command, false, value);
@@ -3158,9 +3169,11 @@ export default function ClientDetailPage() {
     } else if (variable === "{{document.date}}") {
       html = `<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${today}</span>`;
     } else if (variable === "{{signature.client}}") {
-      html = '<span class="var-badge var-signature" data-type="ordinary" style="background:#eab308; color:black; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_ordinaria]</span>';
+      html = '<span class="var-badge var-signature" data-type="ordinary" style="background:#eab308; color:black; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Paciente]</span>';
+    } else if (variable === "{{signature.doctor}}") {
+      html = '<span class="var-badge var-signature" data-type="doctor_ordinary" style="background:#3b82f6; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Médico]</span>';
     } else if (variable === "{{signature.certified}}") {
-      html = '<span class="var-badge var-signature" data-type="certified" style="background:#ca8a04; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_certificada]</span>';
+      html = '<span class="var-badge var-signature" data-type="certified" style="background:#ca8a04; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">🔏 [Firma Certificada]</span>';
     } else if (variable === "{{signature.digital}}") {
       html = '<span class="var-badge var-signature" data-type="digital" style="background:#06b6d4; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_digital]</span>';
     } else if (variable === "{{clinic.name}}" || variable === "{{Nombre_Consulta}}") {
@@ -3402,6 +3415,23 @@ export default function ClientDetailPage() {
           </div>`;
         }
         return `<div style="display:inline-block; border:1px dashed #cbd5e1; border-radius:6px; padding:8px 12px; min-width:160px; min-height:60px; text-align:center; color:#94a3b8; font-size:12px; vertical-align:middle;">Sin firmar</div>`;
+      }
+    );
+
+    // Replace doctor ordinary signature fields
+    let doctorOrdinaryIdx = 0;
+    finalContent = finalContent.replace(
+      /(<span[^>]*data-type=["']?doctor_ordinary["']?[^>]*>)(.*?)(<\/span>)/gi,
+      (_match, _open, _inner, _close) => {
+        const fieldId = `doctor_ordinary_${doctorOrdinaryIdx++}`;
+        const sig = inlineSignatures[fieldId] || doctorSignature;
+        if (sig) {
+          return `<div style="display:inline-block; text-align:center; vertical-align:middle; border:1px solid #dbeafe; border-radius:6px; padding:8px 12px; min-width:160px; min-height:60px;">
+            <img src="${sig}" style="max-height:80px; max-width:180px; display:block; margin:0 auto;" alt="Firma Médico" />
+            <span style="font-size:10px; color:#2563eb; display:block; margin-top:4px;">Firmado por el Médico el ${new Date().toLocaleDateString("es-ES")}</span>
+          </div>`;
+        }
+        return `<div style="display:inline-block; border:1px dashed #dbeafe; border-radius:6px; padding:8px 12px; min-width:160px; min-height:60px; text-align:center; color:#93c5fd; font-size:12px; vertical-align:middle;">Sin firmar (Médico)</div>`;
       }
     );
 
@@ -5040,7 +5070,9 @@ export default function ClientDetailPage() {
                                       <button type="button" onClick={() => { handleInsertDocVariable("{{Dirección_Consulta}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Dirección Clínica</button>
 
                                       <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", background: "var(--bg-input)", letterSpacing: "0.5px" }}>FIRMAS REQUERIDAS</div>
-                                      <button type="button" onClick={() => { handleInsertDocVariable("{{signature.client}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Campo Firma Paciente</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{signature.client}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#eab308", color: "black", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>✍️</span> Firma Paciente (Ordinaria)</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{signature.doctor}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#3b82f6", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>✍️</span> Firma Médico (Ordinaria)</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{signature.certified}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#ca8a04", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>🔏</span> Firma Certificada (Remota)</button>
                                     </div>
                                   )}
                                 </div>
@@ -5079,11 +5111,12 @@ export default function ClientDetailPage() {
 
                       {/* Step 2: Final Preview and Interactive Signatures */}
                       {docWizardStep === "preview_and_sign" && (() => {
-                        const hasCertified = docSignatureFields.some(f => f.type === "certified");
-                        const hasOrdinary = docSignatureFields.some(f => f.type === "ordinary");
-                        const ordinaryFields = docSignatureFields.filter(f => f.type === "ordinary");
-                        const certifiedFields = docSignatureFields.filter(f => f.type === "certified");
-                        const allOrdinarySigned = ordinaryFields.every(f => inlineSignatures[f.id]);
+                        const ordinaryFields = (docSignatureFields as any[]).filter((f: any) => f.type === "ordinary");
+                        const doctorOrdinaryFields = (docSignatureFields as any[]).filter((f: any) => f.type === "doctor_ordinary");
+                        const certifiedFields = (docSignatureFields as any[]).filter((f: any) => f.type === "certified");
+                        const allInlineFields = [...ordinaryFields, ...doctorOrdinaryFields];
+                        const allInlineSigned = allInlineFields.every((f: any) => inlineSignatures[f.id]);
+
 
                         return (
                           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -5348,8 +5381,143 @@ export default function ClientDetailPage() {
                                   </div>
                                 ))}
 
+                                {/* Doctor Ordinary (inline) signature fields */}
+                                {doctorOrdinaryFields.map((field: any, idx: number) => (
+                                  <div key={field.id} style={{
+                                    background: "var(--bg-panel-solid)",
+                                    border: inlineSignatures[field.id] ? "1.5px solid #10b981" : "1.5px solid rgba(59,130,246,0.4)",
+                                    borderRadius: "14px",
+                                    padding: "20px",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "14px"
+                                  }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <div style={{
+                                          width: "36px", height: "36px", borderRadius: "50%",
+                                          background: inlineSignatures[field.id] ? "rgba(16,185,129,0.12)" : "rgba(59,130,246,0.12)",
+                                          display: "flex", alignItems: "center", justifyContent: "center",
+                                          fontSize: "18px"
+                                        }}>
+                                          {inlineSignatures[field.id] ? "✅" : "🩺"}
+                                        </div>
+                                        <div>
+                                          <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>
+                                            Firma Médico {doctorOrdinaryFields.length > 1 ? `#${idx + 1}` : ""}
+                                          </div>
+                                          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                                            {inlineSignatures[field.id] ? "✓ Firmado correctamente" : "El médico/terapeuta firma aquí mismo"}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div style={{ display: "flex", gap: "8px" }}>
+                                        {inlineSignatures[field.id] && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setInlineSignatures(prev => ({ ...prev, [field.id]: null }))}
+                                            style={{ padding: "6px 12px", background: "none", border: "1px solid var(--border-color)", borderRadius: "8px", fontSize: "12px", cursor: "pointer", color: "var(--text-muted)" }}
+                                          >
+                                            🔄 Re-firmar
+                                          </button>
+                                        )}
+                                        {!inlineSignatures[field.id] && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setActiveInlineField(field.id);
+                                              setTimeout(() => {
+                                                const canvas = inlineCanvasRefs.current[field.id];
+                                                if (canvas) {
+                                                  const rect = canvas.getBoundingClientRect();
+                                                  canvas.width = rect.width || 400;
+                                                  canvas.height = rect.height || 160;
+                                                  const ctx = canvas.getContext("2d");
+                                                  if (ctx) { ctx.strokeStyle = "#1e3a8a"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round"; }
+                                                }
+                                              }, 50);
+                                            }}
+                                            style={{ padding: "8px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
+                                          >
+                                            🩺 Firmar como Médico
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {activeInlineField === field.id && (
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                        <div style={{ fontSize: "12px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
+                                          <span>👆</span> Dibuja la firma del médico (con ratón, dedo o stylus)
+                                        </div>
+                                        <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden", border: "1.5px solid #3b82f6", background: "#f0f9ff" }}>
+                                          <canvas
+                                            ref={(el) => { inlineCanvasRefs.current[field.id] = el; }}
+                                            style={{ width: "100%", height: "160px", display: "block", touchAction: "none", cursor: "crosshair" }}
+                                            onMouseDown={(e) => {
+                                              setInlineIsDrawing(true);
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+                                              ctx.beginPath(); ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+                                            }}
+                                            onMouseMove={(e) => {
+                                              if (!inlineIsDrawing) return;
+                                              const canvas = inlineCanvasRefs.current[field.id];
+                                              const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+                                              ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY); ctx.stroke();
+                                            }}
+                                            onMouseUp={() => setInlineIsDrawing(false)}
+                                            onMouseLeave={() => setInlineIsDrawing(false)}
+                                            onTouchStart={(e) => {
+                                              e.preventDefault(); setInlineIsDrawing(true);
+                                              const canvas = inlineCanvasRefs.current[field.id]; const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+                                              const t = e.touches[0]; ctx.beginPath(); ctx.moveTo((t.clientX - rect.left) * scaleX, (t.clientY - rect.top) * scaleY);
+                                            }}
+                                            onTouchMove={(e) => {
+                                              e.preventDefault(); if (!inlineIsDrawing) return;
+                                              const canvas = inlineCanvasRefs.current[field.id]; const ctx = canvas?.getContext("2d");
+                                              if (!canvas || !ctx) return;
+                                              const rect = canvas.getBoundingClientRect();
+                                              const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+                                              const t = e.touches[0]; ctx.lineTo((t.clientX - rect.left) * scaleX, (t.clientY - rect.top) * scaleY); ctx.stroke();
+                                            }}
+                                            onTouchEnd={() => setInlineIsDrawing(false)}
+                                          />
+                                          <div style={{ position: "absolute", bottom: "8px", left: "50%", transform: "translateX(-50%)", fontSize: "11px", color: "#93c5fd", pointerEvents: "none", fontStyle: "italic" }}>
+                                            Firme aquí (Médico)
+                                          </div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                                          <button type="button" onClick={() => { const c = inlineCanvasRefs.current[field.id]; if (c) { const ctx = c.getContext("2d"); if (ctx) ctx.clearRect(0, 0, c.width, c.height); } }} style={{ padding: "7px 14px", background: "none", border: "1px solid var(--border-color)", borderRadius: "8px", fontSize: "12px", cursor: "pointer", color: "var(--text-muted)" }}>🗑 Borrar</button>
+                                          <button type="button" onClick={() => { const canvas = inlineCanvasRefs.current[field.id]; if (!canvas) return; const dataUrl = canvas.toDataURL("image/png"); setInlineSignatures(prev => ({ ...prev, [field.id]: dataUrl })); setDoctorSignature(dataUrl); setActiveInlineField(null); }} style={{ padding: "7px 16px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>✓ Confirmar Firma Médico</button>
+                                          <button type="button" onClick={() => setActiveInlineField(null)} style={{ padding: "7px 14px", background: "none", border: "1px solid var(--border-color)", borderRadius: "8px", fontSize: "12px", cursor: "pointer", color: "var(--text-muted)" }}>Cancelar</button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {inlineSignatures[field.id] && (
+                                      <div style={{ border: "1px solid #dbeafe", borderRadius: "10px", padding: "12px 16px", background: "rgba(59,130,246,0.04)", display: "flex", alignItems: "center", gap: "16px" }}>
+                                        <img src={inlineSignatures[field.id]!} alt="Firma médico" style={{ maxHeight: "70px", maxWidth: "200px", border: "1px solid #e2e8f0", borderRadius: "6px", background: "white", padding: "4px" }} />
+                                        <div style={{ fontSize: "12px", color: "#2563eb" }}>
+                                          <strong>✓ Firma médico capturada</strong><br/>
+                                          <span style={{ color: "var(--text-muted)" }}>{new Date().toLocaleString("es-ES")}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+
                                 {/* Certified signature fields (remote only) */}
-                                {certifiedFields.map((field, idx) => (
+                                {certifiedFields.map((field: any, idx: number) => (
                                   <div key={field.id} style={{
                                     background: "rgba(251,191,36,0.06)",
                                     border: "1.5px solid rgba(234,179,8,0.4)",
@@ -5466,10 +5634,10 @@ export default function ClientDetailPage() {
                         </>
                       ) : (() => {
                           const hasCertifiedOnly = docSignatureFields.length > 0 &&
-                            docSignatureFields.every(f => f.type === "certified");
-                          const ordinaryFields = docSignatureFields.filter(f => f.type === "ordinary");
-                          const allOrdinarySigned = ordinaryFields.length === 0 ||
-                            ordinaryFields.every(f => inlineSignatures[f.id]);
+                            (docSignatureFields as any[]).every((f: any) => f.type === "certified");
+                          const allInlineFields = (docSignatureFields as any[]).filter((f: any) => f.type === "ordinary" || f.type === "doctor_ordinary");
+                          const allInlineSigned = allInlineFields.length === 0 ||
+                            allInlineFields.every((f: any) => inlineSignatures[f.id]);
 
                           return (
                             <>
@@ -5549,17 +5717,17 @@ export default function ClientDetailPage() {
                                     type="button"
                                     className="btn btn-primary"
                                     onClick={handleSaveAssociatedDocument}
-                                    disabled={!allOrdinarySigned && ordinaryFields.length > 0}
-                                    title={!allOrdinarySigned && ordinaryFields.length > 0 ? "Firma todos los campos de firma ordinaria antes de guardar" : ""}
+                                    disabled={!allInlineSigned && allInlineFields.length > 0}
+                                    title={!allInlineSigned && allInlineFields.length > 0 ? "Completa todos los campos de firma antes de guardar" : ""}
                                     style={{
-                                      background: allOrdinarySigned ? "#10b981" : "#94a3b8",
-                                      borderColor: allOrdinarySigned ? "#10b981" : "#94a3b8",
+                                      background: allInlineSigned ? "#10b981" : "#94a3b8",
+                                      borderColor: allInlineSigned ? "#10b981" : "#94a3b8",
                                       color: "white",
-                                      opacity: !allOrdinarySigned && ordinaryFields.length > 0 ? 0.7 : 1,
-                                      cursor: !allOrdinarySigned && ordinaryFields.length > 0 ? "not-allowed" : "pointer"
+                                      opacity: !allInlineSigned && allInlineFields.length > 0 ? 0.7 : 1,
+                                      cursor: !allInlineSigned && allInlineFields.length > 0 ? "not-allowed" : "pointer"
                                     }}
                                   >
-                                    {allOrdinarySigned || ordinaryFields.length === 0 ? "✓ Guardar Documento" : "✍️ Pendiente de Firma"}
+                                    {allInlineSigned || allInlineFields.length === 0 ? "✓ Guardar Documento" : "✍️ Pendiente de Firma"}
                                   </button>
                                 )}
                               </div>
