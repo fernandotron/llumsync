@@ -658,7 +658,13 @@ export default function ClientDetailPage() {
         setFormEmail(data.email || "");
         setFormDniNif(data.dniNif || "");
         if (data.birthDate) {
-          setFormBirthDate(data.birthDate.split("T")[0]);
+          const clean = data.birthDate.split("T")[0];
+          if (clean.includes("-")) {
+            const [y, m, d] = clean.split("-");
+            setFormBirthDate(`${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`);
+          } else {
+            setFormBirthDate(clean);
+          }
         } else {
           setFormBirthDate("");
         }
@@ -718,7 +724,17 @@ export default function ClientDetailPage() {
       setFormPhone(client.phone || "");
       setFormEmail(client.email || "");
       setFormDniNif(client.dniNif || "");
-      setFormBirthDate(client.birthDate ? client.birthDate.split("T")[0] : "");
+      if (client.birthDate) {
+        const clean = client.birthDate.split("T")[0];
+        if (clean.includes("-")) {
+          const [y, m, d] = clean.split("-");
+          setFormBirthDate(`${d.padStart(2,"0")}/${m.padStart(2,"0")}/${y}`);
+        } else {
+          setFormBirthDate(clean);
+        }
+      } else {
+        setFormBirthDate("");
+      }
       setFormGender(client.gender || "Femenino");
       setFormAddress(client.address || "");
       setFormMunicipality(client.municipality || "");
@@ -2455,13 +2471,23 @@ export default function ClientDetailPage() {
     e.preventDefault();
     if (!client) return;
 
+    let birthDateParsed = null;
+    if (formBirthDate) {
+      if (formBirthDate.includes("/")) {
+        const parts = formBirthDate.split("/");
+        birthDateParsed = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      } else {
+        birthDateParsed = formBirthDate;
+      }
+    }
+
     const payload = {
       firstName: formFirstName,
       lastName: formLastName,
       phone: formPhone,
       email: formEmail,
       dniNif: formDniNif,
-      birthDate: formBirthDate || null,
+      birthDate: birthDateParsed,
       gender: formGender,
       address: formAddress,
       municipality: formMunicipality,
