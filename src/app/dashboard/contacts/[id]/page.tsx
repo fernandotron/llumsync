@@ -244,6 +244,10 @@ export default function ClientDetailPage() {
 
   // Full Edit Modal State
   const [showFullEditModal, setShowFullEditModal] = useState(false);
+  const [editTab, setEditTab] = useState<"general" | "otros">("general");
+  const [formIsSelfEmployed, setFormIsSelfEmployed] = useState(false);
+  const [formIsCompany, setFormIsCompany] = useState(false);
+  const [formReceivesReminders, setFormReceivesReminders] = useState(true);
 
   // Permissions state
   const [allStaff, setAllStaff] = useState<any[]>([]);
@@ -682,6 +686,10 @@ export default function ClientDetailPage() {
         setFormTutorPostalCode(data.tutorPostalCode || "");
         setFormTutorMunicipality(data.tutorMunicipality || "");
 
+        setFormIsSelfEmployed(data.isSelfEmployed ?? false);
+        setFormIsCompany(data.isCompany ?? false);
+        setFormReceivesReminders(data.receivesReminders ?? true);
+
         // Set allowed user permissions
         if (data.allowedUsers) {
           setSelectedPermissions(data.allowedUsers.map((u: any) => u.id));
@@ -702,6 +710,42 @@ export default function ClientDetailPage() {
         router.push("/dashboard/contacts");
       });
   };
+
+  useEffect(() => {
+    if (showFullEditModal && client) {
+      setFormFirstName(client.firstName || "");
+      setFormLastName(client.lastName || "");
+      setFormPhone(client.phone || "");
+      setFormEmail(client.email || "");
+      setFormDniNif(client.dniNif || "");
+      setFormBirthDate(client.birthDate ? client.birthDate.split("T")[0] : "");
+      setFormGender(client.gender || "Femenino");
+      setFormAddress(client.address || "");
+      setFormMunicipality(client.municipality || "");
+      setFormPostalCode(client.postalCode || "");
+      setFormCountry(client.country || "España");
+      setFormIban(client.iban || "");
+      setFormBic(client.bic || "");
+      setFormTags(client.tags || "");
+      setFormAestheticTreatments(client.aestheticTreatments || "");
+      setFormAllergies(client.allergies || "");
+      setFormMedication(client.medication || "");
+      setFormMedicalHistory(client.medicalHistory || "");
+      setFormOtherNotes(client.otherNotes || "");
+      setFormTutorName(client.tutorName || "");
+      setFormTutorLastName(client.tutorLastName || "");
+      setFormTutorDniNif(client.tutorDniNif || "");
+      setFormTutorPhone(client.tutorPhone || "");
+      setFormTutorEmail(client.tutorEmail || "");
+      setFormTutorAddress(client.tutorAddress || "");
+      setFormTutorPostalCode(client.tutorPostalCode || "");
+      setFormTutorMunicipality(client.tutorMunicipality || "");
+      setFormIsSelfEmployed(client.isSelfEmployed ?? false);
+      setFormIsCompany(client.isCompany ?? false);
+      setFormReceivesReminders(client.receivesReminders ?? true);
+      setEditTab("general");
+    }
+  }, [showFullEditModal, client]);
 
   const handleSaveFormField = async (fieldName: string) => {
     if (!client || !selectedFormTemplate) return;
@@ -2445,9 +2489,9 @@ export default function ClientDetailPage() {
       tutorMunicipality: formTutorMunicipality,
 
       // switches
-      isSelfEmployed: client.isSelfEmployed,
-      isCompany: client.isCompany,
-      receivesReminders: client.receivesReminders,
+      isSelfEmployed: formIsSelfEmployed,
+      isCompany: formIsCompany,
+      receivesReminders: formReceivesReminders,
       occupation: client.occupation,
       maritalStatus: client.maritalStatus,
     };
@@ -7727,189 +7771,499 @@ export default function ClientDetailPage() {
       )}
 
 
-      {/* FULL EDIT DATA MODAL */}
-      {showFullEditModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "700px" }}>
-            <div className={styles.modalHeader}>
-              <h2>Editar Ficha de Cliente</h2>
-              <button onClick={() => setShowFullEditModal(false)} className={styles.closeBtn}>
-                <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
+      {/* FULL EDIT DATA DRAWER */}
+      {showFullEditModal && typeof window !== "undefined" && createPortal(
+        <div className={styles.drawerOverlay} onClick={() => setShowFullEditModal(false)}>
+          <div className={styles.drawerPanel} onClick={(e) => e.stopPropagation()}>
+            {/* Drawer Header */}
+            <div className={styles.drawerHeader}>
+              <h2 className={styles.drawerTitle}>Editar cliente</h2>
+              <button className={styles.drawerCloseBtn} onClick={() => setShowFullEditModal(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             </div>
 
-            <form onSubmit={handleSaveChanges} className={styles.modalForm}>
-              <div className={styles.columnsGrid}>
-                {/* General contact data */}
-                <div className={styles.detailsGroup}>
-                  <h3>Datos Generales</h3>
-                  
-                  <div className="form-group">
-                    <label className="form-label">Nombre</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formFirstName}
-                      onChange={(e) => setFormFirstName(e.target.value)}
-                      required
-                    />
-                  </div>
+            {/* Tabs */}
+            <div className={styles.drawerTabs}>
+              <button
+                type="button"
+                className={`${styles.drawerTab} ${editTab === "general" ? styles.drawerTabActive : ""}`}
+                onClick={() => setEditTab("general")}
+              >
+                Información general
+              </button>
+              <button
+                type="button"
+                className={`${styles.drawerTab} ${editTab === "otros" ? styles.drawerTabActive : ""}`}
+                onClick={() => setEditTab("otros")}
+              >
+                Otros datos
+              </button>
+            </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Apellidos</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formLastName}
-                      onChange={(e) => setFormLastName(e.target.value)}
-                      required
-                    />
-                  </div>
+            <form onSubmit={handleSaveChanges} className={styles.drawerForm}>
+              <div className={styles.drawerScrollBody}>
 
-                  <div className="form-group">
-                    <label className="form-label">Teléfono</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formPhone}
-                      onChange={(e) => setFormPhone(e.target.value)}
-                    />
-                  </div>
+                {/* ── TAB: Información general ── */}
+                {editTab === "general" && (
+                  <>
+                    <p className={styles.drawerSectionTitle}>Datos generales</p>
 
-                  <div className="form-group">
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      className="input"
-                      value={formEmail}
-                      onChange={(e) => setFormEmail(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{identityLabel}</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formDniNif}
-                      onChange={(e) => setFormDniNif(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Fecha de Nacimiento</label>
-                    <input
-                      type="date"
-                      className="input"
-                      value={formBirthDate}
-                      onChange={(e) => setFormBirthDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Additional / Location details */}
-                <div className={styles.detailsGroup}>
-                  <h3>Localización y Representante</h3>
-
-                  <div className="form-group" style={{ position: "relative" }} ref={addressAutocompleteRef}>
-                    <label className="form-label">Dirección</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formAddress}
-                      onChange={(e) => handleAddressChange(e.target.value)}
-                    />
-                    
-                    {showAddressDropdown && addressSuggestions.length > 0 && (
-                      <div style={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        right: 0,
-                        backgroundColor: "var(--bg-panel-solid, #ffffff)",
-                        border: "1px solid var(--border-color, #e2e8f0)",
-                        borderRadius: "8px",
-                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-                        zIndex: 100,
-                        maxHeight: "200px",
-                        overflowY: "auto",
-                        marginTop: "4px"
-                      }}>
-                        {addressSuggestions.map((item, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => handleSelectAddressSuggestion(item)}
-                            style={{
-                              padding: "10px 12px",
-                              cursor: "pointer",
-                              fontSize: "13px",
-                              borderBottom: idx === addressSuggestions.length - 1 ? "none" : "1px solid var(--border-color)",
-                              color: "var(--text-primary)",
-                              textAlign: "left"
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input, #f7fafc)"}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-                          >
-                            {item.displayName}
-                          </div>
-                        ))}
+                    {/* Nombre / Apellidos */}
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Nombre *</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir nombre"
+                          value={formFirstName} onChange={(e) => setFormFirstName(e.target.value)} required />
                       </div>
-                    )}
-                  </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Apellidos *</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir apellidos"
+                          value={formLastName} onChange={(e) => setFormLastName(e.target.value)} required />
+                      </div>
+                    </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Ciudad / Municipio</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formMunicipality}
-                      onChange={(e) => setFormMunicipality(e.target.value)}
-                    />
-                  </div>
+                    {/* Fecha nacimiento / DNI */}
+                    <div className={styles.drawerGrid2}>
+                      {/* Birth date with calendar popup */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>Fecha de nacimiento</label>
+                        <button
+                          type="button"
+                          className={styles.drawerInputBtn}
+                          onClick={() => {
+                            setShowBirthCalendar((v) => !v);
+                            setShowPhoneDropdown(false);
+                            setShowCountryDropdown(false);
+                            setShowDniDropdown(false);
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                          </svg>
+                          <span style={{ color: formBirthDate ? "var(--text-primary)" : "var(--text-muted)" }}>
+                            {formBirthDate || "dd/mm/aaaa"}
+                          </span>
+                        </button>
 
-                  <div className="form-group">
-                    <label className="form-label">Código Postal</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formPostalCode}
-                      onChange={(e) => setFormPostalCode(e.target.value)}
-                    />
-                  </div>
+                        {showBirthCalendar && (
+                          <div ref={birthCalRef} className={styles.birthCalendar}>
+                            {/* Calendar nav */}
+                            <div className={styles.birthCalHeader}>
+                              <button type="button" className={styles.birthCalNav}
+                                onClick={() => {
+                                  if (birthCalMonth === 0) { setBirthCalMonth(11); setBirthCalYear(y => y - 1); }
+                                  else setBirthCalMonth(m => m - 1);
+                                }}>‹</button>
+                              <div className={styles.birthCalTitle}>
+                                <select className={styles.birthCalSelect} value={birthCalMonth}
+                                  onChange={(e) => setBirthCalMonth(Number(e.target.value))}>
+                                  {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+                                    .map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                </select>
+                                <select className={styles.birthCalSelect} value={birthCalYear}
+                                  onChange={(e) => setBirthCalYear(Number(e.target.value))}>
+                                  {Array.from({ length: 120 }, (_, i) => new Date().getFullYear() - i)
+                                    .map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                              </div>
+                              <button type="button" className={styles.birthCalNav}
+                                onClick={() => {
+                                  const maxY = new Date().getFullYear();
+                                  const maxM = new Date().getMonth();
+                                  if (birthCalYear < maxY || (birthCalYear === maxY && birthCalMonth < maxM)) {
+                                    if (birthCalMonth === 11) { setBirthCalMonth(0); setBirthCalYear(y => y + 1); }
+                                    else setBirthCalMonth(m => m + 1);
+                                  }
+                                }}>›</button>
+                            </div>
 
-                  <div className="form-group">
-                    <label className="form-label">País</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formCountry}
-                      onChange={(e) => setFormCountry(e.target.value)}
-                    />
-                  </div>
+                            {/* Day headers */}
+                            <div className={styles.birthCalGrid}>
+                              {["Lu","Ma","Mi","Ju","Vi","Sá","Do"].map(d => (
+                                <div key={d} className={styles.birthCalDayLabel}>{d}</div>
+                              ))}
+                              {(() => {
+                                const today = new Date();
+                                const firstDay = new Date(birthCalYear, birthCalMonth, 1).getDay();
+                                const offset = firstDay === 0 ? 6 : firstDay - 1;
+                                const daysInMonth = new Date(birthCalYear, birthCalMonth + 1, 0).getDate();
+                                const cells = [];
+                                for (let i = 0; i < offset; i++) cells.push(<div key={`e${i}`} />);
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                  const dateObj = new Date(birthCalYear, birthCalMonth, d);
+                                  const isFuture = dateObj > today;
+                                  const formatted = `${String(d).padStart(2,"0")}/${String(birthCalMonth+1).padStart(2,"0")}/${birthCalYear}`;
+                                  const isSelected = formBirthDate === formatted;
+                                  cells.push(
+                                    <button key={d} type="button"
+                                      disabled={isFuture}
+                                      className={`${styles.birthCalDay} ${isSelected ? styles.birthCalDaySelected : ""} ${isFuture ? styles.birthCalDayDisabled : ""}`}
+                                      onClick={() => { setFormBirthDate(formatted); setShowBirthCalendar(false); }}
+                                    >{d}</button>
+                                  );
+                                }
+                                return cells;
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Etiquetas (separadas por comas)</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={formTags}
-                      onChange={(e) => setFormTags(e.target.value)}
-                    />
-                  </div>
-                </div>
+                      {/* DNI/NIF */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>{identityLabel}</label>
+                        <div className={styles.drawerInputFlag}>
+                          <button type="button" className={styles.flagPickerBtn}
+                            onClick={() => { setShowDniDropdown(v => !v); setShowPhoneDropdown(false); setShowCountryDropdown(false); setShowBirthCalendar(false); }}>
+                            <span>{dniCountry.flag}</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                          </button>
+                          <input type="text" className={styles.drawerInputFlagInput} placeholder={`Añadir ${identityLabel} / Pasaporte`}
+                            value={formDniNif} onChange={(e) => setFormDniNif(e.target.value)} />
+                        </div>
+
+                        {showDniDropdown && (
+                          <div ref={dniDropdownRef} className={styles.countryDropdown}>
+                            <div className={styles.countrySearch}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input autoFocus type="text" placeholder="Buscar país..."
+                                className={styles.countrySearchInput}
+                                value={dniSearch} onChange={(e) => setDniSearch(e.target.value)} />
+                            </div>
+                            <div className={styles.countryList}>
+                              {COUNTRIES.filter(c =>
+                                c.name.toLowerCase().includes(dniSearch.toLowerCase())
+                              ).map(c => (
+                                <button key={c.code} type="button" className={styles.countryOption}
+                                  onClick={() => { setDniCountry(c); setShowDniDropdown(false); setDniSearch(""); }}>
+                                  <span>{c.flag}</span>
+                                  <span className={styles.countryName}>{c.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Teléfono / Email */}
+                    <div className={styles.drawerGrid2}>
+                      {/* Phone with country picker */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>Número de teléfono</label>
+                        <div className={styles.drawerInputFlag}>
+                          <button type="button" className={styles.flagPickerBtn}
+                            onClick={() => { setShowPhoneDropdown(v => !v); setShowCountryDropdown(false); setShowBirthCalendar(false); setShowDniDropdown(false); }}>
+                            <span>{phoneCountry.flag}</span>
+                            <span className={styles.flagDial}>{phoneCountry.dial}</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                          </button>
+                          <input type="tel" className={styles.drawerInputFlagInput} placeholder=""
+                            value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
+                        </div>
+
+                        {showPhoneDropdown && (
+                          <div ref={phoneDropdownRef} className={styles.countryDropdown}>
+                            <div className={styles.countrySearch}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input autoFocus type="text" placeholder="Buscar país..."
+                                className={styles.countrySearchInput}
+                                value={phoneSearch} onChange={(e) => setPhoneSearch(e.target.value)} />
+                            </div>
+                            <div className={styles.countryList}>
+                              {COUNTRIES.filter(c =>
+                                c.name.toLowerCase().includes(phoneSearch.toLowerCase()) ||
+                                c.dial.includes(phoneSearch)
+                              ).map(c => (
+                                <button key={c.code} type="button" className={styles.countryOption}
+                                  onClick={() => { setPhoneCountry(c); setShowPhoneDropdown(false); setPhoneSearch(""); }}>
+                                  <span>{c.flag}</span>
+                                  <span className={styles.countryName}>{c.name}</span>
+                                  <span className={styles.countryDial}>{c.dial}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Email</label>
+                        <input type="email" className={styles.drawerInput} placeholder="Añadir email"
+                          value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                      </div>
+                    </div>
+
+                    {/* País / Dirección */}
+                    <div className={styles.drawerGrid2}>
+                      {/* Country picker */}
+                      <div className={styles.drawerField} style={{ position: "relative" }}>
+                        <label className={styles.drawerLabel}>País</label>
+                        <div className={styles.drawerInputFlag}>
+                          <button type="button" className={styles.flagPickerBtn}
+                            onClick={() => { setShowCountryDropdown(v => !v); setShowPhoneDropdown(false); setShowBirthCalendar(false); setShowDniDropdown(false); }}>
+                            <span>{countryDropdownCountry.flag}</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                          </button>
+                          <input type="text" className={styles.drawerInputFlagInput}
+                            placeholder="Añadir País"
+                            value={formCountry}
+                            onChange={(e) => setFormCountry(e.target.value)} />
+                        </div>
+
+                        {showCountryDropdown && (
+                          <div ref={countryDropdownRef} className={styles.countryDropdown}>
+                            <div className={styles.countrySearch}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input autoFocus type="text" placeholder="Buscar país..."
+                                className={styles.countrySearchInput}
+                                value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)} />
+                            </div>
+                            <div className={styles.countryList}>
+                              {COUNTRIES.filter(c =>
+                                c.name.toLowerCase().includes(countrySearch.toLowerCase())
+                              ).map(c => (
+                                <button key={c.code} type="button" className={styles.countryOption}
+                                  onClick={() => {
+                                    setCountryDropdownCountry(c);
+                                    setFormCountry(c.name);
+                                    setShowCountryDropdown(false);
+                                    setCountrySearch("");
+                                  }}>
+                                  <span>{c.flag}</span>
+                                  <span className={styles.countryName}>{c.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.drawerField} style={{ position: "relative" }} ref={addressAutocompleteRef}>
+                        <label className={styles.drawerLabel}>Dirección</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir dirección"
+                          value={formAddress} onChange={(e) => handleAddressChange(e.target.value)} />
+                        
+                        {showAddressDropdown && addressSuggestions.length > 0 && (
+                          <div style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            backgroundColor: "var(--bg-panel-solid, #ffffff)",
+                            border: "1px solid var(--border-color, #e2e8f0)",
+                            borderRadius: "8px",
+                            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                            zIndex: 100,
+                            maxHeight: "200px",
+                            overflowY: "auto",
+                            marginTop: "4px"
+                          }}>
+                            {addressSuggestions.map((item, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => handleSelectAddressSuggestion(item)}
+                                style={{
+                                  padding: "10px 12px",
+                                  cursor: "pointer",
+                                  fontSize: "13px",
+                                  borderBottom: idx === addressSuggestions.length - 1 ? "none" : "1px solid var(--border-color)",
+                                  color: "var(--text-primary)",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input, #f7fafc)"}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                              >
+                                {item.displayName}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ciudad / Código Postal */}
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Ciudad / Municipio</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir ciudad / municipio"
+                          value={formMunicipality} onChange={(e) => setFormMunicipality(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Código Postal</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Añadir código postal"
+                          value={formPostalCode} onChange={(e) => setFormPostalCode(e.target.value)} />
+                      </div>
+                    </div>
+
+                    {/* Switches */}
+                    <div className={styles.drawerSwitchGroup}>
+                      <label className={styles.drawerSwitchRow}>
+                        <span className={`${styles.drawerToggle} ${formIsSelfEmployed ? styles.drawerToggleOn : ""}`}
+                          onClick={() => setFormIsSelfEmployed(!formIsSelfEmployed)}>
+                          <span className={styles.drawerToggleThumb} />
+                        </span>
+                        <span className={styles.drawerSwitchLabel}>Es Autónomo</span>
+                      </label>
+                      <label className={styles.drawerSwitchRow}>
+                        <span className={`${styles.drawerToggle} ${formIsCompany ? styles.drawerToggleOn : ""}`}
+                          onClick={() => setFormIsCompany(!formIsCompany)}>
+                          <span className={styles.drawerToggleThumb} />
+                        </span>
+                        <span className={styles.drawerSwitchLabel}>Es Empresa</span>
+                      </label>
+                      <label className={styles.drawerSwitchRow}>
+                        <span className={`${styles.drawerToggle} ${formReceivesReminders ? styles.drawerToggleOn : ""}`}
+                          onClick={() => setFormReceivesReminders(!formReceivesReminders)}>
+                          <span className={styles.drawerToggleThumb} />
+                        </span>
+                        <span className={styles.drawerSwitchLabel}>Recibirá Recordatorios</span>
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {/* ── TAB: Otros datos ── */}
+                {editTab === "otros" && (
+                  <>
+                    <p className={styles.drawerSectionTitle}>Género y etiquetas</p>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Género</label>
+                        <select className={styles.drawerSelect} value={formGender} onChange={(e) => setFormGender(e.target.value)}>
+                          <option value="Femenino">Femenino</option>
+                          <option value="Masculino">Masculino</option>
+                          <option value="Otro">Otro</option>
+                        </select>
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Etiquetas (separadas por coma)</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Ej: Frecuente, Espalda"
+                          value={formTags} onChange={(e) => setFormTags(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <p className={styles.drawerSectionTitle}>Facturación</p>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>IBAN</label>
+                        <input type="text" className={styles.drawerInput} placeholder="ES21 0000..."
+                          value={formIban} onChange={(e) => setFormIban(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>BIC / SWIFT</label>
+                        <input type="text" className={styles.drawerInput} placeholder="BARCES..."
+                          value={formBic} onChange={(e) => setFormBic(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <p className={styles.drawerSectionTitle}>Salud</p>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Tratamientos estéticos previos</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Describe tratamientos previos..."
+                        value={formAestheticTreatments} onChange={(e) => setFormAestheticTreatments(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Alergias</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Alergias conocidas..."
+                        value={formAllergies} onChange={(e) => setFormAllergies(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Medicación actual</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Medicamentos que toma..."
+                        value={formMedication} onChange={(e) => setFormMedication(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Antecedentes médicos</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Antecedentes relevantes..."
+                        value={formMedicalHistory} onChange={(e) => setFormMedicalHistory(e.target.value)} rows={2} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Otras notas</label>
+                      <textarea className={styles.drawerTextarea} placeholder="Observaciones adicionales..."
+                        value={formOtherNotes} onChange={(e) => setFormOtherNotes(e.target.value)} rows={2} />
+                    </div>
+
+                    <p className={styles.drawerSectionTitle}>Tutor / Representante</p>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Nombre tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Nombre"
+                          value={formTutorName} onChange={(e) => setFormTutorName(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Apellidos tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Apellidos"
+                          value={formTutorLastName} onChange={(e) => setFormTutorLastName(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>DNI tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="DNI tutor"
+                          value={formTutorDniNif} onChange={(e) => setFormTutorDniNif(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Teléfono tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Teléfono tutor"
+                          value={formTutorPhone} onChange={(e) => setFormTutorPhone(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Email tutor</label>
+                      <input type="email" className={styles.drawerInput} placeholder="tutor@correo.com"
+                        value={formTutorEmail} onChange={(e) => setFormTutorEmail(e.target.value)} />
+                    </div>
+                    <div className={styles.drawerField} style={{ marginBottom: 12 }}>
+                      <label className={styles.drawerLabel}>Dirección tutor</label>
+                      <input type="text" className={styles.drawerInput} placeholder="Dirección tutor"
+                        value={formTutorAddress} onChange={(e) => setFormTutorAddress(e.target.value)} />
+                    </div>
+                    <div className={styles.drawerGrid2}>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>Municipio tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Municipio tutor"
+                          value={formTutorMunicipality} onChange={(e) => setFormTutorMunicipality(e.target.value)} />
+                      </div>
+                      <div className={styles.drawerField}>
+                        <label className={styles.drawerLabel}>C.P. tutor</label>
+                        <input type="text" className={styles.drawerInput} placeholder="Código postal"
+                          value={formTutorPostalCode} onChange={(e) => setFormTutorPostalCode(e.target.value)} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div className={styles.modalActions}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowFullEditModal(false)}>
+              {/* Footer actions */}
+              <div className={styles.drawerFooter}>
+                <button type="button" className={styles.drawerCancelBtn} onClick={() => setShowFullEditModal(false)}>
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Guardar Cambios
+                <button type="submit" className={styles.drawerSaveBtn}>
+                  Guardar
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ASSOCIATE VOUCHER MODAL */}
