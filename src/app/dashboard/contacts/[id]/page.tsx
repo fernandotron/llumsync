@@ -4028,14 +4028,6 @@ export default function ClientDetailPage() {
               {t("tabArticlesClient")}
             </button>
           )}
-          {showBudgetsTab && (
-            <button 
-              className={`${styles.tabBtn} ${activeTab === "budgets" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("budgets")}
-            >
-              {t("tabBudgetsClient")}
-            </button>
-          )}
           <button 
             className={`${styles.tabBtn} ${activeTab === "photos" ? styles.tabBtnActive : ""}`}
             onClick={() => setActiveTab("photos")}
@@ -8269,11 +8261,11 @@ export default function ClientDetailPage() {
           )}
           {/* TAB 8: Fotos Antes/Después */}
           {activeTab === "photos" && (
-            <div className={styles.documentsPanel} style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "24px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 2fr", gap: "32px", alignItems: "start" }}>
+            <div className={styles.documentsPanel} style={{ background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "16px", padding: "28px", boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.04)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1.9fr", gap: "32px", alignItems: "start" }}>
                 
                 {/* COLUMNA IZQUIERDA: CONTROLES DE SUBIDA Y SELECTORES */}
-                <div style={{ display: "flex", flexDirection: "column", gap: isMobile && !isFormExpanded ? "0px" : "20px", background: "#f8fafc", padding: "20px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: isMobile && !isFormExpanded ? "0px" : "22px", background: "var(--bg-input)", padding: "24px", borderRadius: "16px", border: "1px solid var(--border-color)" }}>
                   <div
                     onClick={() => isMobile && setIsFormExpanded(!isFormExpanded)}
                     style={{
@@ -8284,11 +8276,16 @@ export default function ClientDetailPage() {
                       userSelect: "none"
                     }}
                   >
-                    <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#006687", margin: 0 }}>
-                      Añadir Nueva Foto
-                    </h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(13, 148, 136, 0.12)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Icons.Camera size={18} />
+                      </div>
+                      <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>
+                        Añadir Nueva Foto
+                      </h3>
+                    </div>
                     {isMobile && (
-                      <span style={{ fontSize: "12px", color: "#006687", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
                         {isFormExpanded ? "Contraer" : "Configurar y Añadir"}
                         {isFormExpanded ? <Icons.ChevronDown size={16} /> : <Icons.ChevronRight size={16} />}
                       </span>
@@ -8298,22 +8295,24 @@ export default function ClientDetailPage() {
                   {(!isMobile || isFormExpanded) && (
                     <>
                       {/* Selector Antes/Después */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Tipo de Foto</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Tipo de Foto</label>
                         <div style={{ display: "flex", gap: "10px" }}>
                           <button
                             type="button"
                             onClick={() => setPhotoType("BEFORE")}
                             style={{
                               flex: 1,
-                              padding: "10px",
-                              borderRadius: "8px",
-                              border: photoType === "BEFORE" ? "2px solid #006687" : "1px solid #cbd5e1",
-                              background: photoType === "BEFORE" ? "rgba(0, 102, 135, 0.08)" : "#ffffff",
-                              color: photoType === "BEFORE" ? "#006687" : "#475569",
-                              fontWeight: 600,
+                              padding: "11px 14px",
+                              borderRadius: "10px",
+                              border: photoType === "BEFORE" ? "2px solid #0284c7" : "1px solid var(--border-color)",
+                              background: photoType === "BEFORE" ? "linear-gradient(135deg, #0284c7, #0369a1)" : "#ffffff",
+                              color: photoType === "BEFORE" ? "#ffffff" : "var(--text-primary)",
+                              fontWeight: 700,
+                              fontSize: "13px",
                               cursor: "pointer",
-                              transition: "all 0.2s"
+                              transition: "all 0.2s ease",
+                              boxShadow: photoType === "BEFORE" ? "0 4px 12px rgba(2, 132, 199, 0.25)" : "none"
                             }}
                           >
                             Antes (Before)
@@ -8323,14 +8322,16 @@ export default function ClientDetailPage() {
                             onClick={() => setPhotoType("AFTER")}
                             style={{
                               flex: 1,
-                              padding: "10px",
-                              borderRadius: "8px",
-                              border: photoType === "AFTER" ? "2px solid #006687" : "1px solid #cbd5e1",
-                              background: photoType === "AFTER" ? "rgba(0, 102, 135, 0.08)" : "#ffffff",
-                              color: photoType === "AFTER" ? "#006687" : "#475569",
-                              fontWeight: 600,
+                              padding: "11px 14px",
+                              borderRadius: "10px",
+                              border: photoType === "AFTER" ? "2px solid #10b981" : "1px solid var(--border-color)",
+                              background: photoType === "AFTER" ? "linear-gradient(135deg, #10b981, #047857)" : "#ffffff",
+                              color: photoType === "AFTER" ? "#ffffff" : "var(--text-primary)",
+                              fontWeight: 700,
+                              fontSize: "13px",
                               cursor: "pointer",
-                              transition: "all 0.2s"
+                              transition: "all 0.2s ease",
+                              boxShadow: photoType === "AFTER" ? "0 4px 12px rgba(16, 185, 129, 0.25)" : "none"
                             }}
                           >
                             Después (After)
@@ -8340,17 +8341,19 @@ export default function ClientDetailPage() {
 
                       {/* Selector de Ángulo */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Ángulo / Perspectiva</label>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>Ángulo / Perspectiva</label>
                         <select
                           value={photoAngle}
                           onChange={(e) => setPhotoAngle(e.target.value)}
                           style={{
-                            padding: "10px",
-                            borderRadius: "8px",
-                            border: "1px solid #cbd5e1",
+                            padding: "11px 14px",
+                            borderRadius: "10px",
+                            border: "1px solid var(--border-color)",
                             fontSize: "13px",
                             background: "#ffffff",
-                            outline: "none"
+                            color: "var(--text-primary)",
+                            outline: "none",
+                            fontWeight: 500
                           }}
                         >
                           <option value="Frente">Frente</option>
@@ -8365,9 +8368,9 @@ export default function ClientDetailPage() {
                             value={customAngleInput}
                             onChange={(e) => setCustomAngleInput(e.target.value)}
                             style={{
-                              padding: "10px",
-                              borderRadius: "8px",
-                              border: "1px solid #cbd5e1",
+                              padding: "10px 14px",
+                              borderRadius: "10px",
+                              border: "1px solid var(--border-color)",
                               fontSize: "13px",
                               outline: "none",
                               marginTop: "6px"
@@ -8378,17 +8381,19 @@ export default function ClientDetailPage() {
 
                       {/* Relación con Cita */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Vincular a Cita (Opcional)</label>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>Vincular a Cita (Opcional)</label>
                         <select
                           value={photoAppointmentId}
                           onChange={(e) => setPhotoAppointmentId(e.target.value)}
                           style={{
-                            padding: "10px",
-                            borderRadius: "8px",
-                            border: "1px solid #cbd5e1",
+                            padding: "11px 14px",
+                            borderRadius: "10px",
+                            border: "1px solid var(--border-color)",
                             fontSize: "13px",
                             background: "#ffffff",
-                            outline: "none"
+                            color: "var(--text-primary)",
+                            outline: "none",
+                            fontWeight: 500
                           }}
                         >
                           <option value="">-- No vincular a ninguna cita --</option>
@@ -8405,42 +8410,43 @@ export default function ClientDetailPage() {
 
                       {/* Descripción */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Descripción / Nota</label>
+                        <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>Descripción / Nota</label>
                         <input
                           type="text"
                           placeholder="Ej. Vista lateral izquierda, sesión 1..."
                           value={photoDescription}
                           onChange={(e) => setPhotoDescription(e.target.value)}
                           style={{
-                            padding: "10px",
-                            borderRadius: "8px",
-                            border: "1px solid #cbd5e1",
+                            padding: "11px 14px",
+                            borderRadius: "10px",
+                            border: "1px solid var(--border-color)",
                             fontSize: "13px",
-                            outline: "none"
+                            outline: "none",
+                            color: "var(--text-primary)"
                           }}
                         />
                       </div>
 
                       {/* Acciones de Subida */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "10px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "8px" }}>
                         <button
                           type="button"
                           disabled={uploadingPhoto}
                           onClick={() => setIsCameraModalOpen(true)}
                           style={{
                             padding: "12px",
-                            borderRadius: "8px",
+                            borderRadius: "10px",
                             border: "none",
-                            background: "#006687",
+                            background: "linear-gradient(135deg, var(--primary), #0f766e)",
                             color: "#ffffff",
-                            fontWeight: 600,
+                            fontWeight: 700,
                             fontSize: "13px",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             gap: "8px",
-                            boxShadow: "0 4px 6px -1px rgba(0, 102, 135, 0.2)"
+                            boxShadow: "0 4px 12px rgba(13, 148, 136, 0.25)"
                           }}
                         >
                           <Icons.Camera size={16} />
@@ -8453,11 +8459,11 @@ export default function ClientDetailPage() {
                           onClick={() => photoInputRef.current?.click()}
                           style={{
                             padding: "12px",
-                            borderRadius: "8px",
-                            border: "1px solid #006687",
+                            borderRadius: "10px",
+                            border: "1.5px solid var(--primary)",
                             background: "#ffffff",
-                            color: "#006687",
-                            fontWeight: 600,
+                            color: "var(--primary)",
+                            fontWeight: 700,
                             fontSize: "13px",
                             cursor: "pointer",
                             display: "flex",
@@ -8478,35 +8484,40 @@ export default function ClientDetailPage() {
                           style={{ display: "none" }}
                         />
                       </div>
-                      {uploadingPhoto && <span style={{ fontSize: "12px", color: "#64748b", textAlign: "center" }}>Subiendo imagen...</span>}
+                      {uploadingPhoto && <span style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 600, textAlign: "center" }}>Subiendo imagen...</span>}
 
                       {/* PANEL COMPARADOR MANUAL */}
-                      <div style={{ borderTop: "1px solid #cbd5e1", paddingTop: "20px", marginTop: "10px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                        <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b", margin: 0 }}>
-                          Comparación Manual
-                        </h4>
-                        <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
-                          Selecciona una foto de Antes y otra de Después para compararlas en el slider deslizante.
+                      <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "20px", marginTop: "10px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <Icons.Columns size={16} style={{ color: "var(--primary)" }} />
+                          <h4 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                            Comparación Manual
+                          </h4>
+                        </div>
+                        <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, lineHeight: "1.4" }}>
+                          Selecciona una foto de <strong>Antes</strong> y otra de <strong>Después</strong> para desplegar la comparación interactiva.
                         </p>
                         <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-                          <div style={{ flex: 1, height: "60px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", background: "#ffffff" }}>
+                          <div style={{ flex: 1, height: "70px", border: compareBeforePhoto ? "2px solid #0284c7" : "1.5px dashed var(--border-color)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", background: "#ffffff" }}>
                             {compareBeforePhoto ? (
                               <>
                                 <img src={compareBeforePhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                <button onClick={() => setCompareBeforePhoto(null)} style={{ position: "absolute", top: 2, right: 2, background: "rgba(15,23,42,0.6)", border: "none", color: "#ffffff", borderRadius: "50%", width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", cursor: "pointer" }}>✕</button>
+                                <button onClick={() => setCompareBeforePhoto(null)} style={{ position: "absolute", top: 4, right: 4, background: "rgba(15,23,42,0.75)", border: "none", color: "#ffffff", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", cursor: "pointer" }}>✕</button>
+                                <span style={{ position: "absolute", bottom: 4, left: 4, background: "#0284c7", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }}>ANTES</span>
                               </>
                             ) : (
-                              <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>Antes</span>
+                              <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 600 }}>Antes</span>
                             )}
                           </div>
-                          <div style={{ flex: 1, height: "60px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", background: "#ffffff" }}>
+                          <div style={{ flex: 1, height: "70px", border: compareAfterPhoto ? "2px solid #10b981" : "1.5px dashed var(--border-color)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", background: "#ffffff" }}>
                             {compareAfterPhoto ? (
                               <>
                                 <img src={compareAfterPhoto} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                <button onClick={() => setCompareAfterPhoto(null)} style={{ position: "absolute", top: 2, right: 2, background: "rgba(15,23,42,0.6)", border: "none", color: "#ffffff", borderRadius: "50%", width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", cursor: "pointer" }}>✕</button>
+                                <button onClick={() => setCompareAfterPhoto(null)} style={{ position: "absolute", top: 4, right: 4, background: "rgba(15,23,42,0.75)", border: "none", color: "#ffffff", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", cursor: "pointer" }}>✕</button>
+                                <span style={{ position: "absolute", bottom: 4, left: 4, background: "#10b981", color: "#fff", fontSize: "9px", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }}>DESPUÉS</span>
                               </>
                             ) : (
-                              <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600 }}>Después</span>
+                              <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 600 }}>Después</span>
                             )}
                           </div>
                         </div>
@@ -8515,22 +8526,24 @@ export default function ClientDetailPage() {
                           disabled={!compareBeforePhoto || !compareAfterPhoto}
                           onClick={() => setIsComparingOpen(true)}
                           style={{
-                            padding: "10px",
-                            borderRadius: "8px",
+                            padding: "12px",
+                            borderRadius: "10px",
                             border: "none",
-                            background: (!compareBeforePhoto || !compareAfterPhoto) ? "#cbd5e1" : "#0f172a",
-                            color: "#ffffff",
-                            fontWeight: 600,
+                            background: (!compareBeforePhoto || !compareAfterPhoto) ? "var(--border-color)" : "linear-gradient(135deg, #0f172a, #1e293b)",
+                            color: (!compareBeforePhoto || !compareAfterPhoto) ? "var(--text-muted)" : "#ffffff",
+                            fontWeight: 700,
                             fontSize: "13px",
                             cursor: (!compareBeforePhoto || !compareAfterPhoto) ? "not-allowed" : "pointer",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: "6px"
+                            gap: "8px",
+                            boxShadow: (!compareBeforePhoto || !compareAfterPhoto) ? "none" : "0 4px 12px rgba(15, 23, 42, 0.25)",
+                            transition: "all 0.2s ease"
                           }}
                         >
                           <Icons.Columns size={16} />
-                          <span>Comparar Fotos</span>
+                          <span>Comparar Fotos Interactivas</span>
                         </button>
                       </div>
                     </>
@@ -8539,15 +8552,37 @@ export default function ClientDetailPage() {
 
                 {/* COLUMNA DERECHA: HISTORIAL DE FOTOS POR SESIÓN */}
                 <div>
-                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#006687", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    Historial de Sesiones y Fotos
-                  </h3>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                    <h3 style={{ fontSize: "17px", fontWeight: "700", color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span>Historial de Sesiones y Fotos</span>
+                    </h3>
+                    {client.photos && client.photos.length > 0 && (
+                      <span style={{ padding: "4px 12px", background: "rgba(13, 148, 136, 0.12)", color: "var(--primary)", borderRadius: "20px", fontSize: "12px", fontWeight: 700 }}>
+                        {client.photos.length} {client.photos.length === 1 ? "foto" : "fotos"}
+                      </span>
+                    )}
+                  </div>
 
                   {(!client.photos || client.photos.length === 0) ? (
-                    <div style={{ padding: "40px", border: "2px dashed #cbd5e1", borderRadius: "12px", textAlign: "center", color: "#64748b" }}>
-                      <Icons.Image size={40} style={{ color: "#94a3b8", marginBottom: "12px", display: "inline-block" }} />
-                      <p style={{ margin: 0, fontWeight: 600 }}>No hay fotos registradas para este paciente.</p>
-                      <p style={{ margin: "4px 0 0", fontSize: "13px" }}>Usa la columna izquierda para tomar o adjuntar fotos de antes y después.</p>
+                    <div style={{ padding: "48px 24px", background: "rgba(13, 148, 136, 0.02)", border: "2px dashed rgba(13, 148, 136, 0.2)", borderRadius: "16px", textAlign: "center" }}>
+                      <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: "rgba(13, 148, 136, 0.1)", color: "var(--primary)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: "16px" }}>
+                        <Icons.Image size={28} />
+                      </div>
+                      <h4 style={{ margin: "0 0 6px", fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                        No hay fotos registradas para este paciente
+                      </h4>
+                      <p style={{ margin: "0 auto 20px", fontSize: "13px", color: "var(--text-secondary)", maxWidth: "340px", lineHeight: "1.5" }}>
+                        Usa el panel de la izquierda para capturar desde la cámara o subir imágenes de antes y después.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => photoInputRef.current?.click()}
+                        style={{ padding: "10px 20px", fontSize: "13px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "8px" }}
+                      >
+                        <Icons.Plus size={16} />
+                        <span>Subir primera foto</span>
+                      </button>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -8568,14 +8603,14 @@ export default function ClientDetailPage() {
                               key={app.id}
                               style={{
                                 background: "#ffffff",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "12px",
-                                padding: "16px",
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                                border: "1px solid var(--border-color)",
+                                borderRadius: "14px",
+                                padding: "20px",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                                 display: "flex",
                                 flexDirection: "column",
-                                gap: isExpanded ? "16px" : "0px",
-                                transition: "all 0.2s"
+                                gap: isExpanded ? "18px" : "0px",
+                                transition: "all 0.2s ease"
                               }}
                             >
                               {/* Session Header (Clickable to Collapse/Expand) */}
@@ -8585,22 +8620,24 @@ export default function ClientDetailPage() {
                                   display: "flex",
                                   justifyContent: "space-between",
                                   alignItems: "center",
-                                  borderBottom: isExpanded ? "1px solid #f1f5f9" : "none",
-                                  paddingBottom: isExpanded ? "10px" : "0px",
+                                  borderBottom: isExpanded ? "1px solid var(--border-color)" : "none",
+                                  paddingBottom: isExpanded ? "12px" : "0px",
                                   cursor: "pointer",
                                   userSelect: "none"
                                 }}
                               >
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                  {isExpanded ? <Icons.ChevronDown size={18} style={{ color: "#006687" }} /> : <Icons.ChevronRight size={18} style={{ color: "#94a3b8" }} />}
-                                  <span style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
-                                    {app.service?.name}
-                                  </span>
-                                  <span style={{ fontSize: "12px", color: "#64748b" }}>
-                                    {dateStr}
-                                  </span>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                  {isExpanded ? <Icons.ChevronDown size={18} style={{ color: "var(--primary)" }} /> : <Icons.ChevronRight size={18} style={{ color: "var(--text-muted)" }} />}
+                                  <div>
+                                    <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", display: "block" }}>
+                                      {app.service?.name}
+                                    </span>
+                                    <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                                      📅 {dateStr}
+                                    </span>
+                                  </div>
                                 </div>
-                                <span style={{ fontSize: "11px", color: "#006687", fontWeight: 600 }}>
+                                <span style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 700, background: "rgba(13, 148, 136, 0.08)", padding: "4px 10px", borderRadius: "12px" }}>
                                   {isExpanded ? "Contraer" : `Ver fotos (${appPhotos.length})`}
                                 </span>
                               </div>
@@ -8612,9 +8649,9 @@ export default function ClientDetailPage() {
                                 const afterPhoto = anglePhotos.find((p: any) => p.type === "AFTER");
 
                                 return (
-                                  <div key={angle} style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                  <div key={angle} style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px", background: "var(--bg-input)", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                      <span style={{ fontSize: "13px", fontWeight: 700, color: "#006687" }}>
+                                      <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--primary)" }}>
                                         Ángulo: {angle}
                                       </span>
                                       {beforePhoto && afterPhoto && (
@@ -8627,20 +8664,20 @@ export default function ClientDetailPage() {
                                             setIsComparingOpen(true);
                                           }}
                                           style={{
-                                            padding: "4px 10px",
-                                            borderRadius: "6px",
+                                            padding: "5px 12px",
+                                            borderRadius: "8px",
                                             border: "none",
-                                            background: "rgba(0, 102, 135, 0.1)",
-                                            color: "#006687",
-                                            fontSize: "11px",
+                                            background: "rgba(13, 148, 136, 0.12)",
+                                            color: "var(--primary)",
+                                            fontSize: "12px",
                                             fontWeight: 700,
                                             cursor: "pointer",
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: "4px"
+                                            gap: "6px"
                                           }}
                                         >
-                                          <Icons.Columns size={12} />
+                                          <Icons.Columns size={13} />
                                           <span>Deslizar Comparador</span>
                                         </button>
                                       )}
@@ -8649,48 +8686,48 @@ export default function ClientDetailPage() {
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                                       {/* Antes */}
                                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Antes</span>
+                                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#0284c7", textTransform: "uppercase", letterSpacing: "0.5px" }}>Antes</span>
                                         {beforePhoto ? (
-                                          <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                          <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid var(--border-color)" }}>
                                             <img src={beforePhoto.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.6)", color: "#ffffff", padding: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(4px)", color: "#ffffff", padding: "6px 8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                               <span style={{ fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
                                                 {beforePhoto.description || "Sin descripción"}
                                               </span>
-                                              <div style={{ display: "flex", gap: "4px" }}>
+                                              <div style={{ display: "flex", gap: "6px" }}>
                                                 <button onClick={(e) => { e.stopPropagation(); setCompareBeforePhoto(beforePhoto.photoUrl); }} title="Seleccionar para comparar" style={{ background: "none", border: "none", color: "#38bdf8", cursor: "pointer", padding: "2px" }}><Icons.Plus size={14} /></button>
                                                 <button onClick={(e) => { e.stopPropagation(); handlePhotoDelete(beforePhoto.id); }} title="Eliminar foto" style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", padding: "2px" }}><Icons.Trash size={14} /></button>
                                               </div>
                                             </div>
                                           </div>
                                         ) : (
-                                          <div style={{ height: "80px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", cursor: "pointer", background: "#ffffff" }} onClick={(e) => { e.stopPropagation(); setPhotoType("BEFORE"); setPhotoAngle(angle); setPhotoAppointmentId(app.id); photoInputRef.current?.click(); }}>
-                                            <Icons.Plus size={14} style={{ color: "#94a3b8" }} />
-                                            <span style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 600 }}>Añadir Antes</span>
+                                          <div style={{ height: "90px", border: "1.5px dashed var(--border-color)", borderRadius: "10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", cursor: "pointer", background: "#ffffff" }} onClick={(e) => { e.stopPropagation(); setPhotoType("BEFORE"); setPhotoAngle(angle); setPhotoAppointmentId(app.id); photoInputRef.current?.click(); }}>
+                                            <Icons.Plus size={16} style={{ color: "var(--primary)" }} />
+                                            <span style={{ fontSize: "11px", color: "var(--primary)", fontWeight: 600 }}>Añadir Antes</span>
                                           </div>
                                         )}
                                       </div>
 
                                       {/* Después */}
                                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Después</span>
+                                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.5px" }}>Después</span>
                                         {afterPhoto ? (
-                                          <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                          <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid var(--border-color)" }}>
                                             <img src={afterPhoto.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.6)", color: "#ffffff", padding: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(4px)", color: "#ffffff", padding: "6px 8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                               <span style={{ fontSize: "11px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
                                                 {afterPhoto.description || "Sin descripción"}
                                               </span>
-                                              <div style={{ display: "flex", gap: "4px" }}>
+                                              <div style={{ display: "flex", gap: "6px" }}>
                                                 <button onClick={(e) => { e.stopPropagation(); setCompareAfterPhoto(afterPhoto.photoUrl); }} title="Seleccionar para comparar" style={{ background: "none", border: "none", color: "#38bdf8", cursor: "pointer", padding: "2px" }}><Icons.Plus size={14} /></button>
                                                 <button onClick={(e) => { e.stopPropagation(); handlePhotoDelete(afterPhoto.id); }} title="Eliminar foto" style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", padding: "2px" }}><Icons.Trash size={14} /></button>
                                               </div>
                                             </div>
                                           </div>
                                         ) : (
-                                          <div style={{ height: "80px", border: "1.5px dashed #cbd5e1", borderRadius: "8px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", cursor: "pointer", background: "#ffffff" }} onClick={(e) => { e.stopPropagation(); setPhotoType("AFTER"); setPhotoAngle(angle); setPhotoAppointmentId(app.id); photoInputRef.current?.click(); }}>
-                                            <Icons.Plus size={14} style={{ color: "#94a3b8" }} />
-                                            <span style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 600 }}>Añadir Después</span>
+                                          <div style={{ height: "90px", border: "1.5px dashed var(--border-color)", borderRadius: "10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", cursor: "pointer", background: "#ffffff" }} onClick={(e) => { e.stopPropagation(); setPhotoType("AFTER"); setPhotoAngle(angle); setPhotoAppointmentId(app.id); photoInputRef.current?.click(); }}>
+                                            <Icons.Plus size={16} style={{ color: "#10b981" }} />
+                                            <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>Añadir Después</span>
                                           </div>
                                         )}
                                       </div>
@@ -8699,7 +8736,7 @@ export default function ClientDetailPage() {
                                 );
                               })}
                               {isExpanded && (
-                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "12px", borderTop: "1px solid var(--border-color)", paddingTop: "14px" }}>
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -8707,13 +8744,13 @@ export default function ClientDetailPage() {
                                       handlePrintCollage(app, appPhotos, angles);
                                     }}
                                     style={{
-                                      padding: "6px 14px",
-                                      borderRadius: "6px",
+                                      padding: "8px 16px",
+                                      borderRadius: "8px",
                                       border: "none",
-                                      background: "#006687",
+                                      background: "var(--primary)",
                                       color: "#ffffff",
                                       fontSize: "12px",
-                                      fontWeight: 600,
+                                      fontWeight: 700,
                                       cursor: "pointer",
                                       display: "flex",
                                       alignItems: "center",
@@ -8739,26 +8776,26 @@ export default function ClientDetailPage() {
                           <div
                             style={{
                               background: "#ffffff",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "12px",
-                              padding: "16px",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                              border: "1px solid var(--border-color)",
+                              borderRadius: "14px",
+                              padding: "20px",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
                             }}
                           >
-                            <h4 style={{ fontSize: "14px", fontWeight: 700, color: "#475569", margin: "0 0 12px", borderBottom: "1px solid #f1f5f9", paddingBottom: "8px" }}>
+                            <h4 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px" }}>
                               Otras Fotos (Sin Cita Vinculada)
                             </h4>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "12px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "14px" }}>
                               {loosePhotos.map((photo: any) => (
                                 <div key={photo.id} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                                  <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid #cbd5e1" }}>
+                                  <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden", aspectRatio: "4/3", border: "1px solid var(--border-color)" }}>
                                     <img src={photo.photoUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                    <span style={{ position: "absolute", top: 4, left: 4, background: photo.type === "BEFORE" ? "#0f172a" : "#006687", color: "#ffffff", fontSize: "9px", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }}>
+                                    <span style={{ position: "absolute", top: 4, left: 4, background: photo.type === "BEFORE" ? "#0284c7" : "#10b981", color: "#ffffff", fontSize: "9px", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }}>
                                       {photo.type === "BEFORE" ? "ANTES" : "DESPUÉS"}
                                     </span>
-                                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.6)", color: "#ffffff", padding: "4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                      <span style={{ fontSize: "9px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} title={`${photo.angle || "Frente"}: ${photo.description || ""}`}>
-                                        {photo.angle || "Frente"}: {photo.description || "Foto"}
+                                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(15,23,42,0.75)", backdropFilter: "blur(4px)", color: "#ffffff", padding: "4px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                      <span style={{ fontSize: "10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} title={`${photo.angle || "Frente"}: ${photo.description || ""}`}>
+                                        {photo.angle || "Frente"}
                                       </span>
                                       <div style={{ display: "flex", gap: "4px" }}>
                                         <button onClick={() => photo.type === "BEFORE" ? setCompareBeforePhoto(photo.photoUrl) : setCompareAfterPhoto(photo.photoUrl)} title="Seleccionar para comparar" style={{ background: "none", border: "none", color: "#38bdf8", cursor: "pointer", padding: "1px" }}><Icons.Plus size={12} /></button>
