@@ -965,17 +965,17 @@
    MOBILE VIEWPORT OPTIMIZATIONS (width < 768px)
    ========================================== */
 @media (max-width: 768px) {
-  .metricsGrid, [class*="metricsGrid"], [class*="kpiGrid"] {
+  .metricsGrid, .kpiGrid, :global([class*="metricsGrid"]), :global([class*="kpiGrid"]) {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
 
-  .chartsGrid, [class*="chartsGrid"] {
+  .chartsGrid, :global([class*="chartsGrid"]) {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
 
-  .toolbar, [class*="toolbar"] {
+  .toolbar, :global([class*="toolbar"]) {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 12px !important;
