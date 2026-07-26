@@ -249,6 +249,95 @@ export default function ClientDetailPage() {
   const [formIsCompany, setFormIsCompany] = useState(false);
   const [formReceivesReminders, setFormReceivesReminders] = useState(true);
 
+  // Tags Drawer State
+  const TAG_COLORS = ["#f56565", "#ed8936", "#ecc94b", "#48bb78", "#38b2ac", "#4299e1", "#667eea", "#9f7aec", "#ed64a6", "#a0aec0"];
+  const [showTagsDrawer, setShowTagsDrawer] = useState(false);
+  const [modalClientTags, setModalClientTags] = useState<string[]>([]);
+  const [clientAvailableTags, setClientAvailableTags] = useState<{ name: string; color: string }[]>([]);
+  const [searchTagQuery, setSearchTagQuery] = useState("");
+  const [tagsSubView, setTagsSubView] = useState<"list" | "create">("list");
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#f56565");
+
+  const loadAvailableTags = () => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("clifav_client_available_tags");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {}
+      }
+      const initial = [
+        { name: "FRECUENTE", color: "#4299e1" },
+        { name: "NUEVO", color: "#48bb78" },
+        { name: "RECOMENDADO", color: "#ed8936" }
+      ];
+      localStorage.setItem("clifav_client_available_tags", JSON.stringify(initial));
+      return initial;
+    }
+    return [];
+  };
+
+  const handleOpenTagsDrawer = () => {
+    setClientAvailableTags(loadAvailableTags());
+    const currentTags = client?.tags
+      ? client.tags.split(",").map((t) => t.trim()).filter(Boolean)
+      : [];
+    setModalClientTags(currentTags);
+    setSearchTagQuery("");
+    setTagsSubView("list");
+    setShowTagsDrawer(true);
+  };
+
+  const handleSaveClientTags = async () => {
+    if (!client) return;
+    const newTagsString = modalClientTags.join(", ");
+    const res = await fetch(`/api/clients/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: client.firstName,
+        lastName: client.lastName,
+        tags: newTagsString,
+      }),
+    });
+
+    if (res.ok) {
+      setShowTagsDrawer(false);
+      fetchClientDetails();
+    } else {
+      alert("Error al actualizar las etiquetas");
+    }
+  };
+
+  const handleCreateNewTag = () => {
+    const name = newTagName.trim().toUpperCase();
+    if (!name) return;
+    if (clientAvailableTags.some((t) => t.name === name)) {
+      alert("Esta etiqueta ya existe.");
+      return;
+    }
+    const updated = [...clientAvailableTags, { name, color: newTagColor }];
+    setClientAvailableTags(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("clifav_client_available_tags", JSON.stringify(updated));
+    }
+    if (!modalClientTags.includes(name)) {
+      setModalClientTags((prev) => [...prev, name]);
+    }
+    setNewTagName("");
+    setTagsSubView("list");
+  };
+
+  const handleDeleteTagGlobal = (tagName: string) => {
+    const updated = clientAvailableTags.filter((t) => t.name !== tagName);
+    setClientAvailableTags(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("clifav_client_available_tags", JSON.stringify(updated));
+    }
+    setModalClientTags((prev) => prev.filter((t) => t !== tagName));
+  };
+
   // Permissions state
   const [allStaff, setAllStaff] = useState<any[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
@@ -3542,7 +3631,7 @@ export default function ClientDetailPage() {
                     className={styles.optionItem}
                     onClick={() => {
                       setShowOptionsDropdown(false);
-                      setShowFullEditModal(true);
+                      handleOpenTagsDrawer();
                     }}
                   >
                     <Icons.Award size={14} />
@@ -8287,6 +8376,275 @@ export default function ClientDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ETIQUETAS SIDE DRAWER */}
+      {showTagsDrawer && typeof window !== "undefined" && createPortal(
+        <div className={styles.drawerOverlay} onClick={() => setShowTagsDrawer(false)}>
+          <div className={styles.drawerPanel} onClick={(e) => e.stopPropagation()}>
+            {/* Drawer Header */}
+            <div className={styles.drawerHeader}>
+              <h2 className={styles.drawerTitle}>Etiquetas</h2>
+              <button className={styles.drawerCloseBtn} onClick={() => setShowTagsDrawer(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className={styles.drawerForm}>
+              <div className={styles.drawerScrollBody}>
+                <p className={styles.drawerSectionTitle}>Etiquetas</p>
+
+                {tagsSubView === "list" ? (
+                  <>
+                    {/* Search & Nueva etiqueta row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                      <div style={{ position: "relative", flex: 1, display: "flex", alignItems: "center" }}>
+                        <Icons.Search size={15} style={{ position: "absolute", left: "12px", color: "var(--text-muted)", pointerEvents: "none" }} />
+                        <input
+                          type="text"
+                          className={styles.drawerInput}
+                          style={{ paddingLeft: "34px" }}
+                          placeholder="Buscar etiqueta"
+                          value={searchTagQuery}
+                          onChange={(e) => setSearchTagQuery(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.drawerCancelBtn}
+                        style={{ padding: "8px 14px", fontSize: "13px", whiteSpace: "nowrap" }}
+                        onClick={() => {
+                          setTagsSubView("create");
+                          setNewTagName("");
+                          setNewTagColor("#f56565");
+                        }}
+                      >
+                        Nueva etiqueta
+                      </button>
+                    </div>
+
+                    {/* Currently assigned tags */}
+                    {modalClientTags.length > 0 && (
+                      <div style={{ marginBottom: "16px" }}>
+                        <label style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", display: "block", marginBottom: "8px" }}>
+                          Asignadas a este cliente ({modalClientTags.length})
+                        </label>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                          {modalClientTags.map((tagName) => {
+                            const color = clientAvailableTags.find((t) => t.name === tagName)?.color || "#008fa3";
+                            return (
+                              <span
+                                key={tagName}
+                                style={{
+                                  backgroundColor: color,
+                                  color: "#fff",
+                                  padding: "4px 10px",
+                                  borderRadius: "16px",
+                                  fontSize: "12px",
+                                  fontWeight: 600,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "6px"
+                                }}
+                              >
+                                {tagName}
+                                <button
+                                  type="button"
+                                  style={{
+                                    background: "rgba(255,255,255,0.25)",
+                                    border: "none",
+                                    borderRadius: "50%",
+                                    width: "16px",
+                                    height: "16px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#fff",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                    lineHeight: 1,
+                                    padding: 0
+                                  }}
+                                  onClick={() => setModalClientTags((prev) => prev.filter((t) => t !== tagName))}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Available Tags list */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <label style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", display: "block" }}>
+                        Todas las etiquetas disponibles
+                      </label>
+                      {clientAvailableTags
+                        .filter((tag) => tag.name.toLowerCase().includes(searchTagQuery.toLowerCase()))
+                        .map((tag) => {
+                          const isChecked = modalClientTags.includes(tag.name);
+                          return (
+                            <div
+                              key={tag.name}
+                              onClick={() => {
+                                if (isChecked) {
+                                  setModalClientTags((prev) => prev.filter((t) => t !== tag.name));
+                                } else {
+                                  setModalClientTags((prev) => [...prev, tag.name]);
+                                }
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "10px 14px",
+                                borderRadius: "8px",
+                                border: `1.5px solid ${isChecked ? "var(--primary)" : "var(--border-color)"}`,
+                                background: isChecked ? "rgba(0,143,163,0.06)" : "var(--bg-panel-solid)",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease"
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {}}
+                                  style={{ width: "16px", height: "16px", accentColor: "var(--primary)", cursor: "pointer" }}
+                                />
+                                <span
+                                  style={{
+                                    backgroundColor: tag.color,
+                                    color: "#fff",
+                                    padding: "3px 10px",
+                                    borderRadius: "12px",
+                                    fontSize: "12px",
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  {tag.name}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                title="Eliminar etiqueta global"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`¿Eliminar la etiqueta "${tag.name}"?`)) {
+                                    handleDeleteTagGlobal(tag.name);
+                                  }
+                                }}
+                                style={{
+                                  background: "transparent",
+                                  border: "none",
+                                  color: "var(--text-muted)",
+                                  cursor: "pointer",
+                                  padding: "4px",
+                                  display: "flex",
+                                  alignItems: "center"
+                                }}
+                              >
+                                <Icons.Trash size={14} />
+                              </button>
+                            </div>
+                          );
+                        })}
+
+                      {clientAvailableTags.filter((tag) => tag.name.toLowerCase().includes(searchTagQuery.toLowerCase())).length === 0 && (
+                        <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                          No se encontraron etiquetas
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  /* Create Tag View */
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>Nueva etiqueta</h3>
+                      <button
+                        type="button"
+                        className={styles.drawerCancelBtn}
+                        style={{ padding: "4px 10px", fontSize: "12px" }}
+                        onClick={() => setTagsSubView("list")}
+                      >
+                        Volver a la lista
+                      </button>
+                    </div>
+
+                    <div className={styles.drawerField}>
+                      <label className={styles.drawerLabel}>Nombre de la etiqueta *</label>
+                      <input
+                        type="text"
+                        className={styles.drawerInput}
+                        placeholder="Ej: VIP, ALÉRGICO, URGENTE"
+                        value={newTagName}
+                        onChange={(e) => setNewTagName(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className={styles.drawerField}>
+                      <label className={styles.drawerLabel}>Color de la etiqueta</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginTop: "4px" }}>
+                        {TAG_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setNewTagColor(color)}
+                            style={{
+                              backgroundColor: color,
+                              height: "32px",
+                              borderRadius: "8px",
+                              border: newTagColor === color ? "2.5px solid var(--text-primary)" : "none",
+                              cursor: "pointer",
+                              transition: "transform 0.1s",
+                              transform: newTagColor === color ? "scale(1.05)" : "scale(1)"
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                      <button
+                        type="button"
+                        className={styles.drawerCancelBtn}
+                        onClick={() => setTagsSubView("list")}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.drawerSaveBtn}
+                        disabled={!newTagName.trim()}
+                        onClick={handleCreateNewTag}
+                      >
+                        Crear Etiqueta
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer actions */}
+              <div className={styles.drawerFooter}>
+                <button type="button" className={styles.drawerCancelBtn} onClick={() => setShowTagsDrawer(false)}>
+                  Cancelar
+                </button>
+                <button type="button" className={styles.drawerSaveBtn} onClick={handleSaveClientTags}>
+                  Guardar
+                </button>
+              </div>
+            </div>
           </div>
         </div>,
         document.body
