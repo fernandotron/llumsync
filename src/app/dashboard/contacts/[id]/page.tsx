@@ -635,6 +635,8 @@ export default function ClientDetailPage() {
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [addArticleMenuOpen, setAddArticleMenuOpen] = useState(false);
   const [showAssignProductModal, setShowAssignProductModal] = useState(false);
+  const [editingClientProduct, setEditingClientProduct] = useState<any | null>(null);
+  const [clientProductMenuOpen, setClientProductMenuOpen] = useState<string | null>(null);
   const [assignProductDate, setAssignProductDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [assignProductId, setAssignProductId] = useState("");
   const [assignProductName, setAssignProductName] = useState("");
@@ -928,6 +930,31 @@ export default function ClientDetailPage() {
     }
   };
 
+  const handleResetAssignProductForm = () => {
+    setEditingClientProduct(null);
+    setAssignProductDate(new Date().toISOString().split("T")[0]);
+    setAssignProductId("");
+    setAssignProductName("");
+    setAssignProductPrice("0");
+    setAssignProductVat("21");
+    setAssignProductTotal("0");
+    setAssignProductProfessionalId("");
+    setAssignProductProfessionalName("");
+  };
+
+  const handleOpenEditClientProduct = (cp: any) => {
+    setEditingClientProduct(cp);
+    setAssignProductDate(cp.date ? new Date(cp.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+    setAssignProductId(cp.productId || "");
+    setAssignProductName(cp.productName || "");
+    setAssignProductPrice(cp.price?.toString() || "0");
+    setAssignProductVat(cp.vat?.toString() || "21");
+    setAssignProductTotal(cp.total?.toString() || "0");
+    setAssignProductProfessionalId(cp.professionalId || "");
+    setAssignProductProfessionalName(cp.professionalName || "");
+    setShowAssignProductModal(true);
+  };
+
   const handleSaveAssignProduct = async () => {
     if (!client || !activeClinic?.id) return;
     if (!assignProductName.trim() && !assignProductId) {
@@ -949,23 +976,33 @@ export default function ClientDetailPage() {
         clinicId: activeClinic.id,
       };
 
-      const res = await fetch("/api/client-products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let res;
+      if (editingClientProduct) {
+        res = await fetch(`/api/client-products/${editingClientProduct.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch("/api/client-products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (res.ok) {
-        toast.success("Producto asignado al paciente.");
+        toast.success(editingClientProduct ? "Producto actualizado." : "Producto asignado al paciente.");
         setShowAssignProductModal(false);
+        handleResetAssignProductForm();
         fetchClientProducts();
       } else {
         const err = await res.json();
-        toast.error(err.error || "Error al asignar producto.");
+        toast.error(err.error || "Error al guardar producto.");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Error al asignar producto.");
+      toast.error("Error al guardar producto.");
     } finally {
       setAssignProductSaving(false);
     }
@@ -7835,7 +7872,7 @@ export default function ClientDetailPage() {
 
                 {billingSubTab === "productos" && (
                   <div>
-                    <h4 className={styles.sectionSubtitle} style={{ color: "var(--primary)", fontWeight: 700, fontSize: "15px", marginBottom: "16px" }}>
+                    <h4 className={styles.sectionSubtitle} style={{ color: "var(--primary)", fontWeight: 700, fontSize: "15px", marginBottom: "20px" }}>
                       Productos asociados
                     </h4>
                     {clientProductsList.length === 0 ? (
@@ -7843,42 +7880,186 @@ export default function ClientDetailPage() {
                         No hay productos asociados
                       </div>
                     ) : (
-                      <div className="table-container">
-                        <table className="table" style={{ fontSize: "13px" }}>
-                          <thead>
-                            <tr>
-                              <th>Fecha</th>
-                              <th>Producto</th>
-                              <th>Profesional</th>
-                              <th>Precio</th>
-                              <th>IVA</th>
-                              <th>Total</th>
-                              <th style={{ textAlign: "right" }}>Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {clientProductsList.map((cp) => (
-                              <tr key={cp.id}>
-                                <td>{new Date(cp.date || cp.createdAt).toLocaleDateString("es-ES")}</td>
-                                <td><strong>{cp.productName}</strong></td>
-                                <td>{cp.professionalName || "-"}</td>
-                                <td>{cp.price?.toFixed(2)}€</td>
-                                <td>{cp.vat}%</td>
-                                <td><strong>{cp.total?.toFixed(2)}€</strong></td>
-                                <td style={{ textAlign: "right" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {clientProductsList.map((cp) => {
+                          const cpDateStr = new Date(cp.date || cp.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+                          const isPaid = cp.isPaid || false;
+
+                          return (
+                            <div
+                              key={cp.id}
+                              style={{
+                                background: "#ffffff",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "12px",
+                                padding: "16px 20px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "16px",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                              }}
+                            >
+                              {/* Left side: Date & Product Name */}
+                              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                                <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 500 }}>
+                                  {cpDateStr}
+                                </span>
+                                <span style={{ fontSize: "14px", color: "#1e293b", fontWeight: 600 }}>
+                                  {cp.productName}
+                                </span>
+                              </div>
+
+                              {/* Right side: Badge, Action button, and ooo menu */}
+                              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    padding: "4px 12px",
+                                    borderRadius: "16px",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    letterSpacing: "0.3px",
+                                    background: isPaid ? "#10b981" : "#ef4444",
+                                    color: "#ffffff"
+                                  }}
+                                >
+                                  {isPaid ? "PAGADO" : "NO PAGADO"}
+                                </span>
+
+                                {!isPaid ? (
+                                  <Link
+                                    href={`/dashboard/sales?clientId=${id}&clientProductId=${cp.id}`}
+                                    style={{
+                                      padding: "6px 14px",
+                                      borderRadius: "8px",
+                                      border: "1px solid #cbd5e1",
+                                      background: "#ffffff",
+                                      fontSize: "13px",
+                                      color: "#334155",
+                                      textDecoration: "none",
+                                      fontWeight: 500,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      cursor: "pointer",
+                                      transition: "all 0.15s ease"
+                                    }}
+                                  >
+                                    Finalizar compra
+                                  </Link>
+                                ) : (
+                                  <Link
+                                    href={`/dashboard/sales?clientId=${id}`}
+                                    style={{
+                                      padding: "6px 14px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--primary)",
+                                      background: "var(--primary)",
+                                      fontSize: "13px",
+                                      color: "#ffffff",
+                                      textDecoration: "none",
+                                      fontWeight: 500,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center"
+                                    }}
+                                  >
+                                    Ver Venta
+                                  </Link>
+                                )}
+
+                                {/* Menu 3 dots ooo */}
+                                <div style={{ position: "relative" }}>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteClientProduct(cp.id)}
-                                    style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "14px" }}
-                                    title="Eliminar producto"
+                                    onClick={() => setClientProductMenuOpen(clientProductMenuOpen === cp.id ? null : cp.id)}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      fontSize: "16px",
+                                      color: "#94a3b8",
+                                      cursor: "pointer",
+                                      padding: "4px 8px",
+                                      borderRadius: "4px",
+                                      letterSpacing: "1px"
+                                    }}
+                                    title="Opciones"
                                   >
-                                    🗑️
+                                    ooo
                                   </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+
+                                  {clientProductMenuOpen === cp.id && (
+                                    <div
+                                      style={{
+                                        position: "absolute",
+                                        top: "100%",
+                                        right: 0,
+                                        marginTop: "4px",
+                                        background: "#ffffff",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: "8px",
+                                        boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                                        zIndex: 100,
+                                        minWidth: "130px",
+                                        padding: "4px 0",
+                                        overflow: "hidden"
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setClientProductMenuOpen(null);
+                                          handleOpenEditClientProduct(cp);
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 14px",
+                                          background: "none",
+                                          border: "none",
+                                          textAlign: "left",
+                                          fontSize: "13px",
+                                          color: "#1e293b",
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
+                                          fontWeight: 500
+                                        }}
+                                      >
+                                        <span>✏️</span> Editar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setClientProductMenuOpen(null);
+                                          handleDeleteClientProduct(cp.id);
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 14px",
+                                          background: "none",
+                                          border: "none",
+                                          textAlign: "left",
+                                          fontSize: "13px",
+                                          color: "#ef4444",
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
+                                          fontWeight: 500
+                                        }}
+                                      >
+                                        <span>🗑️</span> Eliminar
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -11208,7 +11389,7 @@ export default function ClientDetailPage() {
               borderBottom: "1px solid #e2e8f0"
             }}>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
-                Asignar producto
+                {editingClientProduct ? "Editar producto" : "Asignar producto"}
               </h3>
               <button
                 type="button"

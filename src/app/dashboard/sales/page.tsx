@@ -615,6 +615,7 @@ export default function SalesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [salesHistory, setSalesHistory] = useState<Sale[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [clientProducts, setClientProducts] = useState<any[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1095,7 +1096,7 @@ export default function SalesPage() {
     setLoading(true);
 
     try {
-      const [clientsRes, servicesRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes, clientVouchersRes] = await Promise.all([
+      const [clientsRes, servicesRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes, clientVouchersRes, clientProductsRes] = await Promise.all([
         fetch(`/api/clients?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/services?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/sales?clinicId=${activeClinic.id}`, { cache: "no-store" }),
@@ -1104,6 +1105,7 @@ export default function SalesPage() {
         fetch(`/api/budgets?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/fiscal-profiles?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/client-vouchers?clinicId=${activeClinic.id}`, { cache: "no-store" }),
+        fetch(`/api/client-products?clinicId=${activeClinic.id}`, { cache: "no-store" }),
       ]);
 
       const clientsData = await clientsRes.json();
@@ -1152,6 +1154,9 @@ export default function SalesPage() {
 
       const clientVouchersData = await clientVouchersRes.json();
       if (Array.isArray(clientVouchersData)) setClientVouchers(clientVouchersData);
+
+      const clientProductsData = await clientProductsRes.json();
+      if (Array.isArray(clientProductsData)) setClientProducts(clientProductsData);
 
       setLoading(false);
     } catch (err) {
@@ -1259,8 +1264,20 @@ export default function SalesPage() {
     const urlServiceId = params.get("serviceId");
     const urlAppointmentId = params.get("appointmentId");
     const urlClientVoucherId = params.get("clientVoucherId");
+    const urlClientProductId = params.get("clientProductId");
 
     const allArticles = getArticlesList();
+
+    // 0. If clientProductId is present, open checkout view directly
+    if (urlClientProductId && clientProducts.length > 0) {
+      const foundItem = allArticles.find(item => item.id === `db-product-${urlClientProductId}`);
+      if (foundItem) {
+        setShowPosDrawer(false);
+        setSelectedItemForPayment(foundItem);
+        window.history.replaceState({}, "", "/dashboard/sales");
+        return;
+      }
+    }
 
     // 1. If clientVoucherId is present, open checkout view directly as setSelectedItemForPayment
     if (urlClientVoucherId && clientVouchers.length > 0) {
@@ -3466,27 +3483,96 @@ export default function SalesPage() {
         });
       });
 
+      // Merge real database client products
+      clientProducts.forEach((cp, cpIdx) => {
+        const cpDate = new Date(cp.date || cp.createdAt);
+
+        // Find all database sales that belong to this client product
+        const matchingSales = salesHistory.filter((sale) => {
+          try {
+            const itemsArr = JSON.parse(sale.itemsJson || "[]");
+            return itemsArr.some((i: any) => i.id === `db-product-${cp.id}` || i.id === cp.id);
+          } catch (e) {
+            return false;
+          }
+        });
+
+        const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
+        const prodPrice = cp.total || cp.price || 0;
+
+        let resolvedEstado = "NO PAGADO";
+        if (totalPaid >= prodPrice && prodPrice > 0) {
+          resolvedEstado = "PAGADO";
+        } else if (totalPaid > 0) {
+          resolvedEstado = "PAGO PARCIAL";
+        }
+
+        const methods = [...new Set(matchingSales.map(s => getPaymentMethodText(s.paymentMethod)))];
+        const resolvedMetodo = methods.length > 0 ? methods.join(", ") : "-";
+
+        const latestSale = matchingSales.length > 0
+          ? matchingSales.reduce((latest, s) => new Date(s.createdAt) > new Date(latest.createdAt) ? s : latest, matchingSales[0])
+          : null;
+        const resolvedFechaPago = latestSale
+          ? new Date(latestSale.createdAt).toLocaleDateString("es-ES")
+          : "-";
+
+        const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
+        const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
+
+        const vatAmount = cp.vat ? (cp.price * (cp.vat / 100)) : 0;
+
+        dbItems.push({
+          id: `db-product-${cp.id}`,
+          checkoutGroupId: `product-${cp.id}`,
+          refMov: "", // Assigned per type below
+          nuV: resolvedNuV !== "-" ? resolvedNuV : "-",
+          fecha: cpDate.toLocaleDateString("es-ES"),
+          fechaRaw: cpDate,
+          hora: "-",
+          tipo: "Producto",
+          detalle: cp.productName || "Producto",
+          clientNumber: `#${cp.client?.clientNumber || 1}`,
+          cliente: cp.client ? `${cp.client.firstName} ${cp.client.lastName}` : (cp.clientName || "-"),
+          clientId: cp.client?.id || cp.clientId,
+          dni: cp.client?.dniNif || "-",
+          empleado: cp.professionalName || "Recepción",
+          consulta: activeClinic?.name || "Clifav Central",
+          estado: resolvedEstado,
+          metodoPago: resolvedMetodo,
+          fechaPago: resolvedFechaPago,
+          price: cp.price || 0,
+          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+          precio: cp.price || 0,
+          iva: parseFloat(vatAmount.toFixed(2)),
+          irpf: 0.00,
+          total: cp.total || cp.price || 0,
+          pagado: resolvedEstado === "PAGADO" ? (cp.total || cp.price || 0) : totalPaid,
+        });
+      });
+
       // Sort db items ascending by date/time (fechaRaw)
       dbItems.sort((a, b) => a.fechaRaw.getTime() - b.fechaRaw.getTime());
 
-      // Assign sequential reference and sale numbers based on chronological order
-      // We keep a map of checkoutGroupId -> nuV so that parent items and added items share the same sale number.
+      // Assign sequential reference numbers per item type (#1, #2...) and sale numbers
+      const typeIndexMap: Record<string, number> = {};
       const checkoutGroupNuV: Record<string, string> = {};
-      let nextNuVIndex = 0;
+      let nextNuVIndex = 1;
 
-      dbItems.forEach((item, idx) => {
-        item.refMov = `#${600 + idx}`;
+      dbItems.forEach((item) => {
+        const t = item.tipo || "Servicio";
+        if (!typeIndexMap[t]) typeIndexMap[t] = 1;
+        item.refMov = `#${typeIndexMap[t]++}`;
         
         if (item.checkoutGroupId) {
           if (!checkoutGroupNuV[item.checkoutGroupId]) {
-            checkoutGroupNuV[item.checkoutGroupId] = `#${100 + nextNuVIndex}`;
+            checkoutGroupNuV[item.checkoutGroupId] = `#${nextNuVIndex}`;
             nextNuVIndex++;
           }
-          item.nuV = checkoutGroupNuV[item.checkoutGroupId];
+          item.nuV = item.estado === "PAGADO" || item.estado === "PAGO PARCIAL" ? checkoutGroupNuV[item.checkoutGroupId] : "-";
         } else {
-          if (!item.nuV) {
-            item.nuV = `#${100 + nextNuVIndex}`;
-            nextNuVIndex++;
+          if (!item.nuV || item.nuV === "") {
+            item.nuV = item.estado === "PAGADO" || item.estado === "PAGO PARCIAL" ? `#${nextNuVIndex++}` : "-";
           }
         }
       });
