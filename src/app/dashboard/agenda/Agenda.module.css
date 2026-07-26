@@ -4775,9 +4775,14 @@
    MOBILE VIEWPORT OPTIMIZATIONS (width < 768px)
    ========================================== */
 @media (max-width: 768px) {
-  /* Hide Day / Week / Month selector */
+  /* Make viewSelector fit nicely on mobile as pill bar */
   .viewSelector {
-    display: none !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    gap: 4px !important;
+    width: 100% !important;
+    justify-content: center !important;
   }
 
   /* Make sure calendar headers are readable and stacked nicely */

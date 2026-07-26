@@ -3175,4 +3175,48 @@
   }
 }
 
+/* ==========================================
+   MOBILE VIEWPORT OPTIMIZATIONS (width < 900px)
+   ========================================== */
+@media (max-width: 900px) {
+  .container {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    gap: 16px !important;
+  }
+
+  .profileSidebar {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex-shrink: 1 !important;
+  }
+
+  .mainCol {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .kpiSection {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .profileSidebar {
+    padding: 16px !important;
+  }
+
+  .kpiSection {
+    grid-template-columns: 1fr 1fr 1fr !important;
+  }
+}
+
+
 

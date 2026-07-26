@@ -29,6 +29,11 @@
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tabsContainer::-webkit-scrollbar {
+  display: none;
 }
 
 .tabBtn {

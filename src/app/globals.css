@@ -408,3 +408,42 @@ button, input, select, textarea {
   visibility: hidden;
 }
 
+/* Mobile Responsiveness Utilities */
+@media (max-width: 768px) {
+  /* Scrollable tabs helper */
+  .mobile-scroll-tabs {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+  .mobile-scroll-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Responsive table padding */
+  .table th, .table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  /* Full screen or responsive modal scaling fallback */
+  [class*="modalContent"] {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 92vh !important;
+    padding: 20px 16px !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Ensure touch-friendly buttons */
+  button, input, select, textarea {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS inputs */
+  }
+}
+

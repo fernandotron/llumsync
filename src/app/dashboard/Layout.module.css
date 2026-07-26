@@ -99,6 +99,18 @@
 
   .mainContent {
     margin-left: 0 !important;
-    padding: 20px !important;
+    padding: 16px !important;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  .mainContent {
+    padding: 12px !important;
+  }
+  
+  .mobileHeader {
+    padding: 10px 14px;
   }
 }

@@ -1261,6 +1261,18 @@
   .searchIcon {
     left: 14px !important;
   }
+
+  .quickFilterBar {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    padding-bottom: 6px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .quickFilterBar::-webkit-scrollbar {
+    display: none !important;
+  }
 }
 
 /* ==========================================
