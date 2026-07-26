@@ -3444,19 +3444,6 @@ export default function SettingsPage() {
 
                       <div className="form-group">
                         <label className="form-label">
-                          {t("timezone") === "Time Zone" ? "Simulate Logo (Base64 or URL)" : t("timezone") === "Zona horària" ? "Simular Logotip (Base64 o URL)" : t("timezone") === "Ordu-eremua" ? "Logotipoa Simulatu (Base64 edo URL)" : "Simular Logotipo (Base64 o URL)"}
-                        </label>
-                        <input
-                          type="text"
-                          className="input"
-                          placeholder="Introducir ruta de logotipo..."
-                          value={clinicLogo}
-                          onChange={(e) => setClinicLogo(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">
                           {t("timezone") === "Time Zone" ? "Clinic Country *" : t("timezone") === "Zona horària" ? "País de la consulta *" : t("timezone") === "Ordu-eremua" ? "Kontsultaren herrialdea *" : "País de la consulta *"}
                         </label>
                         <select

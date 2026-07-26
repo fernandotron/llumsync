@@ -1,24 +1,26 @@
 .container {
   display: flex;
-  gap: 24px;
-  height: calc(100vh - 120px);
+  gap: 20px;
+  height: calc(100vh - 100px);
   overflow: hidden;
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 4px;
   width: 100%;
 }
 
-.sidebarCol {
+.profileSidebar {
   display: flex;
   flex-direction: column;
   width: 320px;
   background: var(--bg-panel-solid);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: 20px;
   gap: 16px;
   height: 100%;
-  box-shadow: var(--shadow-sm);
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
   flex-shrink: 0;
 }
 
@@ -170,15 +172,14 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
   overflow: hidden;
   height: 100%;
-  padding-right: 8px;
 }
 
 .backNav {
-  margin-bottom: -8px;
+  margin-bottom: 2px;
 }
 
 .backLink {
@@ -186,12 +187,179 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   transition: color 0.2s;
 }
 .backLink:hover {
   color: var(--primary);
+}
+
+.patientProfileCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.profileHeaderInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: center;
+}
+
+.clientName {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text-primary);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.warningPills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.allergyPill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  width: 100%;
+}
+
+.medicationPill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(249, 115, 22, 0.08);
+  color: #ea580c;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  width: 100%;
+}
+
+.contactSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.contactItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contactIcon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.kpiSection {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.kpiTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.kpiLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.kpiValue {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.kpiValueSmall {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.appointmentActionArea {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profileActionsArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.editProfileBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editProfileBtn:hover {
+  background: var(--primary-hover);
 }
 
 .patientHeaderCard {

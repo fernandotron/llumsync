@@ -3285,58 +3285,9 @@ export default function ClientDetailPage() {
 
   return (
     <div className={styles.container}>
-      {/* LEFT COLUMN: SIDEBAR */}
-      {/*
-      <div className={styles.sidebarCol}>
-        <div className={styles.sidebarSearchWrapper}>
-          <Icons.Search size={16} className={styles.sidebarSearchIcon} />
-          <input 
-            type="text" 
-            placeholder={t("searchClient")} 
-            className={styles.sidebarSearchInput}
-            value={sidebarSearch}
-            onChange={(e) => setSidebarSearch(e.target.value)}
-          />
-        </div>
-        
-        <div className={styles.sidebarClientList}>
-          {filteredSidebarClients.map((c) => {
-            const isActive = c.id === id;
-            return (
-              <div 
-                key={c.id} 
-                className={`${styles.sidebarClientItem} ${isActive ? styles.sidebarClientItemActive : ""}`}
-                onClick={() => router.push(`/dashboard/contacts/${c.id}`)}
-              >
-                <div className={styles.sidebarAvatar}>
-                  {c.firstName.charAt(0)}{c.lastName.charAt(0)}
-                </div>
-                <div className={styles.sidebarInfo}>
-                  <span className={styles.sidebarClientName}>{c.firstName} {c.lastName}</span>
-                  <span className={styles.sidebarClientPhone}>{c.phone || (t("timezone") === "Time Zone" ? "No phone" : t("timezone") === "Zona horària" ? "Sense telèfon" : t("timezone") === "Ordu-eremua" ? "Telefonorik ez" : "Sin teléfono")}</span>
-                </div>
-                <div className={styles.sidebarInitialLetter}>
-                  {c.lastName.charAt(0).toUpperCase()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className={styles.sidebarFooterButtons}>
-          <button className={styles.orangeBtn} onClick={() => setShowCreateModal(true)}>
-            {t("createContactBtn")}
-          </button>
-          <button className={styles.whiteBtn} onClick={() => router.push("/dashboard/contacts")}>
-            {t("exploreClients")}
-          </button>
-        </div>
-      </div>
-      */}
-
-      {/* RIGHT COLUMN: MAIN CONTENT */}
-      <div className={styles.mainCol}>
-        {/* Breadcrumb nav */}
+      {/* LEFT COLUMN: CLIENT PROFILE CARD */}
+      <aside className={styles.profileSidebar}>
+        {/* Back Nav Link */}
         <div className={styles.backNav}>
           <Link href="/dashboard/contacts" className={styles.backLink}>
             <Icons.ChevronLeft size={16} />
@@ -3344,114 +3295,115 @@ export default function ClientDetailPage() {
           </Link>
         </div>
 
-        {/* Patient Main Card - Premium redesign */}
-        <header className={styles.patientHeaderCard}>
+        <div className={styles.patientProfileCard}>
           <div className={styles.avatar}>
             {client.firstName.charAt(0)}{client.lastName.charAt(0)}
           </div>
           
-          <div className={styles.patientMeta}>
-            <div className={styles.nameRow}>
-              <h1>{client.firstName} {client.lastName}</h1>
-              <span className={styles.clientNumberBadge}>{t("clientCol")} #{client.clientNumber}</span>
+          <div className={styles.profileHeaderInfo}>
+            <h1 className={styles.clientName}>{client.firstName} {client.lastName}</h1>
+            <span className={styles.clientNumberBadge}>{t("clientCol")} #{client.clientNumber}</span>
+          </div>
+
+          {/* Warnings */}
+          {(client.allergies || client.medication) && (
+            <div className={styles.warningPills}>
               {client.allergies && (
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: "4px",
-                  background: "rgba(239,68,68,0.1)", color: "#dc2626",
-                  border: "1px solid rgba(239,68,68,0.25)",
-                  padding: "2px 9px", borderRadius: "999px",
-                  fontSize: "11px", fontWeight: 700
-                }}>
-                  ⚠️ Alergias
-                </span>
+                <span className={styles.allergyPill}>⚠️ Alergias</span>
               )}
               {client.medication && (
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: "4px",
-                  background: "rgba(249,115,22,0.1)", color: "#ea580c",
-                  border: "1px solid rgba(249,115,22,0.25)",
-                  padding: "2px 9px", borderRadius: "999px",
-                  fontSize: "11px", fontWeight: 700
-                }}>
-                  💊 Medicación
-                </span>
+                <span className={styles.medicationPill}>💊 Medicación</span>
               )}
             </div>
-            <div className={styles.contactChips}>
-              {client.phone && (
-                <span className={styles.chip}>
-                  <Icons.Phone size={14} />
-                  {showPersonalData ? client.phone : "******"}
-                </span>
-              )}
-              {client.email && (
-                <span className={styles.chip}>
-                  <Icons.Mail size={14} />
+          )}
+
+          {/* Contact Details */}
+          <div className={styles.contactSection}>
+            {client.phone && (
+              <div className={styles.contactItem}>
+                <Icons.Phone size={14} className={styles.contactIcon} />
+                <span>{showPersonalData ? client.phone : "******"}</span>
+                <a 
+                  href={`https://web.whatsapp.com/send?phone=${client.phone.replace(/\+/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.whatsAppIconLink}
+                  title="WhatsApp"
+                  style={{ marginLeft: "auto" }}
+                >
+                  <WhatsAppIcon size={15} />
+                </a>
+              </div>
+            )}
+            {client.email && (
+              <div className={styles.contactItem}>
+                <Icons.Mail size={14} className={styles.contactIcon} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                   {showPersonalData ? client.email : "******"}
                 </span>
-              )}
-              {client.dniNif && (
-                <span className={styles.chip}>
-                  <Icons.Award size={14} />
-                  {identityLabel}: {showPersonalData ? client.dniNif : "******"}
-                </span>
-              )}
-            </div>
+              </div>
+            )}
+            {client.dniNif && (
+              <div className={styles.contactItem}>
+                <Icons.Award size={14} className={styles.contactIcon} />
+                <span>{identityLabel}: {showPersonalData ? client.dniNif : "******"}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          {client.tags && (
             <div className={styles.tagChips}>
-              {client.tags?.split(",").map((tag) => (
+              {client.tags.split(",").map((tag) => (
                 <span key={tag} className={styles.tagBadge}>{tag.trim()}</span>
               ))}
             </div>
+          )}
+
+          {/* KPI Metrics Grid */}
+          <div className={styles.kpiSection}>
+            <div className={styles.kpiTile}>
+              <span className={styles.kpiLabel}>Gastado</span>
+              <span className={styles.kpiValue}>
+                {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
+                  client.sales?.reduce((s: number, sale: Sale) => s + sale.total, 0) || 0
+                )}
+              </span>
+            </div>
+            <div className={styles.kpiTile}>
+              <span className={styles.kpiLabel}>Citas</span>
+              <span className={styles.kpiValue} style={{ color: "var(--text-primary)" }}>
+                {(client.appointments || []).filter((a: any) => !a.deletedAt).length}
+              </span>
+            </div>
+            <div className={styles.kpiTile}>
+              <span className={styles.kpiLabel}>Última</span>
+              <span className={styles.kpiValueSmall}>
+                {(() => {
+                  const past = (client.appointments || []).filter((a: any) => !a.deletedAt && new Date(a.start) <= new Date()).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
+                  if (!past.length) return "—";
+                  const diff = Math.floor((Date.now() - new Date(past[0].start).getTime()) / (1000 * 60 * 60 * 24));
+                  if (diff === 0) return "Hoy";
+                  if (diff === 1) return "Ayer";
+                  if (diff < 7) return `Hace ${diff}d`;
+                  if (diff < 30) return `Hace ${Math.floor(diff/7)}sem`;
+                  return `Hace ${Math.floor(diff/30)}m`;
+                })()}
+              </span>
+            </div>
           </div>
 
-          {/* Quick Stats + Next Appointment */}
-          <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-end" }}>
-            {/* Quick stats row */}
-            <div style={{ display: "flex", gap: "12px" }}>
-              {/* Total gastado */}
-              <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-input)", borderRadius: "10px", minWidth: "80px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Gastado</div>
-                <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--primary)" }}>
-                  {new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
-                    client.sales?.reduce((s: number, sale: Sale) => s + sale.total, 0) || 0
-                  )}
-                </div>
-              </div>
-              {/* Total citas */}
-              <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-input)", borderRadius: "10px", minWidth: "80px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Citas</div>
-                <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)" }}>
-                  {(client.appointments || []).filter((a: any) => !a.deletedAt).length}
-                </div>
-              </div>
-              {/* Última visita */}
-              <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-input)", borderRadius: "10px", minWidth: "90px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "2px" }}>Última</div>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
-                  {(() => {
-                    const past = (client.appointments || []).filter((a: any) => !a.deletedAt && new Date(a.start) <= new Date()).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
-                    if (!past.length) return "—";
-                    const diff = Math.floor((Date.now() - new Date(past[0].start).getTime()) / (1000 * 60 * 60 * 24));
-                    if (diff === 0) return "Hoy";
-                    if (diff === 1) return "Ayer";
-                    if (diff < 7) return `Hace ${diff}d`;
-                    if (diff < 30) return `Hace ${Math.floor(diff/7)}sem`;
-                    return `Hace ${Math.floor(diff/30)}m`;
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* Próxima cita mini-widget */}
+          {/* Próxima cita mini-widget / Agendar Cita */}
+          <div className={styles.appointmentActionArea}>
             {(() => {
               const next = (client.appointments || []).filter((a: any) => !a.deletedAt && new Date(a.start) > new Date()).sort((a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
               return next ? (
                 <div style={{
                   display: "flex", alignItems: "center", gap: "8px",
                   background: "rgba(0,143,163,0.08)", border: "1px solid rgba(0,143,163,0.2)",
-                  borderRadius: "10px", padding: "7px 12px"
+                  borderRadius: "10px", padding: "8px 12px", width: "100%"
                 }}>
-                  <Icons.Calendar size={14} style={{ color: "var(--primary)" }} />
+                  <Icons.Calendar size={16} style={{ color: "var(--primary)", flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--primary)", textTransform: "uppercase" }}>Próxima cita</div>
                     <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>
@@ -3463,20 +3415,26 @@ export default function ClientDetailPage() {
                 <Link
                   href={`/dashboard/agenda?createAppointmentForClientId=${client.id}`}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
                     background: "var(--primary)", color: "#fff",
-                    padding: "7px 14px", borderRadius: "10px",
-                    fontSize: "12px", fontWeight: 700, textDecoration: "none",
-                    transition: "opacity 0.15s"
+                    padding: "9px 14px", borderRadius: "8px",
+                    fontSize: "13px", fontWeight: 700, textDecoration: "none",
+                    width: "100%", transition: "opacity 0.15s"
                   }}
                 >
-                  <Icons.Calendar size={13} />
+                  <Icons.Calendar size={14} />
                   Agendar cita
                 </Link>
               );
             })()}
+          </div>
 
-            {/* Opciones Dropdown */}
+          {/* Action Buttons: Full Edit / Options */}
+          <div className={styles.profileActionsArea}>
+            <button className={styles.editProfileBtn} onClick={() => setShowFullEditModal(true)}>
+              <Icons.Edit size={14} />
+              <span>Editar</span>
+            </button>
             <div className={styles.optionsWrapper} ref={optionsRef}>
               <button 
                 className={styles.optionsBtn}
@@ -3558,10 +3516,11 @@ export default function ClientDetailPage() {
               )}
             </div>
           </div>
-        </header>
+        </div>
+      </aside>
 
-
-        {/* Profile Section Tabs */}
+      {/* RIGHT COLUMN: MAIN WORK AREA */}
+      <main className={styles.mainCol}>
         <div className={styles.tabsContainer}>
           <button 
             className={`${styles.tabBtn} ${activeTab === "general" ? styles.tabBtnActive : ""}`}
@@ -7495,7 +7454,7 @@ export default function ClientDetailPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {/* BUDGET CREATION/EDITION MODAL */}
       {showBudgetModal && typeof window !== "undefined" && createPortal(
