@@ -8074,30 +8074,124 @@ export default function ClientDetailPage() {
 
                 {billingSubTab === "presupuestos" && (
                   <div>
-                    <h4 className={styles.sectionSubtitle}>Presupuestos emitidos</h4>
-                    <div className={styles.emptyState}>No hay presupuestos emitidos para este paciente.</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                      <h4 className={styles.sectionSubtitle} style={{ color: "var(--primary)", fontWeight: 700, fontSize: "15px", margin: 0 }}>
+                        Presupuestos emitidos
+                      </h4>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => handleOpenBudgetModal()}
+                        style={{ padding: "8px 18px", fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      >
+                        <Icons.Plus size={16} />
+                        <span>Crear Presupuesto</span>
+                      </button>
+                    </div>
+
+                    {clientBudgets.length === 0 ? (
+                      <div className={styles.emptyState} style={{ padding: "40px 20px", color: "var(--text-muted)", fontSize: "14px", textAlign: "center" }}>
+                        No hay presupuestos registrados para este paciente.
+                      </div>
+                    ) : (
+                      <div className="table-container">
+                        <table className="table" style={{ fontSize: "13px", width: "100%", borderCollapse: "collapse" }}>
+                          <thead>
+                            <tr style={{ background: "var(--bg-input)", color: "var(--text-secondary)", fontWeight: 600 }}>
+                              <th style={{ padding: "10px", textAlign: "left" }}>Nº Presupuesto</th>
+                              <th style={{ padding: "10px", textAlign: "left" }}>Concepto</th>
+                              <th style={{ padding: "10px", textAlign: "left" }}>Fecha Emisión</th>
+                              <th style={{ padding: "10px", textAlign: "left" }}>Total</th>
+                              <th style={{ padding: "10px", textAlign: "left" }}>Saldo Restante</th>
+                              <th style={{ padding: "10px", textAlign: "left" }}>Estado</th>
+                              <th style={{ padding: "10px", textAlign: "right" }}>Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {clientBudgets.map((b) => (
+                              <tr key={b.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                                <td style={{ padding: "10px" }}><strong>PRE-{b.budgetNumber}</strong></td>
+                                <td style={{ padding: "10px" }}>{b.title}</td>
+                                <td style={{ padding: "10px" }}>{new Date(b.createdAt).toLocaleDateString("es-ES")}</td>
+                                <td style={{ padding: "10px", fontWeight: "bold" }}>{b.total?.toFixed(2)}€</td>
+                                <td style={{ padding: "10px", color: b.remainingAmount > 0 ? "#10b981" : "var(--text-secondary)" }}>
+                                  {b.status === "ACCEPTED" ? `${b.remainingAmount?.toFixed(2)}€` : "-"}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                  <span style={{
+                                    padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700,
+                                    background: b.status === "ACCEPTED" ? "rgba(16,185,129,0.12)" : b.status === "REJECTED" ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
+                                    color: b.status === "ACCEPTED" ? "#10b981" : b.status === "REJECTED" ? "#ef4444" : "#d97706"
+                                  }}>
+                                    {b.status === "ACCEPTED" ? "Aceptado" : b.status === "REJECTED" ? "Rechazado" : "Pendiente"}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "10px", textAlign: "right" }}>
+                                  <div style={{ display: "inline-flex", gap: "6px" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenBudgetModal(b)}
+                                      style={{ padding: "4px 10px", fontSize: "12px", background: "var(--bg-input)", border: "1px solid var(--border-color)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                    >
+                                      ✏️ Editar
+                                    </button>
+                                    {b.status === "PENDING" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAcceptBudgetDirectly(b.id, b.total)}
+                                        style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.12)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 600 }}
+                                      >
+                                        ✔️ Aceptar
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePrintBudget(b)}
+                                      style={{ padding: "4px 10px", fontSize: "12px", background: "var(--primary-light)", color: "var(--primary)", border: "1px solid rgba(2,132,199,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                    >
+                                      🖨️ PDF
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteBudget(b.id)}
+                                      style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer" }}
+                                    >
+                                      🗑️ Borrar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
           )}
           {activeTab === "budgets" && (
-
             <div className={styles.billingPanel}>
-              <div className={styles.subTabsHeaderRow} style={{ borderBottom: "none", marginBottom: "16px" }}>
-                <h3 className={styles.sectionSubtitle} style={{ margin: 0 }}>Presupuestos del Paciente</h3>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                <h4 className={styles.sectionSubtitle} style={{ color: "var(--primary)", fontWeight: 700, fontSize: "15px", margin: 0 }}>
+                  Presupuestos del Paciente
+                </h4>
                 <button
                   type="button"
-                  className={styles.btnAddArticle}
+                  className="btn btn-primary"
                   onClick={() => handleOpenBudgetModal()}
+                  style={{ padding: "8px 18px", fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}
                 >
-                  <Icons.Plus size={16} style={{ marginRight: "6px" }} />
+                  <Icons.Plus size={16} />
                   <span>Crear Presupuesto</span>
                 </button>
               </div>
 
               {clientBudgets.length === 0 ? (
-                <div className={styles.emptyState}>No hay presupuestos registrados para este paciente.</div>
+                <div className={styles.emptyState} style={{ padding: "40px 20px", color: "var(--text-muted)", fontSize: "14px", textAlign: "center" }}>
+                  No hay presupuestos registrados para este paciente.
+                </div>
               ) : (
                 <div className="table-container">
                   <table className="table" style={{ fontSize: "13px", width: "100%", borderCollapse: "collapse" }}>
@@ -8109,7 +8203,7 @@ export default function ClientDetailPage() {
                         <th style={{ padding: "10px", textAlign: "left" }}>Total</th>
                         <th style={{ padding: "10px", textAlign: "left" }}>Saldo Restante</th>
                         <th style={{ padding: "10px", textAlign: "left" }}>Estado</th>
-                        <th style={{ padding: "10px", textAlign: "left" }}>Acciones</th>
+                        <th style={{ padding: "10px", textAlign: "right" }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -8118,25 +8212,25 @@ export default function ClientDetailPage() {
                           <td style={{ padding: "10px" }}><strong>PRE-{b.budgetNumber}</strong></td>
                           <td style={{ padding: "10px" }}>{b.title}</td>
                           <td style={{ padding: "10px" }}>{new Date(b.createdAt).toLocaleDateString("es-ES")}</td>
-                          <td style={{ padding: "10px", fontWeight: "bold" }}>{b.total.toFixed(2)}€</td>
+                          <td style={{ padding: "10px", fontWeight: "bold" }}>{b.total?.toFixed(2)}€</td>
                           <td style={{ padding: "10px", color: b.remainingAmount > 0 ? "#10b981" : "var(--text-secondary)" }}>
-                            {b.status === "ACCEPTED" ? `${b.remainingAmount.toFixed(2)}€` : "-"}
+                            {b.status === "ACCEPTED" ? `${b.remainingAmount?.toFixed(2)}€` : "-"}
                           </td>
                           <td style={{ padding: "10px" }}>
                             <span style={{
-                              padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 600,
+                              padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700,
                               background: b.status === "ACCEPTED" ? "rgba(16,185,129,0.12)" : b.status === "REJECTED" ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
-                              color: b.status === "ACCEPTED" ? "#10b981" : b.status === "REJECTED" ? "#ef4444" : "#f59e0b"
+                              color: b.status === "ACCEPTED" ? "#10b981" : b.status === "REJECTED" ? "#ef4444" : "#d97706"
                             }}>
                               {b.status === "ACCEPTED" ? "Aceptado" : b.status === "REJECTED" ? "Rechazado" : "Pendiente"}
                             </span>
                           </td>
-                          <td style={{ padding: "10px" }}>
-                            <div style={{ display: "flex", gap: "6px" }}>
+                          <td style={{ padding: "10px", textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", gap: "6px" }}>
                               <button
                                 type="button"
                                 onClick={() => handleOpenBudgetModal(b)}
-                                style={{ padding: "3px 8px", fontSize: "11px", background: "var(--bg-input)", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer" }}
+                                style={{ padding: "4px 10px", fontSize: "12px", background: "var(--bg-input)", border: "1px solid var(--border-color)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
                               >
                                 ✏️ Editar
                               </button>
@@ -8144,7 +8238,7 @@ export default function ClientDetailPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleAcceptBudgetDirectly(b.id, b.total)}
-                                  style={{ padding: "3px 8px", fontSize: "11px", background: "rgba(16,185,129,0.12)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "4px", cursor: "pointer", fontWeight: 600 }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.12)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 600 }}
                                 >
                                   ✔️ Aceptar
                                 </button>
@@ -8152,14 +8246,14 @@ export default function ClientDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => handlePrintBudget(b)}
-                                style={{ padding: "3px 8px", fontSize: "11px", background: "var(--primary-light)", color: "var(--primary)", border: "1px solid rgba(2,132,199,0.3)", borderRadius: "4px", cursor: "pointer" }}
+                                style={{ padding: "4px 10px", fontSize: "12px", background: "var(--primary-light)", color: "var(--primary)", border: "1px solid rgba(2,132,199,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
                               >
                                 🖨️ PDF
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteBudget(b.id)}
-                                style={{ padding: "3px 8px", fontSize: "11px", background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "4px", cursor: "pointer" }}
+                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer" }}
                               >
                                 🗑️ Borrar
                               </button>
