@@ -9923,23 +9923,24 @@ export default function ClientDetailPage() {
       )}
 
       {/* ASSOCIATE VOUCHER MODAL */}
-      {showAddVoucherModal && (
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px" }}>
+      {showAddVoucherModal && typeof window !== "undefined" && createPortal(
+        <div className={styles.modalOverlay} onClick={() => { setShowAddVoucherModal(false); setSelectedVoucherId(""); }}>
+          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px" }}>
             <div className={styles.modalHeader}>
-              <h2>Asociar Bono a Paciente</h2>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Asociar Bono a Paciente</h2>
               <button onClick={() => { setShowAddVoucherModal(false); setSelectedVoucherId(""); }} className={styles.closeBtn}>
-                <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
+                ✕
               </button>
             </div>
 
-            <div className={styles.modalForm} style={{ padding: "16px 20px" }}>
-              <div className="form-group">
-                <label className="form-label">Selecciona el Bono *</label>
+            <div className={styles.modalForm} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label className="form-label" style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Selecciona el Bono *</label>
                 <select
                   className="input select"
                   value={selectedVoucherId}
                   onChange={(e) => setSelectedVoucherId(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#ffffff" }}
                 >
                   <option value="">-- Seleccionar Bono template --</option>
                   {clinicVouchers.map((voucher) => (
@@ -9954,20 +9955,21 @@ export default function ClientDetailPage() {
                 const selected = clinicVouchers.find(v => v.id === selectedVoucherId);
                 if (!selected) return null;
                 return (
-                  <div style={{ marginTop: "12px", padding: "12px", borderRadius: "6px", backgroundColor: "var(--bg-input)", fontSize: "12px", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <strong>Detalles del Bono:</strong>
-                    <div>Sesiones: {selected.sessions}</div>
-                    <div>Precio: {selected.price.toFixed(2)}€ {selected.tax ? `+ ${selected.tax}% IVA` : ""}</div>
-                    <div>Caducidad: {selected.expirationMonths ? `${selected.expirationMonths} meses` : "Sin caducidad"}</div>
+                  <div style={{ padding: "14px", borderRadius: "10px", backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", fontSize: "13px", color: "#334155", display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <strong style={{ color: "#0f172a" }}>Detalles del Bono:</strong>
+                    <div>• Sesiones: <strong>{selected.sessions}</strong></div>
+                    <div>• Precio: <strong>{selected.price.toFixed(2)}€</strong> {selected.tax ? `+ ${selected.tax}% IVA` : ""}</div>
+                    <div>• Caducidad: <strong>{selected.expirationMonths ? `${selected.expirationMonths} meses` : "Sin caducidad"}</strong></div>
                   </div>
                 );
               })()}
 
-              <div className={styles.modalActions} style={{ marginTop: "24px" }}>
+              <div className={styles.modalActions} style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
                   onClick={() => { setShowAddVoucherModal(false); setSelectedVoucherId(""); }}
+                  style={{ padding: "9px 18px", fontSize: "13px" }}
                 >
                   Cancelar
                 </button>
@@ -9976,58 +9978,63 @@ export default function ClientDetailPage() {
                   className="btn btn-primary"
                   onClick={handleAssociateVoucher}
                   disabled={!selectedVoucherId}
+                  style={{ padding: "9px 22px", fontSize: "13px", background: "var(--primary)", borderColor: "var(--primary)" }}
                 >
                   Asociar Bono
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* EDIT CLIENT VOUCHER MODAL */}
-      {showEditVoucherModal && editingClientVoucher && (
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px" }}>
+      {showEditVoucherModal && editingClientVoucher && typeof window !== "undefined" && createPortal(
+        <div className={styles.modalOverlay} onClick={() => { setShowEditVoucherModal(false); setEditingClientVoucher(null); }}>
+          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px" }}>
             <div className={styles.modalHeader}>
-              <h2>Editar Bono de Paciente</h2>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Editar Bono de Paciente</h2>
               <button onClick={() => { setShowEditVoucherModal(false); setEditingClientVoucher(null); }} className={styles.closeBtn}>
-                <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
+                ✕
               </button>
             </div>
 
-            <div className={styles.modalForm} style={{ padding: "16px 20px" }}>
-              <div className="form-group">
-                <label className="form-label">Nombre del Bono *</label>
+            <div className={styles.modalForm} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label className="form-label" style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Nombre del Bono *</label>
                 <input
                   type="text"
                   className="input"
                   value={editVoucherName}
                   onChange={(e) => setEditVoucherName(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#ffffff" }}
                   required
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginTop: "12px" }}>
-                <div className="form-group">
-                  <label className="form-label">Sesiones Totales *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label className="form-label" style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Sesiones Totales *</label>
                   <input
                     type="number"
                     className="input"
                     value={editVoucherSessions}
                     onChange={(e) => setEditVoucherSessions(parseInt(e.target.value, 10) || 0)}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#ffffff" }}
                     min="1"
                     required
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Sesiones Restantes *</label>
+                <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label className="form-label" style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Sesiones Restantes *</label>
                   <input
                     type="number"
                     className="input"
                     value={editVoucherRemaining}
                     onChange={(e) => setEditVoucherRemaining(parseInt(e.target.value, 10) || 0)}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#ffffff" }}
                     min="0"
                     max={editVoucherSessions}
                     required
@@ -10035,36 +10042,39 @@ export default function ClientDetailPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginTop: "12px" }}>
-                <div className="form-group">
-                  <label className="form-label">Precio (€) *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label className="form-label" style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Precio (€) *</label>
                   <input
                     type="number"
                     className="input"
                     value={editVoucherPrice}
                     onChange={(e) => setEditVoucherPrice(parseFloat(e.target.value) || 0)}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#ffffff" }}
                     min="0"
                     step="0.01"
                     required
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Fecha de Caducidad</label>
+                <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label className="form-label" style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Fecha de Caducidad</label>
                   <input
                     type="date"
                     className="input"
                     value={editVoucherExpiration}
                     onChange={(e) => setEditVoucherExpiration(e.target.value)}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#ffffff" }}
                   />
                 </div>
               </div>
 
-              <div className={styles.modalActions} style={{ marginTop: "24px" }}>
+              <div className={styles.modalActions} style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
                   onClick={() => { setShowEditVoucherModal(false); setEditingClientVoucher(null); }}
+                  style={{ padding: "9px 18px", fontSize: "13px" }}
                 >
                   Cancelar
                 </button>
@@ -10072,23 +10082,25 @@ export default function ClientDetailPage() {
                   type="button" 
                   className="btn btn-primary"
                   onClick={handleSaveClientVoucherEdit}
+                  style={{ padding: "9px 22px", fontSize: "13px", background: "var(--primary)", borderColor: "var(--primary)" }}
                 >
                   Guardar
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* SHARE CLIENT VOUCHER MODAL */}
-      {showShareVoucherModal && sharingClientVoucher && (
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "480px" }}>
+      {showShareVoucherModal && sharingClientVoucher && typeof window !== "undefined" && createPortal(
+        <div className={styles.modalOverlay} onClick={() => { setShowShareVoucherModal(false); setSharingClientVoucher(null); }}>
+          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
             <div className={styles.modalHeader}>
               <div>
-                <h2>Compartir Bono</h2>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Compartir Bono</h2>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "2px", margin: 0 }}>
                   {sharingClientVoucher.name} — {sharingClientVoucher.remainingSessions}/{sharingClientVoucher.sessions} sesiones
                 </p>
               </div>
@@ -10096,28 +10108,29 @@ export default function ClientDetailPage() {
                 onClick={() => { setShowShareVoucherModal(false); setSharingClientVoucher(null); }}
                 className={styles.closeBtn}
               >
-                <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
+                ✕
               </button>
             </div>
 
-            <div style={{ padding: "16px 20px" }}>
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "14px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0 }}>
                 Las sesiones de este bono se compartirán entre este paciente y los seleccionados. El consumo descuenta de las sesiones restantes del bono.
               </p>
 
               {/* Search */}
-              <div style={{ position: "relative", marginBottom: "12px" }}>
+              <div style={{ position: "relative" }}>
                 <input
                   type="text"
                   className="input"
                   placeholder="Buscar paciente por nombre..."
                   value={shareVoucherClientSearch}
                   onChange={(e) => setShareVoucherClientSearch(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", background: "#ffffff" }}
                 />
               </div>
 
               {/* Client list */}
-              <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
                 {allClientsForShare
                   .filter((c) => {
                     if (!shareVoucherClientSearch) return true;
@@ -10138,10 +10151,10 @@ export default function ClientDetailPage() {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          padding: "10px 12px",
-                          borderRadius: "8px",
-                          border: `1px solid ${isShared ? "rgba(139,92,246,0.4)" : "var(--border-color)"}`,
-                          background: isShared ? "rgba(139,92,246,0.06)" : "var(--bg-card)",
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          border: `1px solid ${isShared ? "rgba(139,92,246,0.4)" : "#e2e8f0"}`,
+                          background: isShared ? "rgba(139,92,246,0.06)" : "#ffffff",
                           cursor: "pointer",
                           transition: "all 0.15s ease",
                         }}
@@ -10152,28 +10165,28 @@ export default function ClientDetailPage() {
                             width: "32px",
                             height: "32px",
                             borderRadius: "50%",
-                            background: isShared ? "rgba(139,92,246,0.2)" : "var(--bg-input)",
+                            background: isShared ? "rgba(139,92,246,0.2)" : "#f1f5f9",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             fontSize: "12px",
                             fontWeight: 700,
-                            color: isShared ? "#8b5cf6" : "var(--text-secondary)",
+                            color: isShared ? "#8b5cf6" : "#64748b",
                           }}>
                             {c.firstName?.charAt(0)}{c.lastName?.charAt(0)}
                           </div>
                           <div>
-                            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                            <div style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>
                               {c.firstName} {c.lastName}
                             </div>
-                            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>#{c.clientNumber}</div>
+                            <div style={{ fontSize: "11px", color: "#64748b" }}>#{c.clientNumber}</div>
                           </div>
                         </div>
                         <div style={{
                           width: "20px",
                           height: "20px",
                           borderRadius: "50%",
-                          border: `2px solid ${isShared ? "#8b5cf6" : "var(--border-color)"}`,
+                          border: `2px solid ${isShared ? "#8b5cf6" : "#cbd5e1"}`,
                           background: isShared ? "#8b5cf6" : "transparent",
                           display: "flex",
                           alignItems: "center",
@@ -10194,17 +10207,17 @@ export default function ClientDetailPage() {
                   const q = shareVoucherClientSearch.toLowerCase();
                   return c.firstName?.toLowerCase().includes(q) || c.lastName?.toLowerCase().includes(q) || String(c.clientNumber).includes(q);
                 }).length === 0 && (
-                  <p style={{ color: "var(--text-muted)", fontSize: "13px", textAlign: "center", padding: "20px" }}>
+                  <p style={{ color: "#64748b", fontSize: "13px", textAlign: "center", padding: "20px" }}>
                     No se encontraron pacientes.
                   </p>
                 )}
               </div>
 
-              <div className={styles.modalActions} style={{ marginTop: "20px" }}>
+              <div className={styles.modalActions} style={{ marginTop: "8px" }}>
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ width: "100%" }}
+                  style={{ width: "100%", padding: "10px", fontSize: "13px" }}
                   onClick={() => { setShowShareVoucherModal(false); setSharingClientVoucher(null); }}
                 >
                   Cerrar
@@ -10212,7 +10225,8 @@ export default function ClientDetailPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* CREATE NEW CLIENT SIDEBAR DRAWER - portal so it covers full viewport */}
@@ -11364,9 +11378,10 @@ export default function ClientDetailPage() {
         <div style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(15, 23, 42, 0.4)",
-          backdropFilter: "blur(4px)",
-          zIndex: 9999,
+          background: "rgba(15, 23, 42, 0.65)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          zIndex: 999999,
           display: "flex",
           justifyContent: "flex-end"
         }}>
