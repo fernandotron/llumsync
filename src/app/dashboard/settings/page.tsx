@@ -2885,7 +2885,8 @@ export default function SettingsPage() {
       selection.addRange(newRange);
     }
 
-    setTemplateContent(container.innerHTML);
+    const currentHtml = container.innerHTML;
+    setTemplateContent(currentHtml);
   };
 
   const handleCommand = (command: string, value: string = '') => {
@@ -2924,9 +2925,16 @@ export default function SettingsPage() {
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const currentContent = editorRef.current ? editorRef.current.innerHTML : templateContent;
+
+    if (!templateName.trim()) {
+      alert("Por favor, introduce el nombre del documento.");
+      return;
+    }
+
     const payload = {
       name: templateName,
-      content: templateContent,
+      content: currentContent,
     };
 
     let url = "/api/documents/templates";
@@ -2937,20 +2945,41 @@ export default function SettingsPage() {
       method = "PUT";
     }
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    if (res.ok) {
-      fetchData(); // reload list
-      if (!selectedTemplateId) {
-        handleClearTemplate();
+      if (res.ok) {
+        const savedData = await res.json();
+        const savedId = savedData.id || selectedTemplateId;
+
+        setTemplateContent(currentContent);
+        if (editorRef.current) {
+          editorRef.current.innerHTML = currentContent;
+        }
+
+        // Refresh template list from server
+        const listRes = await fetch("/api/documents/templates");
+        if (listRes.ok) {
+          const data = await listRes.json();
+          const list = Array.isArray(data) ? data : [];
+          setTemplates(list);
+          if (savedId) {
+            setSelectedTemplateId(savedId);
+          }
+        }
+
+        alert(selectedTemplateId ? "Plantilla actualizada correctamente." : "Plantilla creada correctamente.");
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || "Error al guardar la plantilla.");
       }
-      alert(selectedTemplateId ? "Plantilla actualizada correctamente." : "Plantilla creada correctamente.");
-    } else {
-      alert("Error al guardar la plantilla.");
+    } catch (err) {
+      console.error("Error al guardar plantilla:", err);
+      alert("Error de red al guardar la plantilla.");
     }
   };
 
@@ -4698,7 +4727,7 @@ export default function SettingsPage() {
                 <span style={{ width: "1px", height: "20px", background: "#cbd5e1", margin: "0 4px" }} />
 
                 <button type="button" onClick={() => {
-                  setHtmlModalContent(templateContent);
+                  setHtmlModalContent(editorRef.current ? editorRef.current.innerHTML : templateContent);
                   setShowHtmlModal(true);
                 }} style={{ padding: "6px 8px", background: "white", border: "1px solid #cbd5e1", borderRadius: "4px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
                   <span>&lt;/&gt;</span>
