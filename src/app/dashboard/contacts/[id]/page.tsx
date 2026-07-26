@@ -1525,6 +1525,18 @@ export default function ClientDetailPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ESC key handler to close Associate Document modal
+  useEffect(() => {
+    if (!showAssociateDocModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowAssociateDocModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showAssociateDocModal]);
+
   // File Upload Handlers
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -4716,7 +4728,7 @@ export default function ClientDetailPage() {
 
               {/* ── ASOCIAR DOCUMENTO MODAL (WIZARD REDESIGNED) ── */}
               {showAssociateDocModal && typeof window !== "undefined" && createPortal(
-                <div className={styles.associateDocOverlay} onClick={() => setShowAssociateDocModal(false)}>
+                <div className={styles.associateDocOverlay}>
                   <div 
                     className={styles.associateDocModal} 
                     onClick={(e) => e.stopPropagation()}
