@@ -228,6 +228,12 @@ export default function Sidebar() {
             path: "/dashboard/almacen",
             icon: <Icons.Package size={18} />,
           },
+          {
+            id: "clubSocios",
+            name: "Club de Socios",
+            path: "/dashboard/club-socios",
+            icon: <Icons.CreditCard size={18} />,
+          },
         ]
       : []),
     ...(hasStatsAccess

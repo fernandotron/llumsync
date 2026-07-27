@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import CashRegisterView from "@/components/CashRegisterView";
-import DailyRegisterView from "@/components/DailyRegisterView";
+import LoyaltyMembersView from "@/components/LoyaltyMembersView";
+import LoyaltyCardDesigner from "@/components/LoyaltyCardDesigner";
+import { Icons } from "@/components/Icons";
 
-export default function CashRegisterPage() {
-  const [currentTab, setCurrentTab] = useState<"cash" | "daily">("cash");
+export default function ClubSociosPage() {
+  const [currentTab, setCurrentTab] = useState<"members" | "designer">("members");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -23,13 +24,13 @@ export default function CashRegisterPage() {
         }}
       >
         <button
-          onClick={() => setCurrentTab("cash")}
+          onClick={() => setCurrentTab("members")}
           style={{
-            padding: "10px 20px",
+            padding: "10px 22px",
             borderRadius: "10px",
             border: "none",
-            background: currentTab === "cash" ? "var(--primary)" : "transparent",
-            color: currentTab === "cash" ? "#ffffff" : "var(--text-secondary)",
+            background: currentTab === "members" ? "var(--primary)" : "transparent",
+            color: currentTab === "members" ? "#ffffff" : "var(--text-secondary)",
             fontSize: "14px",
             fontWeight: 700,
             cursor: "pointer",
@@ -39,17 +40,17 @@ export default function CashRegisterPage() {
             gap: "8px",
           }}
         >
-          💰 Control y Arqueo de Caja
+          <Icons.Users size={18} /> 👥 Gestión y Listado de Socios
         </button>
 
         <button
-          onClick={() => setCurrentTab("daily")}
+          onClick={() => setCurrentTab("designer")}
           style={{
-            padding: "10px 20px",
+            padding: "10px 22px",
             borderRadius: "10px",
             border: "none",
-            background: currentTab === "daily" ? "var(--primary)" : "transparent",
-            color: currentTab === "daily" ? "#ffffff" : "var(--text-secondary)",
+            background: currentTab === "designer" ? "var(--primary)" : "transparent",
+            color: currentTab === "designer" ? "#ffffff" : "var(--text-secondary)",
             fontSize: "14px",
             fontWeight: 700,
             cursor: "pointer",
@@ -59,13 +60,12 @@ export default function CashRegisterPage() {
             gap: "8px",
           }}
         >
-          📖 Libro Diario de Consultas
+          <Icons.CreditCard size={18} /> 🎨 Diseñador de Plantillas (Tipo Canva)
         </button>
       </div>
 
       {/* Render selected view */}
-      {currentTab === "cash" ? <CashRegisterView /> : <DailyRegisterView />}
+      {currentTab === "members" ? <LoyaltyMembersView /> : <LoyaltyCardDesigner />}
     </div>
   );
 }
-

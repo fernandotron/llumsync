@@ -6,6 +6,8 @@ import { useApp } from "@/context/AppContext";
 import { toast } from "@/components/ToastContainer";
 import styles from "./LoyaltyMembersView.module.css";
 
+import { PRESET_TEMPLATES, CardTemplate, SvgQrCode } from "./LoyaltyCardDesigner";
+
 interface Client {
   id: string;
   firstName: string;
@@ -28,6 +30,7 @@ export default function LoyaltyMembersView() {
   // Modals
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showCardModal, setShowCardModal] = useState<Client | null>(null);
+  const [activeTemplate, setActiveTemplate] = useState<CardTemplate>(PRESET_TEMPLATES[0]);
 
   // Add Member Form
   const [selectedClientId, setSelectedClientId] = useState("");
@@ -49,6 +52,17 @@ export default function LoyaltyMembersView() {
         const clientData = await clientsRes.json();
         const list = clientData.clients || clientData || [];
         setAllClients(list);
+      }
+
+      // Fetch active card template
+      const tplRes = await fetch(`/api/loyalty/templates?clinicId=${activeClinic.id}`);
+      if (tplRes.ok) {
+        const tplData = await tplRes.json();
+        if (tplData) {
+          const allTpls = [...PRESET_TEMPLATES, ...(tplData.templates || [])];
+          const active = allTpls.find((t) => t.id === tplData.activeTemplateId) || PRESET_TEMPLATES[0];
+          setActiveTemplate(active);
+        }
       }
     } catch (err) {
       console.error("Error fetching members:", err);
@@ -297,25 +311,93 @@ export default function LoyaltyMembersView() {
               </button>
             </div>
 
-            {/* Render Digital Membership Card */}
-            <div className={styles.digitalCard}>
-              <div className={styles.cardGlow} />
-              <div className={styles.cardTop}>
-                <span className={styles.cardLogo}>{activeClinic?.name || "CLINICA"}</span>
-                <span className={styles.cardChip}>CLUB SOCIOS VIP</span>
-              </div>
-              <div className={styles.cardMiddle}>
-                <h4 className={styles.memberName}>
-                  {showCardModal.firstName} {showCardModal.lastName}
-                </h4>
-                <div className={styles.memberDni}>DNI / NIF: {showCardModal.dniNif || "-"}</div>
-              </div>
-              <div className={styles.cardBottom}>
-                <div className={styles.cardNumber}>{showCardModal.memberNumber || "M00001"}</div>
-                <div className={styles.cardDate}>
-                  ALTA: {showCardModal.membershipDate ? new Date(showCardModal.membershipDate).toLocaleDateString("es-ES") : "2026"}
-                </div>
-              </div>
+            {/* Render Canva Active Template Membership Card */}
+            <div
+              style={{
+                width: "537px",
+                height: "338px",
+                margin: "20px auto 0",
+                position: "relative",
+                borderRadius: `${activeTemplate.borderRadius || 18}px`,
+                boxShadow: "0 15px 35px rgba(0,0,0,0.3)",
+                overflow: "hidden",
+                userSelect: "none",
+                background:
+                  activeTemplate.bgType === "solid"
+                    ? activeTemplate.bgColor1 || "#0f172a"
+                    : activeTemplate.bgType === "image" && activeTemplate.bgImage
+                    ? `url(${activeTemplate.bgImage}) center/cover no-repeat`
+                    : `linear-gradient(${activeTemplate.gradientAngle || 135}deg, ${
+                        activeTemplate.bgColor1 || "#0f172a"
+                      } 0%, ${activeTemplate.bgColor2 || "#1e293b"} 100%)`,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: "-50%",
+                  left: "-50%",
+                  width: "200%",
+                  height: "200%",
+                  background:
+                    "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 60%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              {activeTemplate.elements.map((el) => {
+                const replaceMemberData = (rawText?: string) => {
+                  if (!rawText) return "";
+                  const cName = activeClinic?.name || "Clínica Centro";
+                  const fullName = `${showCardModal.firstName} ${showCardModal.lastName}`.trim();
+                  const mNum = showCardModal.memberNumber || "M00001";
+                  const dni = showCardModal.dniNif || "-";
+                  const dateStr = showCardModal.membershipDate
+                    ? new Date(showCardModal.membershipDate).toLocaleDateString("es-ES")
+                    : new Date(showCardModal.createdAt).toLocaleDateString("es-ES");
+
+                  return rawText
+                    .replace(/\{\{Nombre de Cliente\}\}/g, fullName)
+                    .replace(/\{\{Numero de socio\}\}/g, mNum)
+                    .replace(/\{\{DNI\}\}/g, dni)
+                    .replace(/\{\{Fecha Alta\}\}/g, dateStr)
+                    .replace(/\{\{Nombre Clinica\}\}/g, cName);
+                };
+
+                return (
+                  <div
+                    key={el.id}
+                    style={{
+                      position: "absolute",
+                      left: `${el.x}px`,
+                      top: `${el.y}px`,
+                      zIndex: el.zIndex,
+                    }}
+                  >
+                    {el.type === "text" ? (
+                      <div
+                        style={{
+                          fontSize: `${el.fontSize || 16}px`,
+                          fontFamily: el.fontFamily || "Inter",
+                          color: el.color || "#ffffff",
+                          fontWeight: el.fontWeight || "normal",
+                          textAlign: el.textAlign || "left",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {replaceMemberData(el.content)}
+                      </div>
+                    ) : el.type === "qr" ? (
+                      <SvgQrCode
+                        value={replaceMemberData(el.content)}
+                        size={el.width || 80}
+                        fgColor={el.qrFgColor || "#ffffff"}
+                        bgColor={el.qrBgColor || "transparent"}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
 
             <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "20px" }}>

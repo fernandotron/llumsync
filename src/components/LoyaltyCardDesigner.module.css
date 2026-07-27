@@ -1,0 +1,586 @@
+.designerContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+/* Header Bar */
+.headerBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--bg-card);
+  padding: 16px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.headerTitle {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerSub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* App Formatting Top Bar */
+.canvaTopBar {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+  user-select: none;
+  min-height: 48px;
+}
+
+.canvaBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.canvaBtn:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--primary);
+}
+
+.canvaBtnActive {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: var(--primary) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.fontSelect {
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: var(--bg-body);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.sizeBox {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 2px 4px;
+  background: var(--bg-body);
+}
+
+.sizeBtn {
+  background: transparent;
+  border: none;
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.sizeBtn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.sizeInput {
+  width: 34px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* Studio Workspace Layout */
+.workspaceLayout {
+  display: grid;
+  grid-template-columns: 80px 320px 1fr;
+  gap: 16px;
+  min-height: 600px;
+}
+
+@media (max-width: 1024px) {
+  .workspaceLayout {
+    grid-template-columns: 70px 1fr;
+  }
+}
+
+/* Vertical Icon Nav Sidebar */
+.verticalNav {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.navTabBtn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.navTabBtn:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--primary);
+}
+
+.navTabActive {
+  background: rgba(59, 130, 246, 0.12) !important;
+  color: var(--primary) !important;
+  font-weight: 800;
+}
+
+.navIconBadge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: var(--bg-body);
+  transition: all 0.15s ease;
+}
+
+.navTabActive .navIconBadge {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Collapsible Active Drawer Panel */
+.drawerPanel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 620px;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.drawerHeader {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.searchInput {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+/* Uploads Tab Gallery */
+.uploadBtnMain {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s ease;
+}
+
+.uploadBtnMain:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.4);
+}
+
+.mediaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.mediaCard {
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-body);
+  height: 90px;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.mediaCard:hover {
+  border-color: var(--primary);
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mediaCard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Preset Cards Grid */
+.presetGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.presetCard {
+  border-radius: 12px;
+  height: 90px;
+  padding: 12px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.presetCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.presetCardActive {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+}
+
+.presetName {
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  margin: 0;
+}
+
+.presetTag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  width: fit-content;
+}
+
+/* Variable Pills */
+.varPills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.varPill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--primary);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.varPill:hover {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+/* Canvas Viewport Stage */
+.canvasViewport {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  min-height: 540px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.cardStage {
+  width: 537px;
+  height: 338px;
+  position: relative;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  user-select: none;
+  transition: background 0.3s ease;
+}
+
+@media (max-width: 600px) {
+  .cardStage {
+    transform: scale(0.65);
+    transform-origin: center center;
+  }
+}
+
+.cardGlassGlow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Canvas Element Wrapper */
+.elementWrapper {
+  position: absolute;
+  cursor: move;
+  box-sizing: border-box;
+  touch-action: none;
+  user-select: none;
+}
+
+.elementSelected {
+  outline: 2px dashed var(--primary);
+  outline-offset: 3px;
+}
+
+/* Canva Floating Context Menu above selected element */
+.contextFloatingBar {
+  position: absolute;
+  top: -42px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+  white-space: nowrap;
+}
+
+.contextBtn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.contextBtn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* POSICION SIDE PANEL (Matching Canva Imagen 2 in app design) */
+.posicionPanel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 300px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 500px;
+}
+
+.posicionHeader {
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.posicionTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.posicionTabBtn {
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.posicionTabActive {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.posicionBody {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.posGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.posBtn {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  transition: all 0.15s ease;
+  color: var(--text-primary);
+}
+
+.posBtn:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.layerList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.layerItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.layerItemActive {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.1);
+  font-weight: 700;
+}
