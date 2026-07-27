@@ -6778,107 +6778,204 @@ export default function SalesPage() {
       ) : (
         <>
           {/* Top dashboard header panel */}
-          <header className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <h1 className={styles.title}>{translate("salesTitle", language)}</h1>
-          <span className={styles.clinicSubtitle}>{activeClinic?.name || "Clifav"}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div
-            style={{
-              width: "36px",
-              height: "36px",
-                      borderRadius: "50%",
-              backgroundColor: "#e2e8f0",
-              color: "#475569",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: "13px",
-            }}
-          >
-            VL
-          </div>
-        </div>
-      </header>
-
-      {/* ============================
-          PREMIUM SALES KPI PANEL
-          ============================ */}
-      {(() => {
-        const artList = getArticlesList();
-        const totalVolumen = artList.reduce((s, i) => s + i.price, 0);
-        const totalPagado = artList.filter(i => i.estado === "PAGADO" || i.estado === "GRATUITO").reduce((s, i) => s + i.pagado, 0);
-        const totalPendiente = artList.filter(i => i.estado === "PENDIENTE").reduce((s, i) => s + i.total, 0);
-        // Most used method
-        const metodoCounts: Record<string, number> = {};
-        artList.forEach(i => { if (i.metodoPago && i.metodoPago !== "-") metodoCounts[i.metodoPago] = (metodoCounts[i.metodoPago] || 0) + 1; });
-        const topMethod = Object.entries(metodoCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-        return (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "14px", marginBottom: "4px" }}>
-            {/* Volumen */}
-            <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid rgba(226,232,240,0.8)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", transition: "transform 0.2s" }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = ""}
-            >
-              <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(14,165,233,0.3)" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <header className={styles.toolbar} style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
+            <div>
+              {/* Breadcrumb / Category Badge */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-input)", border: "1px solid var(--border-color)", padding: "4px 12px", borderRadius: "20px", marginBottom: "8px" }}>
+                <span>Gestión Interna</span>
+                <span style={{ opacity: 0.4 }}>/</span>
+                <span style={{ color: "var(--primary)", fontWeight: 700 }}>Ventas & Cobros</span>
               </div>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ingresos</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>{formatPrice(totalVolumen)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{artList.length} artículo{artList.length !== 1 ? "s" : ""}</div>
+
+              {/* Main Title */}
+              <h1 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em" }}>
+                Gestión de Ventas
+              </h1>
+
+              {/* Subtitle / Clinic Pill */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "5px" }}>
+                  <span>📍</span> {activeClinic?.name || "Clifav Central"}
+                </span>
+                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", display: "inline-block" }}></span>
+                <span style={{ fontSize: "12px", color: "#10b981", fontWeight: 600 }}>Caja activa</span>
               </div>
             </div>
 
-            {/* Cobrado */}
-            <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid rgba(226,232,240,0.8)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", transition: "transform 0.2s" }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = ""}
-            >
-              <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(16,185,129,0.3)" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Cobrado</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "#059669", lineHeight: 1.1 }}>{formatPrice(totalPagado)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{artList.filter(i => i.estado === "PAGADO" || i.estado === "GRATUITO").length} pagados</div>
+            {/* Header Right Actions */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>{new Date().toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" })}</span>
               </div>
             </div>
+          </header>
 
-            {/* Pendiente */}
-            <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: totalPendiente > 0 ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(226,232,240,0.8)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: totalPendiente > 0 ? "0 4px 20px -2px rgba(245,158,11,0.1)" : "0 4px 20px -2px rgba(0,0,0,0.05)", transition: "transform 0.2s" }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = ""}
-            >
-              <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(245,158,11,0.3)" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Pendiente</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: totalPendiente > 0 ? "#d97706" : "var(--text-primary)", lineHeight: 1.1 }}>{formatPrice(totalPendiente)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{artList.filter(i => i.estado === "PENDIENTE").length} sin cobrar</div>
-              </div>
-            </div>
+          {/* ============================
+              PREMIUM SALES KPI PANEL
+              ============================ */}
+          {(() => {
+            const artList = getArticlesList();
+            const totalVolumen = artList.reduce((s, i) => s + i.price, 0);
+            const totalPagado = artList.filter(i => i.estado === "PAGADO" || i.estado === "GRATUITO").reduce((s, i) => s + i.pagado, 0);
+            const totalPendiente = artList.filter(i => i.estado === "PENDIENTE").reduce((s, i) => s + i.total, 0);
+            // Most used method
+            const metodoCounts: Record<string, number> = {};
+            artList.forEach(i => { if (i.metodoPago && i.metodoPago !== "-") metodoCounts[i.metodoPago] = (metodoCounts[i.metodoPago] || 0) + 1; });
+            const topMethodEntry = Object.entries(metodoCounts).sort((a, b) => b[1] - a[1])[0];
+            const topMethod = topMethodEntry?.[0] || "—";
+            const topMethodCount = topMethodEntry?.[1] || 0;
+            const cobradosCount = artList.filter(i => i.estado === "PAGADO" || i.estado === "GRATUITO").length;
+            const pendientesCount = artList.filter(i => i.estado === "PENDIENTE").length;
 
-            {/* Método más usado */}
-            <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid rgba(226,232,240,0.8)", borderRadius: "14px", padding: "16px 18px", display: "flex", alignItems: "center", gap: "14px", boxShadow: "0 4px 20px -2px rgba(0,0,0,0.05)", transition: "transform 0.2s" }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = ""}
-            >
-              <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(139,92,246,0.3)" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                {/* Ingresos Totales */}
+                <div
+                  style={{
+                    background: "var(--bg-panel-solid)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "16px",
+                    padding: "18px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
+                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-3px)";
+                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(14, 165, 233, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "";
+                    e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                  }}
+                >
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(14,165,233,0.3)" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Ingresos Totales</div>
+                    <div style={{ fontSize: "21px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                      {formatPrice(totalVolumen)}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                      {artList.length} artículo{artList.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total Cobrado */}
+                <div
+                  style={{
+                    background: "var(--bg-panel-solid)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "16px",
+                    padding: "18px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
+                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-3px)";
+                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(16, 185, 129, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "";
+                    e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                  }}
+                >
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Total Cobrado</div>
+                    <div style={{ fontSize: "21px", fontWeight: 800, color: "#059669", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                      {formatPrice(totalPagado)}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                      {cobradosCount} cobrados {artList.length > 0 ? `(${Math.round((cobradosCount / artList.length) * 100)}%)` : ""}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pendiente */}
+                <div
+                  style={{
+                    background: "var(--bg-panel-solid)",
+                    border: totalPendiente > 0 ? "1px solid rgba(245, 158, 11, 0.35)" : "1px solid var(--border-color)",
+                    borderRadius: "16px",
+                    padding: "18px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    boxShadow: totalPendiente > 0 ? "0 4px 16px -2px rgba(245, 158, 11, 0.08)" : "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
+                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-3px)";
+                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(245, 158, 11, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "";
+                    e.currentTarget.style.boxShadow = totalPendiente > 0 ? "0 4px 16px -2px rgba(245, 158, 11, 0.08)" : "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                  }}
+                >
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(245,158,11,0.3)" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Pendiente</div>
+                    <div style={{ fontSize: "21px", fontWeight: 800, color: totalPendiente > 0 ? "#d97706" : "var(--text-primary)", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                      {formatPrice(totalPendiente)}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                      {pendientesCount} sin cobrar
+                    </div>
+                  </div>
+                </div>
+
+                {/* Método + Usado */}
+                <div
+                  style={{
+                    background: "var(--bg-panel-solid)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "16px",
+                    padding: "18px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
+                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-3px)";
+                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(139, 92, 246, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "";
+                    e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                  }}
+                >
+                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(139,92,246,0.3)" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Método + Usado</div>
+                    <div style={{ fontSize: "17px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                      {topMethod}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                      {topMethodCount} operaciones
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Método + usado</div>
-                <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2 }}>{topMethod}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{metodoCounts[topMethod] || 0} veces</div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+            );
+          })()}
 
       {/* TABS SELECTOR LIST */}
       <div className={styles.tabsHeader}>
