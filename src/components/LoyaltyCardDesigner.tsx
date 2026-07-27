@@ -136,7 +136,7 @@ export const PRESET_TEMPLATES: CardTemplate[] = [
       {
         id: "el-qr",
         type: "qr",
-        content: "https://clifav.app/verify/{{Numero de socio}}",
+        content: "{{Numero de socio}}",
         x: 420,
         y: 180,
         width: 85,
@@ -212,7 +212,7 @@ export const PRESET_TEMPLATES: CardTemplate[] = [
       {
         id: "el-qr-2",
         type: "qr",
-        content: "https://clifav.app/verify/{{Numero de socio}}",
+        content: "{{Numero de socio}}",
         x: 420,
         y: 180,
         width: 85,
@@ -275,7 +275,7 @@ export const PRESET_TEMPLATES: CardTemplate[] = [
       {
         id: "el-qr-3",
         type: "qr",
-        content: "https://clifav.app/verify/{{Numero de socio}}",
+        content: "{{Numero de socio}}",
         x: 415,
         y: 175,
         width: 90,
@@ -351,7 +351,7 @@ export const PRESET_TEMPLATES: CardTemplate[] = [
       {
         id: "el-qr-4",
         type: "qr",
-        content: "https://clifav.app/verify/{{Numero de socio}}",
+        content: "{{Numero de socio}}",
         x: 420,
         y: 180,
         width: 85,
@@ -414,7 +414,7 @@ export const PRESET_TEMPLATES: CardTemplate[] = [
       {
         id: "el-qr-5",
         type: "qr",
-        content: "https://clifav.app/verify/{{Numero de socio}}",
+        content: "{{Numero de socio}}",
         x: 420,
         y: 180,
         width: 85,
@@ -649,7 +649,7 @@ export default function LoyaltyCardDesigner() {
     const newEl: CardElement = {
       id: `el-qr-${Date.now()}`,
       type: "qr",
-      content: "https://clifav.app/verify/{{Numero de socio}}",
+      content: "{{Numero de socio}}",
       x: 400,
       y: 180,
       width: 85,
@@ -936,15 +936,16 @@ export default function LoyaltyCardDesigner() {
   const formatText = (rawText?: string) => {
     if (!rawText) return "";
     const clinicName = activeClinic?.name || "Clínica Centro";
+    const cleanText = rawText.replace(/https?:\/\/clifav\.app\/verify\//g, "");
     if (useSampleData) {
-      return rawText
+      return cleanText
         .replace(/\{\{Nombre de Cliente\}\}/g, "María García López")
         .replace(/\{\{Numero de socio\}\}/g, "M00042")
         .replace(/\{\{DNI\}\}/g, "12345678X")
         .replace(/\{\{Fecha Alta\}\}/g, "27/07/2026")
         .replace(/\{\{Nombre Clinica\}\}/g, clinicName);
     }
-    return rawText;
+    return cleanText;
   };
 
   const selectedElement = currentTemplate.elements.find((e) => e.id === selectedElementId);

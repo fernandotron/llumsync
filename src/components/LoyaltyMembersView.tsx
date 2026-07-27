@@ -356,7 +356,9 @@ export default function LoyaltyMembersView() {
                     ? new Date(showCardModal.membershipDate).toLocaleDateString("es-ES")
                     : new Date(showCardModal.createdAt).toLocaleDateString("es-ES");
 
-                  return rawText
+                  const cleanText = rawText.replace(/https?:\/\/clifav\.app\/verify\//g, "");
+
+                  return cleanText
                     .replace(/\{\{Nombre de Cliente\}\}/g, fullName)
                     .replace(/\{\{Numero de socio\}\}/g, mNum)
                     .replace(/\{\{DNI\}\}/g, dni)
