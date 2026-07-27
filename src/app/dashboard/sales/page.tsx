@@ -34,6 +34,8 @@ interface Service {
   name: string;
   price: number;
   tax?: number;
+  duration?: number;
+  category?: string;
 }
 
 interface CartItem {
@@ -66,7 +68,6 @@ interface Movement {
   date: string;
   clinicId: string;
 }
-
 
 const IconPrinter = ({ size = 16 }: { size?: number }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -919,6 +920,9 @@ export default function SalesPage() {
 
   // Add Article Modal
   const [showAddArticleModal, setShowAddArticleModal] = useState(false);
+  const [addArticleTab, setAddArticleTab] = useState<"servicio" | "producto">("servicio");
+  const [productsList, setProductsList] = useState<any[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
 
   // Pasado/Futuro collapsible toggles
   const [showPastAppts, setShowPastAppts] = useState(false);
@@ -1096,9 +1100,10 @@ export default function SalesPage() {
     setLoading(true);
 
     try {
-      const [clientsRes, servicesRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes, clientVouchersRes, clientProductsRes] = await Promise.all([
+      const [clientsRes, servicesRes, productsRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes, clientVouchersRes, clientProductsRes] = await Promise.all([
         fetch(`/api/clients?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/services?clinicId=${activeClinic.id}`, { cache: "no-store" }),
+        fetch(`/api/products?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/sales?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/appointments?clinicId=${activeClinic.id}&start=${dateFilterStart ? dateFilterStart.toISOString() : "2025-01-01T00:00:00.000Z"}&end=${dateFilterEnd ? dateFilterEnd.toISOString() : "2030-12-31T23:59:59.000Z"}`, { cache: "no-store" }),
         fetch(`/api/movements?clinicId=${activeClinic.id}`, { cache: "no-store" }),
@@ -1117,6 +1122,14 @@ export default function SalesPage() {
         if (servicesData.length > 0) {
           setSelectedServiceId(servicesData[0].id);
           setItemPrice(servicesData[0].price);
+        }
+      }
+
+      const productsData = await productsRes.json();
+      if (Array.isArray(productsData)) {
+        setProductsList(productsData);
+        if (productsData.length > 0) {
+          setSelectedProductId(productsData[0].id);
         }
       }
 
@@ -5614,7 +5627,7 @@ export default function SalesPage() {
                 const restante = checkoutRestante;
                 const isFullyPaid = restante <= 0 && (partialPayments.length > 0 || selectedItemForPayment.estado === "PAGADO");
 
-                if (selectedItemForPayment.estado === "PAGADO") {
+                if (selectedItemForPayment.estado === "PAGADO" && restante <= 0.01) {
                   // Paid view (matches Image 2)
                   return (
                     <div className={styles.successBannerCard}>
@@ -6273,84 +6286,273 @@ export default function SalesPage() {
 
           {/* Add Article Modal - Selecciona el servicio popup */}
 
-
-          {showAddArticleModal && (
+          {showAddArticleModal && typeof window !== "undefined" && createPortal(
             <div className={styles.modalOverlay} onClick={() => setShowAddArticleModal(false)}>
-              <div className={styles.modalBox} style={{ maxWidth: "450px" }} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.modalHeader}>
-                  <span className={styles.modalTitle} style={{ fontWeight: 600, fontSize: "16px", color: "var(--primary)" }}>Selecciona el servicio</span>
+              <div className={styles.modalBox} style={{ maxWidth: "520px", padding: 0, overflow: "hidden", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className={styles.modalHeader} style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-panel-solid)" }}>
+                  <div>
+                    <h3 className={styles.modalTitle} style={{ fontWeight: 700, fontSize: "17px", color: "var(--text-primary)", margin: 0 }}>
+                      Añadir Artículo a la Venta
+                    </h3>
+                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>
+                      Selecciona un servicio o producto para incorporar a la cuenta
+                    </p>
+                  </div>
                   <button type="button" className={styles.modalCloseBtn} onClick={() => setShowAddArticleModal(false)}>×</button>
                 </div>
-                <div className={styles.modalBody}>
-                  <div className={styles.discountForm} style={{ display: "block" }}>
+
+                <div className={styles.modalBody} style={{ padding: "20px 24px" }}>
+                  {/* Selector de Tipo (Servicio vs Producto) */}
+                  <div className={styles.addArticleTabs} style={{ display: "flex", gap: "8px", padding: "4px", background: "var(--bg-input)", borderRadius: "10px", marginBottom: "20px" }}>
+                    <button
+                      type="button"
+                      className={addArticleTab === "servicio" ? styles.addArticleTabBtnActive : styles.addArticleTabBtn}
+                      onClick={() => setAddArticleTab("servicio")}
+                      style={{
+                        flex: 1,
+                        padding: "10px 14px",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.2s ease",
+                        background: addArticleTab === "servicio" ? "var(--primary)" : "transparent",
+                        color: addArticleTab === "servicio" ? "#ffffff" : "var(--text-secondary)",
+                        boxShadow: addArticleTab === "servicio" ? "0 2px 8px rgba(15, 118, 110, 0.3)" : "none",
+                      }}
+                    >
+                      <span>⚡ Servicio</span>
+                      <span style={{ fontSize: "11px", opacity: 0.9, background: addArticleTab === "servicio" ? "rgba(255,255,255,0.25)" : "var(--border-color)", padding: "2px 7px", borderRadius: "10px" }}>
+                        {services.length}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={addArticleTab === "producto" ? styles.addArticleTabBtnActive : styles.addArticleTabBtn}
+                      onClick={() => setAddArticleTab("producto")}
+                      style={{
+                        flex: 1,
+                        padding: "10px 14px",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.2s ease",
+                        background: addArticleTab === "producto" ? "var(--primary)" : "transparent",
+                        color: addArticleTab === "producto" ? "#ffffff" : "var(--text-secondary)",
+                        boxShadow: addArticleTab === "producto" ? "0 2px 8px rgba(15, 118, 110, 0.3)" : "none",
+                      }}
+                    >
+                      <span>📦 Producto</span>
+                      <span style={{ fontSize: "11px", opacity: 0.9, background: addArticleTab === "producto" ? "rgba(255,255,255,0.25)" : "var(--border-color)", padding: "2px 7px", borderRadius: "10px" }}>
+                        {productsList.length}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Tab Contenido: Servicio */}
+                  {addArticleTab === "servicio" && (
                     <div className={styles.formField}>
-                      <label className={styles.formFieldLabel} style={{ fontWeight: 600, color: "var(--text-secondary)" }}>Servicio</label>
+                      <label className={styles.formFieldLabel} style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "13px" }}>
+                        Selecciona el servicio
+                      </label>
                       <select
                         className="input select"
                         value={selectedServiceId}
                         onChange={(e) => setSelectedServiceId(e.target.value)}
-                        style={{ width: "100%", marginTop: "8px" }}
+                        style={{ width: "100%", marginTop: "8px", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-panel-solid)", color: "var(--text-primary)", fontSize: "14px" }}
                       >
                         <option value="">Seleccionar un servicio...</option>
                         {services.map((srv) => (
                           <option key={srv.id} value={srv.id}>
-                            {srv.name} ({formatPrice(srv.price)})
+                            {srv.name} — {formatPrice(srv.price)} {srv.category ? `(${srv.category})` : ""}
                           </option>
                         ))}
                       </select>
+
+                      {/* Card Preview Servicio */}
+                      {(() => {
+                        const srv = services.find((s) => s.id === selectedServiceId);
+                        if (!srv) return null;
+                        return (
+                          <div style={{ marginTop: "16px", padding: "14px", borderRadius: "10px", background: "rgba(15, 118, 110, 0.06)", border: "1px solid rgba(15, 118, 110, 0.25)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{srv.name}</div>
+                              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                {srv.category ? `Categoría: ${srv.category} • ` : ""}{srv.duration ? `Duración: ${srv.duration} min` : ""}
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 800, fontSize: "16px", color: "var(--primary)" }}>
+                              {formatPrice(srv.price)}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
-                  </div>
+                  )}
+
+                  {/* Tab Contenido: Producto */}
+                  {addArticleTab === "producto" && (
+                    <div className={styles.formField}>
+                      <label className={styles.formFieldLabel} style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "13px" }}>
+                        Selecciona el producto
+                      </label>
+                      {productsList.length === 0 ? (
+                        <div style={{ marginTop: "8px", padding: "16px", textAlign: "center", background: "var(--bg-input)", borderRadius: "8px", color: "var(--text-secondary)", fontSize: "13px" }}>
+                          No hay productos registrados en esta clínica. Puedes crearlos en Almacén o Configuración.
+                        </div>
+                      ) : (
+                        <select
+                          className="input select"
+                          value={selectedProductId}
+                          onChange={(e) => setSelectedProductId(e.target.value)}
+                          style={{ width: "100%", marginTop: "8px", padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-panel-solid)", color: "var(--text-primary)", fontSize: "14px" }}
+                        >
+                          <option value="">Seleccionar un producto...</option>
+                          {productsList.map((prod) => (
+                            <option key={prod.id} value={prod.id}>
+                              {prod.name} — {formatPrice(prod.price)} {prod.hasStock ? `(Stock: ${prod.stock})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {/* Card Preview Producto */}
+                      {(() => {
+                        const prod = productsList.find((p) => p.id === selectedProductId);
+                        if (!prod) return null;
+                        return (
+                          <div style={{ marginTop: "16px", padding: "14px", borderRadius: "10px", background: "rgba(15, 118, 110, 0.06)", border: "1px solid rgba(15, 118, 110, 0.25)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{prod.name}</div>
+                              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                                IVA: {prod.vat || 21}% {prod.hasStock ? `• Stock disponible: ${prod.stock}` : ""}
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 800, fontSize: "16px", color: "var(--primary)" }}>
+                              {formatPrice(prod.price)}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
-                <div className={styles.modalFooter} style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "none", padding: "16px 24px" }}>
+
+                {/* Footer Actions */}
+                <div className={styles.modalFooter} style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid var(--border-color)", padding: "16px 24px", background: "var(--bg-panel-solid)" }}>
                   <button
                     type="button"
                     className={styles.btnModalSecondary}
                     onClick={() => {
                       setShowAddArticleModal(false);
                       setSelectedServiceId("");
+                      setSelectedProductId("");
                     }}
-                    style={{ border: "1px solid var(--border-color)", background: "none", color: "var(--text-secondary)", borderRadius: "6px", padding: "8px 16px", fontWeight: 600 }}
+                    style={{ border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", borderRadius: "8px", padding: "10px 18px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
                   >
                     Cancelar
                   </button>
                   <button
                     type="button"
                     className={styles.btnModalPrimary}
-                    disabled={!selectedServiceId}
-                    style={{ background: "var(--primary)", color: "white", border: "none", borderRadius: "6px", padding: "8px 16px", fontWeight: 600, opacity: selectedServiceId ? 1 : 0.6 }}
+                    disabled={addArticleTab === "servicio" ? !selectedServiceId : !selectedProductId}
+                    style={{
+                      background: "var(--primary)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "10px 20px",
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      cursor: (addArticleTab === "servicio" ? selectedServiceId : selectedProductId) ? "pointer" : "not-allowed",
+                      opacity: (addArticleTab === "servicio" ? selectedServiceId : selectedProductId) ? 1 : 0.5,
+                      boxShadow: (addArticleTab === "servicio" ? selectedServiceId : selectedProductId) ? "0 4px 12px rgba(15, 118, 110, 0.3)" : "none",
+                      transition: "all 0.2s ease",
+                    }}
                     onClick={() => {
-                      const srv = services.find((s) => s.id === selectedServiceId);
-                      if (srv && selectedItemForPayment) {
-                        const newArticleItem: ArticleItem = {
-                          id: `custom-item-${Date.now()}`,
-                          refMov: `#ADD-${Date.now().toString().slice(-4)}`,
-                          nuV: "-",
-                          fecha: new Date().toLocaleDateString("es-ES"),
-                          fechaRaw: new Date(),
-                          hora: "-",
-                          tipo: "Servicio",
-                          detalle: srv.name,
-                          clientNumber: selectedItemForPayment.clientNumber,
-                          cliente: selectedItemForPayment.cliente,
-                          clientId: selectedItemForPayment.clientId,
-                          dni: selectedItemForPayment.dni,
-                          empleado: "Especialista",
-                          consulta: activeClinic?.name || "Clifav Central",
-                          estado: "PENDIENTE",
-                          metodoPago: "-",
-                          fechaPago: "-",
-                          price: srv.price,
-                          factura: "",
-                          precio: srv.price,
-                          iva: 0,
-                          irpf: 0,
-                          total: srv.price,
-                          pagado: 0,
-                          checkoutGroupId: selectedItemForPayment.checkoutGroupId,
-                        };
-                        setCheckoutItems([...checkoutItems, newArticleItem]);
-                        setSelectedServiceId("");
-                        setShowAddArticleModal(false);
+                      if (!selectedItemForPayment) return;
+
+                      if (addArticleTab === "servicio") {
+                        const srv = services.find((s) => s.id === selectedServiceId);
+                        if (srv) {
+                          const newArticleItem: ArticleItem = {
+                            id: `custom-item-${Date.now()}`,
+                            refMov: `#ADD-${Date.now().toString().slice(-4)}`,
+                            nuV: "-",
+                            fecha: new Date().toLocaleDateString("es-ES"),
+                            fechaRaw: new Date(),
+                            hora: "-",
+                            tipo: "Servicio",
+                            detalle: srv.name,
+                            clientNumber: selectedItemForPayment.clientNumber,
+                            cliente: selectedItemForPayment.cliente,
+                            clientId: selectedItemForPayment.clientId,
+                            dni: selectedItemForPayment.dni,
+                            empleado: "Especialista",
+                            consulta: activeClinic?.name || "Clifav Central",
+                            estado: "PENDIENTE",
+                            metodoPago: "-",
+                            fechaPago: "-",
+                            price: srv.price,
+                            factura: "",
+                            precio: srv.price,
+                            iva: 0,
+                            irpf: 0,
+                            total: srv.price,
+                            pagado: 0,
+                            checkoutGroupId: selectedItemForPayment.checkoutGroupId,
+                          };
+                          setCheckoutItems([...checkoutItems, newArticleItem]);
+                          setSelectedServiceId("");
+                          setShowAddArticleModal(false);
+                        }
+                      } else {
+                        const prod = productsList.find((p) => p.id === selectedProductId);
+                        if (prod) {
+                          const newArticleItem: ArticleItem = {
+                            id: `custom-prod-${Date.now()}`,
+                            refMov: `#PROD-${Date.now().toString().slice(-4)}`,
+                            nuV: "-",
+                            fecha: new Date().toLocaleDateString("es-ES"),
+                            fechaRaw: new Date(),
+                            hora: "-",
+                            tipo: "Producto",
+                            detalle: prod.name,
+                            clientNumber: selectedItemForPayment.clientNumber,
+                            cliente: selectedItemForPayment.cliente,
+                            clientId: selectedItemForPayment.clientId,
+                            dni: selectedItemForPayment.dni,
+                            empleado: "Venta Directa",
+                            consulta: activeClinic?.name || "Clifav Central",
+                            estado: "PENDIENTE",
+                            metodoPago: "-",
+                            fechaPago: "-",
+                            price: prod.price,
+                            factura: "",
+                            precio: prod.price,
+                            iva: prod.vat || 21,
+                            irpf: 0,
+                            total: prod.price,
+                            pagado: 0,
+                            checkoutGroupId: selectedItemForPayment.checkoutGroupId,
+                          };
+                          setCheckoutItems([...checkoutItems, newArticleItem]);
+                          setSelectedProductId("");
+                          setShowAddArticleModal(false);
+                        }
                       }
                     }}
                   >
@@ -6358,7 +6560,8 @@ export default function SalesPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Tipo de pagos side drawer */}

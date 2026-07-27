@@ -10,9 +10,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Falta clinicId" }, { status: 400 });
     }
 
+    const where: any = {};
+    if (clinicId) {
+      where.OR = [
+        { clinicId },
+        { clinicId: null }
+      ];
+    }
+
     const products = await prisma.product.findMany({
-      where: { clinicId },
-      orderBy: { createdAt: "desc" },
+      where,
+      orderBy: { name: "asc" },
     });
 
     return NextResponse.json(products);

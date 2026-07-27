@@ -8,7 +8,10 @@ export async function GET(request: Request) {
 
     const where: any = {};
     if (clinicId) {
-      where.clinicId = clinicId;
+      where.OR = [
+        { clinicId },
+        { clinicId: null }
+      ];
     }
 
     const services = await prisma.service.findMany({

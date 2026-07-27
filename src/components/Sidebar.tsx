@@ -211,6 +211,12 @@ export default function Sidebar() {
     ...(hasAccountingAccess
       ? [
           {
+            id: "cashRegister",
+            name: "Caja y Arqueo",
+            path: "/dashboard/cash-register",
+            icon: <Icons.DollarCircle size={18} />,
+          },
+          {
             id: "sales",
             name: translate("sales", language),
             path: "/dashboard/sales",
