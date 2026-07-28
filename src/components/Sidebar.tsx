@@ -50,9 +50,92 @@ export default function Sidebar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [configExpanded, setConfigExpanded] = useState(false);
 
+  // Top Header quick action popovers & search states
+  const [showQuickSearchModal, setShowQuickSearchModal] = useState(false);
+  const [showNotificationsPopover, setShowNotificationsPopover] = useState(false);
+  const [showQuickAddPopover, setShowQuickAddPopover] = useState(false);
+
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [globalSearchResults, setGlobalSearchResults] = useState<{
+    clients: any[];
+    appointments: any[];
+    services: any[];
+  }>({ clients: [], appointments: [], services: [] });
+  const [searchingGlobal, setSearchingGlobal] = useState(false);
+
+  const [notificationsList, setNotificationsList] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(3);
+
   const clinicsDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+  const headerActionsRef = useRef<HTMLDivElement>(null);
+  const globalSearchInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch header notification logs
+  const fetchHeaderNotifications = async () => {
+    if (!activeClinic?.id) return;
+    try {
+      const res = await fetch(`/api/notifications/logs?clinicId=${activeClinic.id}`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setNotificationsList(data.slice(0, 8));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Keyboard shortcut Ctrl+K / Cmd+K for Global Search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowQuickSearchModal((prev) => !prev);
+      }
+      if (e.key === "Escape") {
+        setShowQuickSearchModal(false);
+        setShowNotificationsPopover(false);
+        setShowQuickAddPopover(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Perform global search
+  useEffect(() => {
+    if (!globalSearchQuery.trim() || !activeClinic?.id) {
+      setGlobalSearchResults({ clients: [], appointments: [], services: [] });
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearchingGlobal(true);
+      try {
+        const [cRes, sRes] = await Promise.all([
+          fetch(`/api/clients?clinicId=${activeClinic.id}&search=${encodeURIComponent(globalSearchQuery)}`),
+          fetch(`/api/services?clinicId=${activeClinic.id}`),
+        ]);
+        const clients = cRes.ok ? await cRes.json() : [];
+        const servicesAll = sRes.ok ? await sRes.json() : [];
+        const matchedServices = Array.isArray(servicesAll)
+          ? servicesAll.filter((s: any) => s.name?.toLowerCase().includes(globalSearchQuery.toLowerCase()))
+          : [];
+
+        setGlobalSearchResults({
+          clients: Array.isArray(clients) ? clients.slice(0, 5) : [],
+          appointments: [],
+          services: matchedServices.slice(0, 5),
+        });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setSearchingGlobal(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [globalSearchQuery, activeClinic]);
 
   // Detect mobile viewport
   const [isMobile, setIsMobile] = useState(false);
@@ -80,6 +163,10 @@ export default function Sidebar() {
       }
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setShowUserMenu(false);
+      }
+      if (headerActionsRef.current && !headerActionsRef.current.contains(e.target as Node)) {
+        setShowNotificationsPopover(false);
+        setShowQuickAddPopover(false);
       }
       // Collapse sidebar on click outside when expanded on desktop
       if (
@@ -326,17 +413,150 @@ export default function Sidebar() {
               {!isCollapsed && <span className={styles.holdedLogoText}>LLUMSYNC</span>}
             </div>
             {!isCollapsed && (
-              <div className={styles.headerActions}>
-                <button className={styles.headerIconBtn} title="Buscar">
+              <div className={styles.headerActions} ref={headerActionsRef} style={{ position: "relative" }}>
+                {/* 1. SEARCH BUTTON */}
+                <button
+                  type="button"
+                  className={styles.headerIconBtn}
+                  title="Buscar paciente, servicio o cita (Ctrl+K)"
+                  onClick={() => {
+                    setShowQuickSearchModal(true);
+                    setShowNotificationsPopover(false);
+                    setShowQuickAddPopover(false);
+                    setTimeout(() => globalSearchInputRef.current?.focus(), 100);
+                  }}
+                >
                   <Icons.Search size={16} />
                 </button>
-                <button className={styles.headerIconBtn} title="Notificaciones">
-                  <div className={styles.notificationDot} />
+
+                {/* 2. NOTIFICATIONS BUTTON */}
+                <button
+                  type="button"
+                  className={styles.headerIconBtn}
+                  title="Notificaciones"
+                  onClick={() => {
+                    const nextState = !showNotificationsPopover;
+                    setShowNotificationsPopover(nextState);
+                    setShowQuickAddPopover(false);
+                    if (nextState) {
+                      setUnreadCount(0);
+                      fetchHeaderNotifications();
+                    }
+                  }}
+                >
+                  {unreadCount > 0 && <div className={styles.notificationDot} />}
                   <Icons.Bell size={16} />
                 </button>
-                <button className={styles.headerIconBtn} title="Añadir">
+
+                {/* 3. QUICK ADD (+) BUTTON */}
+                <button
+                  type="button"
+                  className={styles.headerIconBtn}
+                  title="Crear Nuevo..."
+                  onClick={() => {
+                    setShowQuickAddPopover(!showQuickAddPopover);
+                    setShowNotificationsPopover(false);
+                  }}
+                >
                   <Icons.Plus size={16} />
                 </button>
+
+                {/* POP OVER: NOTIFICACIONES */}
+                {showNotificationsPopover && (
+                  <div className={`${styles.headerPopover} ${styles.notificationsPopover}`}>
+                    <div className={styles.popoverHeader}>
+                      <span className={styles.popoverTitle}>🔔 Notificaciones del Sistema</span>
+                      <button
+                        type="button"
+                        onClick={() => setNotificationsList([])}
+                        style={{ border: "none", background: "transparent", fontSize: "11px", color: "var(--primary)", cursor: "pointer" }}
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+
+                    <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {notificationsList.length === 0 ? (
+                        <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary)" }}>
+                          No hay notificaciones recientes.
+                        </div>
+                      ) : (
+                        notificationsList.map((n: any) => (
+                          <div key={n.id} style={{ padding: "8px 10px", borderRadius: "8px", background: "var(--bg-card)", border: "1px solid var(--border-color)", fontSize: "12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, color: "var(--text-primary)", marginBottom: "2px" }}>
+                              <span>{n.channel === "WHATSAPP" ? "📱 WhatsApp" : "📧 Email"}</span>
+                              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                                {new Date(n.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                            <div style={{ color: "var(--text-secondary)", fontSize: "11px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {n.clientName}: {n.message}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* POP OVER: CREAR NUEVO (+) */}
+                {showQuickAddPopover && (
+                  <div className={`${styles.headerPopover} ${styles.quickAddPopover}`}>
+                    <div className={styles.popoverHeader}>
+                      <span className={styles.popoverTitle}>⚡ Acciones Rápidas</span>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <button
+                        type="button"
+                        className={styles.quickAddOption}
+                        onClick={() => {
+                          setShowQuickAddPopover(false);
+                          router.push("/dashboard/agenda");
+                        }}
+                      >
+                        <Icons.Calendar size={16} />
+                        <span>Nueva Cita en Agenda</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.quickAddOption}
+                        onClick={() => {
+                          setShowQuickAddPopover(false);
+                          router.push("/dashboard/contacts");
+                        }}
+                      >
+                        <Icons.Users size={16} />
+                        <span>Nuevo Paciente / Cliente</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.quickAddOption}
+                        onClick={() => {
+                          setShowQuickAddPopover(false);
+                          router.push("/dashboard/sales");
+                        }}
+                      >
+                        <Icons.Sales size={16} />
+                        <span>Nueva Venta / Cobro</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.quickAddOption}
+                        onClick={() => {
+                          setShowQuickAddPopover(false);
+                          router.push("/dashboard/settings?tab=inventario");
+                        }}
+                      >
+                        <Icons.Folder size={16} />
+                        <span>Nuevo Producto / Insumo</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <button
@@ -558,6 +778,102 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
+
+      {/* GLOBAL SEARCH MODAL (CMD+K / CTRL+K) */}
+      {showQuickSearchModal && (
+        <div className={styles.searchModalOverlay} onClick={() => setShowQuickSearchModal(false)}>
+          <div className={styles.searchModalBox} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", padding: "14px 18px", borderBottom: "1px solid var(--border-color)", gap: "12px" }}>
+              <Icons.Search size={20} style={{ color: "var(--text-muted)" }} />
+              <input
+                ref={globalSearchInputRef}
+                type="text"
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                placeholder="Buscar paciente, servicio, cita... (Escribe para buscar)"
+                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: "15px", color: "var(--text-primary)", fontWeight: 500 }}
+              />
+              <span style={{ fontSize: "11px", background: "var(--bg-card)", padding: "3px 8px", borderRadius: "6px", border: "1px solid var(--border-color)", color: "var(--text-muted)" }}>
+                ESC para cerrar
+              </span>
+            </div>
+
+            <div style={{ maxHeight: "380px", overflowY: "auto", padding: "12px" }}>
+              {searchingGlobal ? (
+                <div style={{ padding: "24px", textAlign: "center", fontSize: "13px", color: "var(--text-secondary)" }}>
+                  Buscando...
+                </div>
+              ) : !globalSearchQuery.trim() ? (
+                <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                  💡 Consejo: Escribe el nombre o teléfono de un paciente para acceder directamente.
+                </div>
+              ) : globalSearchResults.clients.length === 0 && globalSearchResults.services.length === 0 ? (
+                <div style={{ padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }}>
+                  Sin resultados para "{globalSearchQuery}".
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {globalSearchResults.clients.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}>
+                        👥 Pacientes ({globalSearchResults.clients.length})
+                      </div>
+                      {globalSearchResults.clients.map((c: any) => (
+                        <div
+                          key={c.id}
+                          className={styles.quickAddOption}
+                          onClick={() => {
+                            setShowQuickSearchModal(false);
+                            router.push(`/dashboard/contacts?id=${c.id}`);
+                          }}
+                        >
+                          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--primary-light)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "13px" }}>
+                            {c.firstName?.[0]?.toUpperCase() || "P"}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                              {c.firstName} {c.lastName}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                              {c.phone || c.email || "Sin datos de contacto"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {globalSearchResults.services.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}>
+                        ⚙️ Servicios Tratamiento ({globalSearchResults.services.length})
+                      </div>
+                      {globalSearchResults.services.map((s: any) => (
+                        <div
+                          key={s.id}
+                          className={styles.quickAddOption}
+                          onClick={() => {
+                            setShowQuickSearchModal(false);
+                            router.push(`/dashboard/settings?tab=services`);
+                          }}
+                        >
+                          <div style={{ width: "12px", height: "12px", borderRadius: "50%", background: s.color || "var(--primary)" }} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</div>
+                            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                              {s.price} € • {s.duration} min
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

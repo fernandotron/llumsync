@@ -677,3 +677,98 @@
     z-index: 99998 !important;
   }
 }
+
+/* Header Popovers & Search Modal */
+.headerPopover {
+  position: absolute;
+  top: 48px;
+  left: 12px;
+  width: 320px;
+  background: var(--bg-panel-solid, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  padding: 12px;
+  animation: popoverFadeIn 0.15s ease-out;
+}
+
+.notificationsPopover {
+  left: 40px;
+  width: 340px;
+}
+
+.quickAddPopover {
+  left: 80px;
+  width: 240px;
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.popoverHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.popoverTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.quickAddOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #0f172a);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.quickAddOption:hover {
+  background: var(--primary-light, rgba(15, 118, 110, 0.08));
+  color: var(--primary, #0f766e);
+}
+
+.searchModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 80px;
+}
+
+.searchModalBox {
+  width: 560px;
+  max-width: 92vw;
+  background: var(--bg-panel-solid, #ffffff);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color, #e2e8f0);
+  overflow: hidden;
+}
