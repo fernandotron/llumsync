@@ -2591,28 +2591,61 @@
   line-height: 1;
 }
 
-/* Appointment Hover Tooltip Styles */
+/* Appointment Hover Tooltip Styles (Appears Upwards) */
 .appointmentTooltip {
   display: none;
   position: absolute;
-  top: 0;
-  left: 105%;
-  width: 320px;
+  bottom: calc(100% + 8px);
+  top: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 290px;
+  max-width: 90vw;
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border-color, #e2e8f0);
   border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
-  padding: 16px;
+  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 14px 16px;
   z-index: 10000;
   pointer-events: none;
   color: var(--text-primary, #1e293b);
   font-family: inherit;
   text-align: left;
+  animation: tooltipFadeUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.appointmentTooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px 6px 0 6px;
+  border-style: solid;
+  border-color: var(--bg-card, #ffffff) transparent transparent transparent;
 }
 
 .tooltipLeft {
-  left: auto;
-  right: 105%;
+  left: auto !important;
+  right: 0 !important;
+  transform: none !important;
+}
+
+.tooltipLeft::after {
+  left: auto !important;
+  right: 20px !important;
+  transform: none !important;
+}
+
+@keyframes tooltipFadeUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .appointmentCard:hover .appointmentTooltip {
