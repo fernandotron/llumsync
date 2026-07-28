@@ -2560,10 +2560,9 @@ export default function AgendaPage() {
 
       if (res.ok) {
         fetchAppointments();
-        triggerAutoSync();
       } else {
         toast.error("Error al mover la cita.");
-        setAppointments(oldAppointments); // Rollback
+        setAppointments(oldAppointments);
       }
     } catch (err) {
       console.error("Error moving appointment:", err);
@@ -2574,10 +2573,36 @@ export default function AgendaPage() {
     }
   };
 
+  // Safety listener to auto-clear drag states when touch/mouse ends
+  useEffect(() => {
+    if (draggedApp) {
+      const clearDrag = () => {
+        setDraggedApp(null);
+        setDraggedOverSlot(null);
+      };
+      window.addEventListener("mouseup", clearDrag);
+      window.addEventListener("touchend", clearDrag);
+      window.addEventListener("touchcancel", clearDrag);
+      return () => {
+        window.removeEventListener("mouseup", clearDrag);
+        window.removeEventListener("touchend", clearDrag);
+        window.removeEventListener("touchcancel", clearDrag);
+      };
+    }
+  }, [draggedApp]);
+
   const handleDragStart = (e: React.DragEvent, app: Appointment) => {
+    if (isTouchDevice) {
+      e.preventDefault();
+      setDraggedApp(null);
+      setDraggedOverSlot(null);
+      return;
+    }
     setDraggedApp(app);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", app.id);
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", app.id);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -2586,6 +2611,7 @@ export default function AgendaPage() {
 
   const handleDragEnter = (e: React.DragEvent, userId: string, hour: number, minute: number, dateObj: Date) => {
     e.preventDefault();
+    if (isTouchDevice) return;
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const day = String(dateObj.getDate()).padStart(2, "0");
@@ -3104,7 +3130,7 @@ export default function AgendaPage() {
                           padding: height < 25 ? "2px 6px" : height < 45 ? "4px 6px" : undefined,
                         }}
                         onClick={(e) => handleAppointmentClick(app, e)}
-                        draggable={canCreateOrEditAppointment(currentUser)}
+                        draggable={!isTouchDevice && canCreateOrEditAppointment(currentUser)}
                         onDragStart={(e) => handleDragStart(e, app)}
                         onDragEnd={handleDragEnd}
                       >
@@ -3557,7 +3583,7 @@ export default function AgendaPage() {
                                   padding: height < 25 ? "2px 4px" : height < 45 ? "3px 4px" : "4px 6px",
                                 }}
                                 onClick={(e) => handleAppointmentClick(app, e)}
-                                draggable={canCreateOrEditAppointment(currentUser)}
+                                draggable={!isTouchDevice && canCreateOrEditAppointment(currentUser)}
                                 onDragStart={(e) => handleDragStart(e, app)}
                                 onDragEnd={handleDragEnd}
                               >
