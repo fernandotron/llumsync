@@ -449,6 +449,20 @@ export default function SettingsPage() {
   const [gSyncConfigured, setGSyncConfigured] = useState(false);
   const [syncMail, setSyncMail] = useState("");
 
+  // Mobile Category Dropdown State
+  const [showMobileCategoryDropdown, setShowMobileCategoryDropdown] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowMobileCategoryDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // ─── Custom Form Templates state ───────────────────────
   const [formsPanelSub, setFormsPanelSub] = useState<"seguimientos" | "formularios" | "pizarra">("seguimientos");
 
@@ -3884,7 +3898,7 @@ export default function SettingsPage() {
         {/* TAB 2: Services list and creation */}
         {activeTab === "services" && (
           <div className={styles.servicesTabContainer}>
-            {/* Sidebar with categories on the left */}
+            {/* Sidebar with categories on the left (Desktop) */}
             <div className={styles.categorySidebar}>
               <div className={styles.categorySidebarTitle}>Categorías</div>
               {categoriesList.map((catName) => (
@@ -3899,6 +3913,44 @@ export default function SettingsPage() {
                   {catName}
                 </div>
               ))}
+            </div>
+
+            {/* Mobile Category Dropdown Selector */}
+            <div className={styles.mobileCategoryDropdownContainer} ref={categoryDropdownRef}>
+              <button
+                type="button"
+                className={styles.mobileCategoryDropdownBtn}
+                onClick={() => setShowMobileCategoryDropdown(!showMobileCategoryDropdown)}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Icons.Folder size={16} style={{ color: "var(--primary)" }} />
+                  <span>{selectedCategory}</span>
+                </div>
+                <Icons.ChevronDown size={16} style={{ color: "var(--text-secondary)", transform: showMobileCategoryDropdown ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+              </button>
+
+              {showMobileCategoryDropdown && (
+                <div className={styles.mobileCategoryDropdownMenu}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", padding: "4px 8px 6px", borderBottom: "1px solid var(--border-color)", textTransform: "uppercase" }}>
+                    Seleccionar Categoría
+                  </div>
+                  {categoriesList.map((catName) => (
+                    <button
+                      key={catName}
+                      type="button"
+                      className={`${styles.mobileCategoryDropdownItem} ${selectedCategory === catName ? styles.mobileCategoryDropdownItemActive : ""}`}
+                      onClick={() => {
+                        setSelectedCategory(catName);
+                        setShowServiceForm(false);
+                        setShowMobileCategoryDropdown(false);
+                      }}
+                    >
+                      <span>{catName}</span>
+                      {selectedCategory === catName && <Icons.Check size={14} style={{ color: "var(--primary)" }} />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Right Pane: list of services OR form */}
