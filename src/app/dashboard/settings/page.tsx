@@ -215,26 +215,8 @@ export default function SettingsPage() {
   };
 
   // Notification logs state
-  const [notificationLogsList, setNotificationLogsList] = useState<any[]>([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
   const [runningCronSimulation, setRunningCronSimulation] = useState(false);
   const [logStatusFilter, setLogStatusFilter] = useState<"ALL" | "SENT" | "FAILED">("ALL");
-
-  const fetchNotificationLogs = useCallback(async () => {
-    if (!activeClinic?.id) return;
-    setLoadingLogs(true);
-    try {
-      const res = await fetch(`/api/notifications/logs?clinicId=${activeClinic.id}`);
-      const data = await res.json();
-      if (res.ok && Array.isArray(data)) {
-        setNotificationLogsList(data);
-      }
-    } catch (err) {
-      console.error("Error fetching notification logs:", err);
-    } finally {
-      setLoadingLogs(false);
-    }
-  }, [activeClinic?.id]);
 
   const handleRunCronAndRefreshLogs = async () => {
     if (!activeClinic?.id) return;
@@ -263,7 +245,7 @@ export default function SettingsPage() {
     if (activeTab === "notifications") {
       fetchNotificationLogs();
     }
-  }, [activeTab, notificationsSubTab, fetchNotificationLogs]);
+  }, [activeTab, notificationsSubTab]);
 
   // Commercial Products module states
   const [commProductsList, setCommProductsList] = useState<any[]>([]);
@@ -8966,10 +8948,10 @@ export default function SettingsPage() {
                         type="button"
                         className="btn btn-secondary"
                         onClick={fetchNotificationLogs}
-                        disabled={loadingLogs}
+                        disabled={loadingReminderLogs}
                         style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
                       >
-                        🔄 {loadingLogs ? "Cargando..." : "Refrescar"}
+                        🔄 {loadingReminderLogs ? "Cargando..." : "Refrescar"}
                       </button>
 
                       <button
@@ -9003,19 +8985,19 @@ export default function SettingsPage() {
                           transition: "all 0.2s ease",
                         }}
                       >
-                        {st === "ALL" ? `Todos (${notificationLogsList.length})` :
-                         st === "SENT" ? `🟢 Enviados (${notificationLogsList.filter(l => l.status === "SENT").length})` :
-                         `🔴 Errores (${notificationLogsList.filter(l => l.status === "FAILED").length})`}
+                        {st === "ALL" ? `Todos (${reminderLogs.length})` :
+                         st === "SENT" ? `🟢 Enviados (${reminderLogs.filter(l => l.status === "SENT").length})` :
+                         `🔴 Errores (${reminderLogs.filter(l => l.status === "FAILED").length})`}
                       </button>
                     ))}
                   </div>
 
                   {/* Tabla de Registros */}
-                  {loadingLogs ? (
+                  {loadingReminderLogs ? (
                     <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
                       Cargando historial de envíos...
                     </div>
-                  ) : notificationLogsList.filter(l => logStatusFilter === "ALL" || l.status === logStatusFilter).length === 0 ? (
+                  ) : reminderLogs.filter(l => logStatusFilter === "ALL" || l.status === logStatusFilter).length === 0 ? (
                     <div style={{
                       padding: "48px 24px",
                       textAlign: "center",
@@ -9054,12 +9036,12 @@ export default function SettingsPage() {
                             <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Paciente</th>
                             <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Destinatario</th>
                             <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Canal</th>
-                            <th style={{ padding: "12px 16px", fontWeight 600, color: "var(--text-secondary)" }}>Estado</th>
-                            <th style={{ padding: "12px 16px", fontWeight 600, color: "var(--text-secondary)" }}>Mensaje / Error</th>
+                            <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Estado</th>
+                            <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Mensaje / Error</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {notificationLogsList
+                          {reminderLogs
                             .filter(l => logStatusFilter === "ALL" || l.status === logStatusFilter)
                             .map((log) => {
                               const isSuccess = log.status === "SENT";
