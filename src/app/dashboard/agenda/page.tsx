@@ -2763,7 +2763,8 @@ export default function AgendaPage() {
   const handleDrop = async (e: React.DragEvent, newUserId: string, hour: number, minute: number, dateObj: Date) => {
     e.preventDefault();
     e.stopPropagation();
-    const appToMove = draggedApp;
+    const appId = e.dataTransfer?.getData("text/plain");
+    const appToMove = appointments.find(a => a.id === appId) || draggedApp;
     setDraggedOverSlot(null);
     setDraggedApp(null);
     if (!appToMove) return;
