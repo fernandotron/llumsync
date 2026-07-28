@@ -243,7 +243,21 @@ export default function AgendaPage() {
   const currencySymbol = cConfig.currency;
   const showPrices = currentUser?.role === "ADMIN" || hasPermission(currentUser, "otros", "Mostrar precio servicios");
 
-
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const checkTouch = () => {
+        setIsTouchDevice(
+          "ontouchstart" in window ||
+          navigator.maxTouchPoints > 0 ||
+          window.innerWidth < 768
+        );
+      };
+      checkTouch();
+      window.addEventListener("resize", checkTouch);
+      return () => window.removeEventListener("resize", checkTouch);
+    }
+  }, []);
 
   const isSlotOutsideShift = (staff: User, date: Date, hour: number, minutes: number): boolean => {
     const dayOfWeek = date.getDay();
