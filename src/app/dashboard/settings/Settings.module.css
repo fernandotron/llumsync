@@ -11,13 +11,14 @@
 }
 
 .title {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--text-primary);
 }
 
 .clinicSubtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   font-weight: 500;
 }
@@ -114,33 +115,44 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--bg-input);
+  background: var(--bg-panel-solid, #ffffff);
   border: 1px solid var(--border-color);
-  border-left-width: 5px;
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
+  border-left-width: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+}
+
+.serviceItem:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
 }
 
 .serviceMeta {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .serviceName {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
 .serviceCategory {
   font-size: 11px;
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .serviceMath {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: 1px;
 }
 
 .serviceMath span {
@@ -149,7 +161,8 @@
 }
 
 .serviceMath strong {
-  font-size: 14px;
+  font-size: 13.5px;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -1252,27 +1265,27 @@
 }
 
 .servicesHeaderRow h3 {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 700;
   margin: 0;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .btnCrearServicio {
   background: var(--primary);
   color: white;
   border: none;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 10px 18px;
-  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .btnCrearServicio:hover {
@@ -2408,4 +2421,48 @@
   color: var(--primary) !important;
   border-color: var(--primary) !important;
   box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 19px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.3px !important;
+  }
+
+  .clinicSubtitle {
+    font-size: 12px !important;
+  }
+
+  .contentCanvas {
+    padding: 14px 16px !important;
+    border-radius: 12px !important;
+  }
+
+  .servicesHeaderRow h3 {
+    font-size: 14.5px !important;
+    font-weight: 700 !important;
+  }
+
+  .btnCrearServicio {
+    font-size: 12px !important;
+    padding: 6px 11px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+  }
+
+  .serviceName {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+  }
+
+  .serviceMath strong {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+
+  .serviceItem {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+  }
 }
