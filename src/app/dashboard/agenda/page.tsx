@@ -2587,12 +2587,73 @@ export default function AgendaPage() {
     }
   };
 
+  // Touch Drag-and-Drop system for mobile devices
+  const [touchDraggedApp, setTouchDraggedApp] = useState<Appointment | null>(null);
+  const [touchPos, setTouchPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const touchDraggedAppRef = useRef<Appointment | null>(null);
+  const touchTargetSlotRef = useRef<{ userId: string; hour: number; minute: number; dateStr: string } | null>(null);
+  const isTouchDraggingRef = useRef(false);
+
+  const handleTouchStartApp = (e: React.TouchEvent, app: Appointment) => {
+    if (!canCreateOrEditAppointment(currentUser)) return;
+    const touch = e.touches[0];
+    touchDraggedAppRef.current = app;
+    touchTargetSlotRef.current = null;
+    isTouchDraggingRef.current = false;
+    setTouchPos({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchMoveApp = (e: React.TouchEvent) => {
+    if (!touchDraggedAppRef.current) return;
+    const touch = e.touches[0];
+    
+    // Mark as active dragging after moving
+    isTouchDraggingRef.current = true;
+    if (!touchDraggedApp) {
+      setTouchDraggedApp(touchDraggedAppRef.current);
+    }
+    setTouchPos({ x: touch.clientX, y: touch.clientY });
+
+    // Identify target slot under finger
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const slotEl = el?.closest("[data-slot-user-id]") as HTMLElement | null;
+
+    if (slotEl) {
+      const userId = slotEl.getAttribute("data-slot-user-id") || "";
+      const hour = Number(slotEl.getAttribute("data-slot-hour") || 0);
+      const minute = Number(slotEl.getAttribute("data-slot-minute") || 0);
+      const dateStr = slotEl.getAttribute("data-slot-date-str") || "";
+      setDraggedOverSlot({ userId, hour, minute, dateStr });
+      touchTargetSlotRef.current = { userId, hour, minute, dateStr };
+    }
+  };
+
+  const handleTouchEndApp = async () => {
+    const app = touchDraggedAppRef.current;
+    const slot = touchTargetSlotRef.current;
+    const isDragging = isTouchDraggingRef.current;
+
+    touchDraggedAppRef.current = null;
+    touchTargetSlotRef.current = null;
+    isTouchDraggingRef.current = false;
+    setTouchDraggedApp(null);
+    setDraggedOverSlot(null);
+
+    if (isDragging && app && slot) {
+      const timeStr = `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
+      await handleMoveAppointment(app, slot.userId, slot.dateStr, timeStr);
+    }
+  };
+
   // Safety listener to auto-clear drag states when touch/mouse ends
   useEffect(() => {
-    if (draggedApp) {
+    if (draggedApp || touchDraggedApp) {
       const clearDrag = () => {
         setDraggedApp(null);
+        setTouchDraggedApp(null);
         setDraggedOverSlot(null);
+        touchDraggedAppRef.current = null;
+        touchTargetSlotRef.current = null;
       };
       window.addEventListener("mouseup", clearDrag);
       window.addEventListener("touchend", clearDrag);
@@ -2603,11 +2664,10 @@ export default function AgendaPage() {
         window.removeEventListener("touchcancel", clearDrag);
       };
     }
-  }, [draggedApp]);
+  }, [draggedApp, touchDraggedApp]);
 
   const handleDragStart = (e: React.DragEvent, app: Appointment) => {
     if (isTouchDevice) {
-      e.preventDefault();
       setDraggedApp(null);
       setDraggedOverSlot(null);
       return;
@@ -3054,6 +3114,10 @@ export default function AgendaPage() {
                             onDragOver={handleDragOver}
                             onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 0, currentDate)}
                             onDrop={(e) => handleDrop(e, staff.id, hour, 0, currentDate)}
+                            data-slot-user-id={staff.id}
+                            data-slot-hour={hour}
+                            data-slot-minute={0}
+                            data-slot-date-str={dateStr}
                           >
                             <span>+ {String(hour).padStart(2, "0")}:00</span>
                           </div>
@@ -3063,6 +3127,10 @@ export default function AgendaPage() {
                             onDragOver={handleDragOver}
                             onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 15, currentDate)}
                             onDrop={(e) => handleDrop(e, staff.id, hour, 15, currentDate)}
+                            data-slot-user-id={staff.id}
+                            data-slot-hour={hour}
+                            data-slot-minute={15}
+                            data-slot-date-str={dateStr}
                           >
                             <span>+ {String(hour).padStart(2, "0")}:15</span>
                           </div>
@@ -3072,6 +3140,10 @@ export default function AgendaPage() {
                             onDragOver={handleDragOver}
                             onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 30, currentDate)}
                             onDrop={(e) => handleDrop(e, staff.id, hour, 30, currentDate)}
+                            data-slot-user-id={staff.id}
+                            data-slot-hour={hour}
+                            data-slot-minute={30}
+                            data-slot-date-str={dateStr}
                           >
                             <span>+ {String(hour).padStart(2, "0")}:30</span>
                           </div>
@@ -3081,6 +3153,10 @@ export default function AgendaPage() {
                             onDragOver={handleDragOver}
                             onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 45, currentDate)}
                             onDrop={(e) => handleDrop(e, staff.id, hour, 45, currentDate)}
+                            data-slot-user-id={staff.id}
+                            data-slot-hour={hour}
+                            data-slot-minute={45}
+                            data-slot-date-str={dateStr}
                           >
                             <span>+ {String(hour).padStart(2, "0")}:45</span>
                           </div>
@@ -3147,6 +3223,10 @@ export default function AgendaPage() {
                         draggable={!isTouchDevice && canCreateOrEditAppointment(currentUser)}
                         onDragStart={(e) => handleDragStart(e, app)}
                         onDragEnd={handleDragEnd}
+                        onTouchStart={(e) => handleTouchStartApp(e, app)}
+                        onTouchMove={handleTouchMoveApp}
+                        onTouchEnd={handleTouchEndApp}
+                        onTouchCancel={handleTouchEndApp}
                       >
                         <div className={styles.appCardHeader}>
                           <div className={styles.appClient} style={{ margin: 0, padding: 0, minWidth: 0, flex: 1, display: "flex", alignItems: "center", flexWrap: "wrap", gap: "3px" }}>
@@ -3511,6 +3591,10 @@ export default function AgendaPage() {
                                     onDragOver={handleDragOver}
                                     onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 0, dateObj)}
                                     onDrop={(e) => handleDrop(e, staff.id, hour, 0, dateObj)}
+                                    data-slot-user-id={staff.id}
+                                    data-slot-hour={hour}
+                                    data-slot-minute={0}
+                                    data-slot-date-str={colDateStr}
                                   >
                                     <span>+ {String(hour).padStart(2, "0")}:00</span>
                                   </div>
@@ -3520,6 +3604,10 @@ export default function AgendaPage() {
                                     onDragOver={handleDragOver}
                                     onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 15, dateObj)}
                                     onDrop={(e) => handleDrop(e, staff.id, hour, 15, dateObj)}
+                                    data-slot-user-id={staff.id}
+                                    data-slot-hour={hour}
+                                    data-slot-minute={15}
+                                    data-slot-date-str={colDateStr}
                                   >
                                     <span>+ {String(hour).padStart(2, "0")}:15</span>
                                   </div>
@@ -3529,6 +3617,10 @@ export default function AgendaPage() {
                                     onDragOver={handleDragOver}
                                     onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 30, dateObj)}
                                     onDrop={(e) => handleDrop(e, staff.id, hour, 30, dateObj)}
+                                    data-slot-user-id={staff.id}
+                                    data-slot-hour={hour}
+                                    data-slot-minute={30}
+                                    data-slot-date-str={colDateStr}
                                   >
                                     <span>+ {String(hour).padStart(2, "0")}:30</span>
                                   </div>
@@ -3538,6 +3630,10 @@ export default function AgendaPage() {
                                     onDragOver={handleDragOver}
                                     onDragEnter={(e) => handleDragEnter(e, staff.id, hour, 45, dateObj)}
                                     onDrop={(e) => handleDrop(e, staff.id, hour, 45, dateObj)}
+                                    data-slot-user-id={staff.id}
+                                    data-slot-hour={hour}
+                                    data-slot-minute={45}
+                                    data-slot-date-str={colDateStr}
                                   >
                                     <span>+ {String(hour).padStart(2, "0")}:45</span>
                                   </div>
@@ -3600,6 +3696,10 @@ export default function AgendaPage() {
                                 draggable={!isTouchDevice && canCreateOrEditAppointment(currentUser)}
                                 onDragStart={(e) => handleDragStart(e, app)}
                                 onDragEnd={handleDragEnd}
+                                onTouchStart={(e) => handleTouchStartApp(e, app)}
+                                onTouchMove={handleTouchMoveApp}
+                                onTouchEnd={handleTouchEndApp}
+                                onTouchCancel={handleTouchEndApp}
                               >
                                 <div className={styles.appCardHeader} style={{ marginBottom: "2px" }}>
                                   <div className={styles.appClient} style={{ fontSize: "11px", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: "3px" }}>
