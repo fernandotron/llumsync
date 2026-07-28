@@ -583,7 +583,6 @@
   gap: 2px;
   overflow: hidden;
   transition: all 0.2s;
-  touch-action: none;
 }
 
 .appointmentCard:active {
@@ -4907,6 +4906,10 @@
     align-items: center !important;
     width: 100% !important;
     gap: 8px !important;
+  }
+
+  .appointmentCard {
+    touch-action: none !important;
   }
 
   .viewSelector {

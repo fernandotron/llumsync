@@ -2732,9 +2732,6 @@ export default function AgendaPage() {
   }, [touchDraggedApp]);
 
   const handleDragStart = (e: React.DragEvent, app: Appointment) => {
-    if (isTouchDevice) {
-      return;
-    }
     setDraggedApp(app);
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = "move";
@@ -2751,7 +2748,6 @@ export default function AgendaPage() {
 
   const handleDragEnter = (e: React.DragEvent, userId: string, hour: number, minute: number, dateObj: Date) => {
     e.preventDefault();
-    if (isTouchDevice) return;
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const day = String(dateObj.getDate()).padStart(2, "0");
@@ -3288,7 +3284,7 @@ export default function AgendaPage() {
                           padding: height < 25 ? "2px 6px" : height < 45 ? "4px 6px" : undefined,
                         }}
                         onClick={(e) => handleAppointmentClick(app, e)}
-                        draggable={!isTouchDevice && canCreateOrEditAppointment(currentUser)}
+                        draggable={canCreateOrEditAppointment(currentUser)}
                         onDragStart={(e) => handleDragStart(e, app)}
                         onDragEnd={handleDragEnd}
                         onTouchStart={(e) => handleTouchStartApp(e, app)}
@@ -3761,7 +3757,7 @@ export default function AgendaPage() {
                                   padding: height < 25 ? "2px 4px" : height < 45 ? "3px 4px" : "4px 6px",
                                 }}
                                 onClick={(e) => handleAppointmentClick(app, e)}
-                                draggable={!isTouchDevice && canCreateOrEditAppointment(currentUser)}
+                                draggable={canCreateOrEditAppointment(currentUser)}
                                 onDragStart={(e) => handleDragStart(e, app)}
                                 onDragEnd={handleDragEnd}
                                 onTouchStart={(e) => handleTouchStartApp(e, app)}
