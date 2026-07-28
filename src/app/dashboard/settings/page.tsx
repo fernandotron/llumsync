@@ -214,6 +214,57 @@ export default function SettingsPage() {
     }
   };
 
+  // Notification logs state
+  const [notificationLogsList, setNotificationLogsList] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [runningCronSimulation, setRunningCronSimulation] = useState(false);
+  const [logStatusFilter, setLogStatusFilter] = useState<"ALL" | "SENT" | "FAILED">("ALL");
+
+  const fetchNotificationLogs = useCallback(async () => {
+    if (!activeClinic?.id) return;
+    setLoadingLogs(true);
+    try {
+      const res = await fetch(`/api/notifications/logs?clinicId=${activeClinic.id}`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setNotificationLogsList(data);
+      }
+    } catch (err) {
+      console.error("Error fetching notification logs:", err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, [activeClinic?.id]);
+
+  const handleRunCronAndRefreshLogs = async () => {
+    if (!activeClinic?.id) return;
+    setRunningCronSimulation(true);
+    try {
+      const res = await fetch("/api/notifications/trigger-cron", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinicId: activeClinic.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Ejecución completada: ${data.processedCount || 0} envíos procesados.`);
+        fetchNotificationLogs();
+      } else {
+        toast.error(data.error || "Error al ejecutar comprobación de envíos");
+      }
+    } catch (err) {
+      toast.error("Error de conexión al ejecutar recordatorios.");
+    } finally {
+      setRunningCronSimulation(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      fetchNotificationLogs();
+    }
+  }, [activeTab, notificationsSubTab, fetchNotificationLogs]);
+
   // Commercial Products module states
   const [commProductsList, setCommProductsList] = useState<any[]>([]);
   const [selectedCommProduct, setSelectedCommProduct] = useState<any | null>(null);
@@ -8896,6 +8947,184 @@ export default function SettingsPage() {
 
                 </div>
               )}
+
+              {/* SUBTAB 3: REGISTRO DE ENVÍOS (LOGS Y AUDITORÍA DE ENTREGAS) */}
+              {notificationsSubTab === "logs" && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+                    <div>
+                      <h3 style={{ fontSize: "18px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+                        📜 Registro de Envíos e Historial de Notificaciones
+                      </h3>
+                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0" }}>
+                        Audita en tiempo real las notificaciones enviadas, entregadas y posibles errores de entrega a clientes.
+                      </p>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={fetchNotificationLogs}
+                        disabled={loadingLogs}
+                        style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
+                      >
+                        🔄 {loadingLogs ? "Cargando..." : "Refrescar"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleRunCronAndRefreshLogs}
+                        disabled={runningCronSimulation}
+                        style={{ fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
+                      >
+                        ⚡ {runningCronSimulation ? "Procesando envíos..." : "Ejecutar / Simular Envíos Ahora"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filtros de estado (Todos / Enviados / Fallidos) */}
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                    {(["ALL", "SENT", "FAILED"] as const).map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setLogStatusFilter(st)}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: "20px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          border: "1px solid var(--border-color)",
+                          background: logStatusFilter === st ? "var(--primary)" : "var(--bg-panel-solid)",
+                          color: logStatusFilter === st ? "#fff" : "var(--text-primary)",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        {st === "ALL" ? `Todos (${notificationLogsList.length})` :
+                         st === "SENT" ? `🟢 Enviados (${notificationLogsList.filter(l => l.status === "SENT").length})` :
+                         `🔴 Errores (${notificationLogsList.filter(l => l.status === "FAILED").length})`}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tabla de Registros */}
+                  {loadingLogs ? (
+                    <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
+                      Cargando historial de envíos...
+                    </div>
+                  ) : notificationLogsList.filter(l => logStatusFilter === "ALL" || l.status === logStatusFilter).length === 0 ? (
+                    <div style={{
+                      padding: "48px 24px",
+                      textAlign: "center",
+                      background: "var(--bg-panel-solid)",
+                      border: "1px dashed var(--border-color)",
+                      borderRadius: "12px",
+                    }}>
+                      <span style={{ fontSize: "40px", display: "block", marginBottom: "12px" }}>📬</span>
+                      <h4 style={{ margin: "0 0 8px", fontSize: "15px", color: "var(--text-primary)" }}>
+                        No hay registros de envíos {logStatusFilter !== "ALL" ? `en estado "${logStatusFilter}"` : ""}
+                      </h4>
+                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "0 0 16px" }}>
+                        Pulsa en "Ejecutar / Simular Envíos Ahora" para procesar citas pendientes de recordatorios.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleRunCronAndRefreshLogs}
+                        disabled={runningCronSimulation}
+                        style={{ fontSize: "13px" }}
+                      >
+                        ⚡ Ejecutar Envíos Ahora
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      background: "var(--bg-panel-solid)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "12px",
+                      overflow: "hidden",
+                    }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                        <thead>
+                          <tr style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", textAlign: "left" }}>
+                            <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Fecha / Hora</th>
+                            <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Paciente</th>
+                            <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Destinatario</th>
+                            <th style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-secondary)" }}>Canal</th>
+                            <th style={{ padding: "12px 16px", fontWeight 600, color: "var(--text-secondary)" }}>Estado</th>
+                            <th style={{ padding: "12px 16px", fontWeight 600, color: "var(--text-secondary)" }}>Mensaje / Error</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {notificationLogsList
+                            .filter(l => logStatusFilter === "ALL" || l.status === logStatusFilter)
+                            .map((log) => {
+                              const isSuccess = log.status === "SENT";
+                              const dateObj = new Date(log.sentAt);
+                              const dateStr = dateObj.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+                              const timeStr = dateObj.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+
+                              return (
+                                <tr key={log.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                                  <td style={{ padding: "12px 16px", whiteSpace: "nowrap", color: "var(--text-primary)" }}>
+                                    <span style={{ fontWeight: 600 }}>{dateStr}</span>
+                                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block" }}>{timeStr}</span>
+                                  </td>
+                                  <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary)" }}>
+                                    {log.clientName || "Cliente sin nombre"}
+                                  </td>
+                                  <td style={{ padding: "12px 16px", color: "var(--text-primary)", fontFamily: "monospace", fontSize: "12px" }}>
+                                    {log.recipient}
+                                  </td>
+                                  <td style={{ padding: "12px 16px" }}>
+                                    <span style={{
+                                      padding: "3px 8px",
+                                      borderRadius: "6px",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                      background: log.channel === "WHATSAPP" ? "rgba(37, 211, 102, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                                      color: log.channel === "WHATSAPP" ? "#25d366" : "#3b82f6",
+                                    }}>
+                                      {log.channel === "WHATSAPP" ? "💬 WhatsApp" : log.channel === "EMAIL" ? "📧 Email" : "📱 SMS"}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "12px 16px" }}>
+                                    <span style={{
+                                      padding: "4px 10px",
+                                      borderRadius: "20px",
+                                      fontSize: "11px",
+                                      fontWeight: 700,
+                                      background: isSuccess ? "rgba(46, 125, 50, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                                      color: isSuccess ? "#2e7d32" : "#ef4444",
+                                      border: "1px solid " + (isSuccess ? "rgba(46, 125, 50, 0.3)" : "rgba(239, 68, 68, 0.3)"),
+                                    }}>
+                                      {isSuccess ? "🟢 ENVIADO" : "🔴 ERROR"}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "12px 16px", color: "var(--text-primary)", maxWidth: "350px" }}>
+                                    <div style={{
+                                      maxHeight: "60px",
+                                      overflowY: "auto",
+                                      fontSize: "12px",
+                                      whiteSpace: "pre-wrap",
+                                      color: isSuccess ? "var(--text-primary)" : "#ef4444",
+                                    }}>
+                                      {log.message}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
         )}
