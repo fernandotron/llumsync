@@ -2803,6 +2803,7 @@ export default function AgendaPage() {
         isMouseDraggingRef.current = true;
         setDraggedApp(mouseDraggedAppRef.current);
         createMouseGhost(app, me.clientX, me.clientY);
+        document.body.classList.add("agenda-dragging");
       }
       if (isMouseDraggingRef.current && mouseGhostRef.current) {
         mouseGhostRef.current.style.left = `${me.clientX - 60}px`;
@@ -2844,7 +2845,6 @@ export default function AgendaPage() {
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-    document.body.classList.add("agenda-dragging");
   };
 
   // Keep these stubs so quarter slot JSX compiles (onDragOver/onDrop on slots no longer needed but kept for safety)

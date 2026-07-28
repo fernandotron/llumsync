@@ -2595,6 +2595,7 @@
 .appointmentTooltip {
   display: none;
   position: absolute;
+  /* Mobile default: above */
   bottom: calc(100% + 8px);
   top: auto;
   left: 50%;
@@ -2611,7 +2612,6 @@
   color: var(--text-primary, #1e293b);
   font-family: inherit;
   text-align: left;
-  animation: tooltipFadeUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .appointmentTooltip::after {
@@ -2640,16 +2640,61 @@
 @keyframes tooltipFadeUp {
   from {
     opacity: 0;
-    transform: translate(-50%, 6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 
-.appointmentCard:hover .appointmentTooltip {
-  display: block;
+@keyframes tooltipFadeRight {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Only show tooltip on real mouse/pointer devices (not touch) */
+@media (hover: hover) and (pointer: fine) {
+  .appointmentCard:hover .appointmentTooltip {
+    display: block;
+    /* Desktop: appear to the RIGHT of the card */
+    bottom: auto;
+    top: 0;
+    left: calc(100% + 10px);
+    transform: none;
+    animation: tooltipFadeRight 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .appointmentCard:hover .tooltipLeft {
+    /* Near right edge: appear to the LEFT */
+    left: auto !important;
+    right: calc(100% + 10px) !important;
+    transform: none !important;
+    animation: tooltipFadeRight 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  /* Arrow: desktop right side */
+  .appointmentCard:hover .appointmentTooltip::after {
+    top: 16px;
+    left: -6px;
+    right: auto;
+    transform: none;
+    border-width: 6px 6px 6px 0;
+    border-color: transparent var(--bg-card, #ffffff) transparent transparent;
+  }
+  /* Arrow: desktop left side (tooltipLeft) */
+  .appointmentCard:hover .tooltipLeft::after {
+    top: 16px;
+    left: auto !important;
+    right: -6px !important;
+    transform: none !important;
+    border-width: 6px 0 6px 6px;
+    border-color: transparent transparent transparent var(--bg-card, #ffffff);
+  }
 }
 
 .tooltipUserRow {
