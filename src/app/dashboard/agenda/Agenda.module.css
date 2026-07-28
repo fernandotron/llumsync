@@ -594,7 +594,6 @@
   z-index: 9999 !important;
   box-shadow: var(--shadow-md);
   overflow: visible !important;
-  cursor: grab;
 }
 
 .microCard .appTime {
