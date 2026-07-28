@@ -4870,39 +4870,31 @@
     width: 100% !important;
   }
 
+  /* 2-Column Grid for Stat Cards on Mobile so no cards cut off */
   .miniSummaryGrid {
-    display: flex !important;
-    overflow-x: auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
-    padding: 0 16px 4px 16px !important;
+    padding: 0 16px !important;
     margin-bottom: 12px !important;
-    -webkit-overflow-scrolling: touch !important;
-    scrollbar-width: none;
-  }
-
-  .miniSummaryGrid::-webkit-scrollbar {
-    display: none;
   }
 
   .miniSummaryCard {
-    flex: 0 0 auto !important;
-    min-width: 125px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 8px 10px !important;
+    box-sizing: border-box !important;
   }
 
-  /* Make viewSelector fit nicely on mobile as pill bar */
-  .viewSelector {
-    display: flex !important;
-    overflow-x: auto !important;
-    white-space: nowrap !important;
-    gap: 4px !important;
-    justify-content: center !important;
+  .miniSummaryCard:nth-child(5) {
+    grid-column: span 2 !important;
   }
 
-  /* Make sure calendar headers are readable and aligned nicely */
+  /* Calendar Control Header Layout on Mobile */
   .calendarHeader {
     display: flex !important;
     flex-direction: column !important;
-    gap: 12px !important;
+    gap: 10px !important;
     padding: 0 16px !important;
     align-items: stretch !important;
   }
@@ -4916,6 +4908,25 @@
     gap: 8px !important;
   }
 
+  .viewSelector {
+    display: flex !important;
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    background: var(--bg-input) !important;
+    padding: 4px !important;
+    border-radius: var(--radius-md) !important;
+    box-sizing: border-box !important;
+  }
+
+  .viewBtn {
+    flex: 1 !important;
+    text-align: center !important;
+    padding: 6px 12px !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+  }
+
   .calendarHeaderCenter {
     justify-self: auto !important;
     display: flex !important;
@@ -4924,21 +4935,60 @@
   }
 
   .dateNav {
-    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
     justify-content: center !important;
-    gap: 8px !important;
+    width: 100% !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .navBtn {
+    flex-shrink: 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: var(--radius-md) !important;
   }
 
   .datePickerBtn {
+    flex: 0 1 auto !important;
+    max-width: 220px !important;
     min-width: 0 !important;
-    flex: 1 !important;
     justify-content: center !important;
-    font-size: 13px !important;
-    padding: 8px 10px !important;
+    gap: 6px !important;
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .datePickerBtn span {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 150px !important;
+  }
+
+  .datePickerDropdown {
+    position: absolute !important;
+    top: calc(100% + 6px) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 300px !important;
+    max-width: calc(100vw - 32px) !important;
+    z-index: 10005 !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .todayBtn {
+    flex-shrink: 0 !important;
+    font-size: 11px !important;
+    padding: 5px 10px !important;
   }
 
   .calendarHeaderRight {
-    justify-self: auto !important;
     display: flex !important;
     justify-content: flex-end !important;
     width: 100% !important;
