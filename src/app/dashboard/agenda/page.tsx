@@ -2713,31 +2713,26 @@ export default function AgendaPage() {
     }
   };
 
-  // Safety listener to auto-clear drag states when touch/mouse ends
+  // Safety listener for mobile touch drag cancellation
   useEffect(() => {
-    if (draggedApp || touchDraggedApp) {
-      const clearDrag = () => {
-        setDraggedApp(null);
+    if (touchDraggedApp) {
+      const clearTouchDrag = () => {
         setTouchDraggedApp(null);
         setDraggedOverSlot(null);
         touchDraggedAppRef.current = null;
         touchTargetSlotRef.current = null;
       };
-      window.addEventListener("mouseup", clearDrag);
-      window.addEventListener("touchend", clearDrag);
-      window.addEventListener("touchcancel", clearDrag);
+      window.addEventListener("touchend", clearTouchDrag);
+      window.addEventListener("touchcancel", clearTouchDrag);
       return () => {
-        window.removeEventListener("mouseup", clearDrag);
-        window.removeEventListener("touchend", clearDrag);
-        window.removeEventListener("touchcancel", clearDrag);
+        window.removeEventListener("touchend", clearTouchDrag);
+        window.removeEventListener("touchcancel", clearTouchDrag);
       };
     }
-  }, [draggedApp, touchDraggedApp]);
+  }, [touchDraggedApp]);
 
   const handleDragStart = (e: React.DragEvent, app: Appointment) => {
     if (isTouchDevice) {
-      setDraggedApp(null);
-      setDraggedOverSlot(null);
       return;
     }
     setDraggedApp(app);
@@ -2749,6 +2744,9 @@ export default function AgendaPage() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "move";
+    }
   };
 
   const handleDragEnter = (e: React.DragEvent, userId: string, hour: number, minute: number, dateObj: Date) => {
@@ -2768,8 +2766,11 @@ export default function AgendaPage() {
 
   const handleDrop = async (e: React.DragEvent, newUserId: string, hour: number, minute: number, dateObj: Date) => {
     e.preventDefault();
+    e.stopPropagation();
+    const appToMove = draggedApp;
     setDraggedOverSlot(null);
-    if (!draggedApp) return;
+    setDraggedApp(null);
+    if (!appToMove) return;
 
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -2777,8 +2778,7 @@ export default function AgendaPage() {
     const dateStr = `${year}-${month}-${day}`;
     const timeStr = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 
-    await handleMoveAppointment(draggedApp, newUserId, dateStr, timeStr);
-    setDraggedApp(null);
+    await handleMoveAppointment(appToMove, newUserId, dateStr, timeStr);
   };
 
   // Save clinical follow-up (Seguimientos)
