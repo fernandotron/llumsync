@@ -925,7 +925,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 100000;
 }
 
 .modalContent {
@@ -4771,43 +4771,156 @@
   background: var(--primary-hover);
 }
 
+/* Daily Mini Summary Panel */
+.miniSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 0 24px;
+}
+
+.miniSummaryCard {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+:global(.dark) .miniSummaryCard {
+  background: rgba(15, 23, 42, 0.85);
+}
+
 /* ==========================================
    MOBILE VIEWPORT OPTIMIZATIONS (width < 768px)
    ========================================== */
 @media (max-width: 768px) {
+  .container {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .toolbar {
+    padding: 12px 16px 0 16px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .toolbarLeft {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  .toolbarFilters {
+    width: 100% !important;
+  }
+
+  .searchBox {
+    width: 100% !important;
+  }
+
+  .searchInput {
+    width: 100% !important;
+  }
+
+  .searchInput:focus {
+    width: 100% !important;
+  }
+
+  .miniSummaryGrid {
+    display: flex !important;
+    overflow-x: auto !important;
+    gap: 8px !important;
+    padding: 0 16px 4px 16px !important;
+    margin-bottom: 12px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none;
+  }
+
+  .miniSummaryGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .miniSummaryCard {
+    flex: 0 0 auto !important;
+    min-width: 125px !important;
+  }
+
   /* Make viewSelector fit nicely on mobile as pill bar */
   .viewSelector {
     display: flex !important;
     overflow-x: auto !important;
     white-space: nowrap !important;
     gap: 4px !important;
-    width: 100% !important;
     justify-content: center !important;
   }
 
-  /* Make sure calendar headers are readable and stacked nicely */
+  /* Make sure calendar headers are readable and aligned nicely */
   .calendarHeader {
     display: flex !important;
     flex-direction: column !important;
     gap: 12px !important;
-    padding: 0 12px !important;
+    padding: 0 16px !important;
     align-items: stretch !important;
   }
-  .calendarHeaderLeft, .calendarHeaderCenter, .calendarHeaderRight {
+
+  .calendarHeaderLeft {
+    justify-self: auto !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .calendarHeaderCenter {
     justify-self: auto !important;
     display: flex !important;
     justify-content: center !important;
     width: 100% !important;
   }
 
+  .dateNav {
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  .datePickerBtn {
+    min-width: 0 !important;
+    flex: 1 !important;
+    justify-content: center !important;
+    font-size: 13px !important;
+    padding: 8px 10px !important;
+  }
+
+  .calendarHeaderRight {
+    justify-self: auto !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
+  }
+
   /* Horizontal scrolling for Day grid and columns */
-  .dayGridContainer {
+  .dayGridContainer, .weekGridContainer {
     display: grid !important;
     grid-template-columns: 60px 1fr !important; /* Shorter hour column on mobile */
     overflow-x: auto !important;
     position: relative;
     border-radius: var(--radius-md) !important;
     border: 1px solid var(--border-color) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .timeColumn {
@@ -4832,8 +4945,8 @@
   }
 
   .staffColumn {
-    flex: 0 0 200px !important; /* Do not shrink column */
-    min-width: 200px !important;
+    flex: 0 0 190px !important; /* Do not shrink column */
+    min-width: 190px !important;
     border-right: 1px solid var(--border-color) !important;
   }
 

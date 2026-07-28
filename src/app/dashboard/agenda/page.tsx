@@ -3959,8 +3959,8 @@ export default function AgendaPage() {
         {/* Main Calendar View Area */}
         <section className={styles.calendarArea}>
           {/* Daily Mini Summary Panel */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "10px", marginBottom: "16px" }}>
-            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+          <div className={styles.miniSummaryGrid}>
+            <div className={styles.miniSummaryCard}>
               <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icons.Calendar size={14} style={{ color: "#fff" }} />
               </div>
@@ -3970,7 +3970,7 @@ export default function AgendaPage() {
               </div>
             </div>
             
-            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+            <div className={styles.miniSummaryCard}>
               <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icons.Check size={14} style={{ color: "#fff" }} />
               </div>
@@ -3980,7 +3980,7 @@ export default function AgendaPage() {
               </div>
             </div>
             
-            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+            <div className={styles.miniSummaryCard}>
               <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icons.Clock size={14} style={{ color: "#fff" }} />
               </div>
@@ -3990,7 +3990,7 @@ export default function AgendaPage() {
               </div>
             </div>
 
-            <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+            <div className={styles.miniSummaryCard}>
               <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #ef4444, #dc2626)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icons.Close size={14} style={{ color: "#fff" }} />
               </div>
@@ -4001,7 +4001,7 @@ export default function AgendaPage() {
             </div>
 
             {showPrices && (
-              <div style={{ background: "rgba(255, 255, 255, 0.85)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "8px 12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              <div className={styles.miniSummaryCard}>
                 <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
