@@ -8968,17 +8968,11 @@ export default function SettingsPage() {
       {showCreateStaffDrawer && typeof window !== "undefined" && createPortal(
         <div className={styles.drawerOverlay} onClick={() => { setShowCreateStaffDrawer(false); setCreateStaffActiveTab(null); }}>
           <div 
-            className={styles.drawer} 
-            style={{ 
-              width: createStaffActiveTab ? "880px" : "440px", 
-              transition: "width 0.25s ease",
-              display: "flex",
-              flexDirection: "row"
-            }} 
+            className={`${styles.createStaffDrawer} ${createStaffActiveTab ? styles.drawerWithActiveTab : ""}`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* LEFT SIDE: Options menu */}
-            <div style={{ width: "440px", height: "100%", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+            <div className={styles.createStaffLeftMenu}>
               <div className={styles.drawerHeader}>
                 <h2>Añadir nuevo empleado</h2>
                 <button 
@@ -9036,15 +9030,15 @@ export default function SettingsPage() {
 
             {/* RIGHT SIDE: Sub-menu details form */}
             {createStaffActiveTab && (
-              <form onSubmit={handleCreateStaff} style={{ width: "440px", height: "100%", display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-color)", flexShrink: 0 }}>
+              <form onSubmit={handleCreateStaff} className={styles.createStaffRightForm}>
                 <div className={styles.drawerHeader}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <button 
                       type="button" 
-                      style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, color: "var(--text-primary)" }}
                       onClick={() => setCreateStaffActiveTab(null)}
                     >
-                      <Icons.Menu size={18} />
+                      <Icons.ChevronLeft size={20} />
                     </button>
                     <h2 style={{ textTransform: "capitalize" }}>
                       {createStaffActiveTab === "generales" ? "Datos generales" : createStaffActiveTab}
