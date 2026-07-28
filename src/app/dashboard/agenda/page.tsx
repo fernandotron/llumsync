@@ -2605,6 +2605,9 @@ export default function AgendaPage() {
 
   const handleTouchMoveApp = (e: React.TouchEvent) => {
     if (!touchDraggedAppRef.current) return;
+    if (e.cancelable) {
+      e.preventDefault();
+    }
     const touch = e.touches[0];
     
     // Mark as active dragging after moving
@@ -2613,6 +2616,19 @@ export default function AgendaPage() {
       setTouchDraggedApp(touchDraggedAppRef.current);
     }
     setTouchPos({ x: touch.clientX, y: touch.clientY });
+
+    // Edge Auto-Scrolling when finger approaches top or bottom of viewport
+    const viewportHeight = window.innerHeight;
+    const topZone = 150; // Top boundary
+    const bottomZone = viewportHeight - 130; // Bottom boundary
+
+    if (touch.clientY < topZone) {
+      const scrollSpeed = Math.max(6, Math.floor((topZone - touch.clientY) / 6));
+      window.scrollBy(0, -scrollSpeed);
+    } else if (touch.clientY > bottomZone) {
+      const scrollSpeed = Math.max(6, Math.floor((touch.clientY - bottomZone) / 6));
+      window.scrollBy(0, scrollSpeed);
+    }
 
     // Identify target slot under finger
     const el = document.elementFromPoint(touch.clientX, touch.clientY);
