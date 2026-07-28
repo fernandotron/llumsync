@@ -2593,47 +2593,19 @@ export default function AgendaPage() {
   const touchDraggedAppRef = useRef<Appointment | null>(null);
   const touchTargetSlotRef = useRef<{ userId: string; hour: number; minute: number; dateStr: string } | null>(null);
   const isTouchDraggingRef = useRef(false);
+  const autoScrollFrameRef = useRef<number | null>(null);
+  const lastTouchPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const handleTouchStartApp = (e: React.TouchEvent, app: Appointment) => {
-    if (!canCreateOrEditAppointment(currentUser)) return;
-    const touch = e.touches[0];
-    touchDraggedAppRef.current = app;
-    touchTargetSlotRef.current = null;
-    isTouchDraggingRef.current = false;
-    setTouchPos({ x: touch.clientX, y: touch.clientY });
+  const stopAutoScroll = () => {
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
   };
 
-  const handleTouchMoveApp = (e: React.TouchEvent) => {
-    if (!touchDraggedAppRef.current) return;
-    if (e.cancelable) {
-      e.preventDefault();
-    }
-    const touch = e.touches[0];
-    
-    // Mark as active dragging after moving
-    isTouchDraggingRef.current = true;
-    if (!touchDraggedApp) {
-      setTouchDraggedApp(touchDraggedAppRef.current);
-    }
-    setTouchPos({ x: touch.clientX, y: touch.clientY });
-
-    // Edge Auto-Scrolling when finger approaches top or bottom of viewport
-    const viewportHeight = window.innerHeight;
-    const topZone = 150; // Top boundary
-    const bottomZone = viewportHeight - 130; // Bottom boundary
-
-    if (touch.clientY < topZone) {
-      const scrollSpeed = Math.max(6, Math.floor((topZone - touch.clientY) / 6));
-      window.scrollBy(0, -scrollSpeed);
-    } else if (touch.clientY > bottomZone) {
-      const scrollSpeed = Math.max(6, Math.floor((touch.clientY - bottomZone) / 6));
-      window.scrollBy(0, scrollSpeed);
-    }
-
-    // Identify target slot under finger
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const updateSlotUnderFinger = (clientX: number, clientY: number) => {
+    const el = document.elementFromPoint(clientX, clientY);
     const slotEl = el?.closest("[data-slot-user-id]") as HTMLElement | null;
-
     if (slotEl) {
       const userId = slotEl.getAttribute("data-slot-user-id") || "";
       const hour = Number(slotEl.getAttribute("data-slot-hour") || 0);
@@ -2644,7 +2616,87 @@ export default function AgendaPage() {
     }
   };
 
+  const startAutoScroll = () => {
+    if (autoScrollFrameRef.current !== null) return;
+
+    const scrollStep = () => {
+      if (!touchDraggedAppRef.current) {
+        stopAutoScroll();
+        return;
+      }
+
+      const { x, y } = lastTouchPosRef.current;
+      const viewportHeight = window.innerHeight;
+      const topZone = 150;
+      const bottomZone = viewportHeight - 130;
+
+      let scrollSpeed = 0;
+      if (y < topZone) {
+        scrollSpeed = -Math.max(5, Math.floor((topZone - y) / 4));
+      } else if (y > bottomZone) {
+        scrollSpeed = Math.max(5, Math.floor((y - bottomZone) / 4));
+      }
+
+      if (scrollSpeed !== 0) {
+        window.scrollBy(0, scrollSpeed);
+        document.documentElement.scrollBy(0, scrollSpeed);
+        document.body.scrollBy(0, scrollSpeed);
+        
+        const gridBody = document.querySelector(".columnGridBody");
+        if (gridBody && gridBody.parentElement) {
+          gridBody.parentElement.scrollBy(0, scrollSpeed);
+        }
+
+        updateSlotUnderFinger(x, y);
+
+        autoScrollFrameRef.current = requestAnimationFrame(scrollStep);
+      } else {
+        stopAutoScroll();
+      }
+    };
+
+    autoScrollFrameRef.current = requestAnimationFrame(scrollStep);
+  };
+
+  const handleTouchStartApp = (e: React.TouchEvent, app: Appointment) => {
+    if (!canCreateOrEditAppointment(currentUser)) return;
+    const touch = e.touches[0];
+    touchDraggedAppRef.current = app;
+    touchTargetSlotRef.current = null;
+    isTouchDraggingRef.current = false;
+    lastTouchPosRef.current = { x: touch.clientX, y: touch.clientY };
+    setTouchPos({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchMoveApp = (e: React.TouchEvent) => {
+    if (!touchDraggedAppRef.current) return;
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+    const touch = e.touches[0];
+    
+    isTouchDraggingRef.current = true;
+    if (!touchDraggedApp) {
+      setTouchDraggedApp(touchDraggedAppRef.current);
+    }
+    lastTouchPosRef.current = { x: touch.clientX, y: touch.clientY };
+    setTouchPos({ x: touch.clientX, y: touch.clientY });
+
+    updateSlotUnderFinger(touch.clientX, touch.clientY);
+
+    const viewportHeight = window.innerHeight;
+    const topZone = 150;
+    const bottomZone = viewportHeight - 130;
+
+    if (touch.clientY < topZone || touch.clientY > bottomZone) {
+      startAutoScroll();
+    } else {
+      stopAutoScroll();
+    }
+  };
+
   const handleTouchEndApp = async () => {
+    stopAutoScroll();
     const app = touchDraggedAppRef.current;
     const slot = touchTargetSlotRef.current;
     const isDragging = isTouchDraggingRef.current;
