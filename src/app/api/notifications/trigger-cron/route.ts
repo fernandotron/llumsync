@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     const appointments = await prisma.appointment.findMany({
       where: {
         clinicId,
+        deletedAt: null, // Solo citas activas (no en papelera)
         start: {
           gte: pastLimit,
           lte: futureLimit,
@@ -89,16 +90,23 @@ export async function POST(request: Request) {
         const triggerTimeOffset = (hoursBefore * 60 * 60 * 1000) + (minutesBefore * 60 * 1000);
 
         if (reminder.timing === "AFTER") {
-          // Para envíos después de la cita (ej: post-tratamiento)
+          // AFTER: enviar cuando now >= appointmentStart + offset
+          // Ventana de validez: solo enviar dentro de las 48h siguientes al momento de disparo
+          // Esto evita enviar recordatorios de citas de hace días si no se han procesado
           const timeToSend = startD.getTime() + triggerTimeOffset;
-          if (now.getTime() < timeToSend) {
-            // Aún no corresponde enviar el mensaje
+          const expiryWindow = timeToSend + (48 * 60 * 60 * 1000); // máx 48h después de trigger
+          if (now.getTime() < timeToSend || now.getTime() > expiryWindow) {
+            // Aún no toca, o ya expiró la ventana
             continue;
           }
         } else {
-          // Para envíos antes de la cita (ej: recordatorio tradicional 24h)
+          // BEFORE: enviar cuando now >= appointmentStart - offset
+          // CRÍTICO: también verificar que la cita aún NO haya ocurrido (+ 30 min gracia)
+          // Esto evita enviar recordatorios de citas pasadas de días anteriores
           const timeToSend = startD.getTime() - triggerTimeOffset;
-          if (now.getTime() < timeToSend) {
+          const graceAfterStart = startD.getTime() + (30 * 60 * 1000); // 30 min después del inicio
+          if (now.getTime() < timeToSend || now.getTime() > graceAfterStart) {
+            // Demasiado temprano para enviar, o la cita ya ocurrió (pasó la gracia)
             continue;
           }
         }
@@ -245,8 +253,18 @@ export async function POST(request: Request) {
                   }
 
                   if (cleanUrl.startsWith("data:")) {
+                    // Base64 inline data
                     mediaValue = cleanUrl.replace(/^data:[^;]+;base64,/, "");
+                  } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                    // Already a full URL — use directly
+                    mediaValue = cleanUrl;
+                  } else if (cleanUrl.startsWith("/")) {
+                    // Relative URL (e.g. /api/uploads/...) — build full URL from request host
+                    const reqHost = request.headers.get("host") || "localhost:3000";
+                    const reqProtocol = reqHost.includes("localhost") ? "http" : "https";
+                    mediaValue = `${reqProtocol}://${reqHost}${cleanUrl}`;
                   } else {
+                    // Try local disk paths as last resort
                     const privatePath = path.join(process.cwd(), "private-uploads", fileName);
                     const publicPath = path.join(process.cwd(), "public", "uploads", fileName);
 
@@ -260,11 +278,8 @@ export async function POST(request: Request) {
                     if (targetFilePath) {
                       const fileBuffer = fs.readFileSync(targetFilePath);
                       mediaValue = fileBuffer.toString("base64");
-                    } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-                      mediaValue = cleanUrl;
                     } else {
-                      // Imagen no presente en disco local (ej. desplegado efímero en Railway)
-                      // Fallback seguro a texto plano para evitar error 404 en Evolution API
+                      // Imagen no encontrada en ningún lado — enviar solo texto
                       hasImage = false;
                     }
                   }
