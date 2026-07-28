@@ -241,12 +241,6 @@ export default function SettingsPage() {
     }
   };
 
-  useEffect(() => {
-    if (activeTab === "notifications") {
-      fetchNotificationLogs();
-    }
-  }, [activeTab, notificationsSubTab]);
-
   // Commercial Products module states
   const [commProductsList, setCommProductsList] = useState<any[]>([]);
   const [selectedCommProduct, setSelectedCommProduct] = useState<any | null>(null);
@@ -343,6 +337,12 @@ export default function SettingsPage() {
   const [searchReminderQuery, setSearchReminderQuery] = useState("");
   const [reminderLogs, setReminderLogs] = useState<any[]>([]);
   const [loadingReminderLogs, setLoadingReminderLogs] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      fetchNotificationLogs();
+    }
+  }, [activeTab, notificationsSubTab]);
 
   // Form states for creating/editing reminders
   const [showReminderForm, setShowReminderForm] = useState(false);
