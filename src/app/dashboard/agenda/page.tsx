@@ -2731,54 +2731,128 @@ export default function AgendaPage() {
     }
   }, [touchDraggedApp]);
 
-  const handleDragStart = (e: React.DragEvent, app: Appointment) => {
-    setDraggedApp(app);
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", app.id);
+  // ── Desktop Mouse Drag (mirrors the touch system – avoids all HTML5 DnD bugs) ──
+  const mouseDraggedAppRef = useRef<Appointment | null>(null);
+  const mouseTargetSlotRef = useRef<{ userId: string; hour: number; minute: number; dateStr: string } | null>(null);
+  const isMouseDraggingRef = useRef(false);
+  const mouseGhostRef = useRef<HTMLDivElement | null>(null);
+  const mouseDragStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const createMouseGhost = (app: Appointment, x: number, y: number) => {
+    const ghost = document.createElement("div");
+    ghost.id = "agenda-mouse-drag-ghost";
+    ghost.textContent = `${app.client.firstName} ${app.client.lastName}`;
+    ghost.style.cssText = `
+      position: fixed;
+      left: ${x - 60}px;
+      top: ${y - 20}px;
+      background: ${app.service.color || "var(--primary)"};
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      pointer-events: none;
+      z-index: 99999;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      white-space: nowrap;
+      opacity: 0.92;
+      transform: rotate(-2deg);
+    `;
+    document.body.appendChild(ghost);
+    mouseGhostRef.current = ghost;
+  };
+
+  const removeMouseGhost = () => {
+    if (mouseGhostRef.current) {
+      mouseGhostRef.current.remove();
+      mouseGhostRef.current = null;
     }
+  };
+
+  const updateSlotUnderMouse = (clientX: number, clientY: number) => {
+    const ghost = mouseGhostRef.current;
+    if (ghost) ghost.style.display = "none";
+    const el = document.elementFromPoint(clientX, clientY);
+    if (ghost) ghost.style.display = "";
+    const slotEl = el?.closest("[data-slot-user-id]") as HTMLElement | null;
+    if (slotEl) {
+      const userId = slotEl.getAttribute("data-slot-user-id") || "";
+      const hour = Number(slotEl.getAttribute("data-slot-hour") || 0);
+      const minute = Number(slotEl.getAttribute("data-slot-minute") || 0);
+      const dateStr = slotEl.getAttribute("data-slot-date-str") || "";
+      setDraggedOverSlot({ userId, hour, minute, dateStr });
+      mouseTargetSlotRef.current = { userId, hour, minute, dateStr };
+    } else {
+      mouseTargetSlotRef.current = null;
+    }
+  };
+
+  const handleMouseDownApp = (e: React.MouseEvent, app: Appointment) => {
+    if (!canCreateOrEditAppointment(currentUser)) return;
+    if (e.button !== 0) return; // left click only
+    mouseDraggedAppRef.current = app;
+    mouseTargetSlotRef.current = null;
+    isMouseDraggingRef.current = false;
+    mouseDragStartPos.current = { x: e.clientX, y: e.clientY };
+
+    const onMouseMove = (me: MouseEvent) => {
+      const dx = me.clientX - mouseDragStartPos.current.x;
+      const dy = me.clientY - mouseDragStartPos.current.y;
+      if (!isMouseDraggingRef.current && Math.sqrt(dx * dx + dy * dy) > 5) {
+        isMouseDraggingRef.current = true;
+        setDraggedApp(mouseDraggedAppRef.current);
+        createMouseGhost(app, me.clientX, me.clientY);
+      }
+      if (isMouseDraggingRef.current && mouseGhostRef.current) {
+        mouseGhostRef.current.style.left = `${me.clientX - 60}px`;
+        mouseGhostRef.current.style.top = `${me.clientY - 20}px`;
+        updateSlotUnderMouse(me.clientX, me.clientY);
+      }
+    };
+
+    const onMouseUp = async (mue: MouseEvent) => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      removeMouseGhost();
+      document.body.classList.remove("agenda-dragging");
+
+      const appToMove = mouseDraggedAppRef.current;
+      const slot = mouseTargetSlotRef.current;
+      const wasDragging = isMouseDraggingRef.current;
+
+      mouseDraggedAppRef.current = null;
+      mouseTargetSlotRef.current = null;
+      isMouseDraggingRef.current = false;
+      setDraggedApp(null);
+      setDraggedOverSlot(null);
+
+      if (wasDragging) {
+        // Suppress the next click so the appointment modal doesn't open
+        const suppressClick = (ce: MouseEvent) => {
+          ce.stopPropagation();
+          ce.preventDefault();
+          window.removeEventListener("click", suppressClick, true);
+        };
+        window.addEventListener("click", suppressClick, true);
+        if (appToMove && slot) {
+          const timeStr = `${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
+          await handleMoveAppointment(appToMove, slot.userId, slot.dateStr, timeStr);
+        }
+      }
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
     document.body.classList.add("agenda-dragging");
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "move";
-    }
-  };
-
-  const handleDragEnter = (e: React.DragEvent, userId: string, hour: number, minute: number, dateObj: Date) => {
-    e.preventDefault();
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const dateStr = `${year}-${month}-${day}`;
-    setDraggedOverSlot({ userId, hour, minute, dateStr });
-  };
-
-  const handleDragEnd = () => {
-    setDraggedApp(null);
-    setDraggedOverSlot(null);
-    document.body.classList.remove("agenda-dragging");
-  };
-
-  const handleDrop = async (e: React.DragEvent, newUserId: string, hour: number, minute: number, dateObj: Date) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const appId = e.dataTransfer?.getData("text/plain");
-    const appToMove = appointments.find(a => a.id === appId) || draggedApp;
-    setDraggedOverSlot(null);
-    setDraggedApp(null);
-    if (!appToMove) return;
-
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const day = String(dateObj.getDate()).padStart(2, "0");
-    const dateStr = `${year}-${month}-${day}`;
-    const timeStr = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-
-    await handleMoveAppointment(appToMove, newUserId, dateStr, timeStr);
-  };
+  // Keep these stubs so quarter slot JSX compiles (onDragOver/onDrop on slots no longer needed but kept for safety)
+  const handleDragStart = (_e: React.DragEvent, _app: Appointment) => {};
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const handleDragEnter = (e: React.DragEvent, _userId: string, _hour: number, _minute: number, _dateObj: Date) => { e.preventDefault(); };
+  const handleDragEnd = () => {};
+  const handleDrop = (e: React.DragEvent, _newUserId: string, _hour: number, _minute: number, _dateObj: Date) => { e.preventDefault(); };
 
   // Save clinical follow-up (Seguimientos)
   const handleSaveSeguimiento = async () => {
@@ -3287,9 +3361,7 @@ export default function AgendaPage() {
                           padding: height < 25 ? "2px 6px" : height < 45 ? "4px 6px" : undefined,
                         }}
                         onClick={(e) => handleAppointmentClick(app, e)}
-                        draggable={canCreateOrEditAppointment(currentUser)}
-                        onDragStart={(e) => handleDragStart(e, app)}
-                        onDragEnd={handleDragEnd}
+                        onMouseDown={(e) => handleMouseDownApp(e, app)}
                         onTouchStart={(e) => handleTouchStartApp(e, app)}
                         onTouchMove={handleTouchMoveApp}
                         onTouchEnd={handleTouchEndApp}
@@ -3764,9 +3836,7 @@ export default function AgendaPage() {
                                   padding: height < 25 ? "2px 4px" : height < 45 ? "3px 4px" : "4px 6px",
                                 }}
                                 onClick={(e) => handleAppointmentClick(app, e)}
-                                draggable={canCreateOrEditAppointment(currentUser)}
-                                onDragStart={(e) => handleDragStart(e, app)}
-                                onDragEnd={handleDragEnd}
+                                onMouseDown={(e) => handleMouseDownApp(e, app)}
                                 onTouchStart={(e) => handleTouchStartApp(e, app)}
                                 onTouchMove={handleTouchMoveApp}
                                 onTouchEnd={handleTouchEndApp}

@@ -458,3 +458,11 @@ body.agenda-dragging [class*='isDraggingCard'] {
   cursor: grabbing !important;
 }
 
+
+/* Prevent text selection and cursor flicker during agenda mouse drag */
+body.agenda-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
