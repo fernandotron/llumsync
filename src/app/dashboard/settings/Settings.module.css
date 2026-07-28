@@ -2103,42 +2103,14 @@
     gap: 4px !important;
   }
 
-  /* Services responsive view: show horizontal scroll categories list first, services list below */
+  /* Services responsive view: hide desktop category sidebar on mobile and use dropdown */
   .servicesTabContainer {
     grid-template-columns: 1fr !important;
-    gap: 20px !important;
+    gap: 16px !important;
   }
 
   .categorySidebar {
-    flex-direction: row !important;
-    overflow-x: auto !important;
-    white-space: nowrap !important;
-    padding: 10px !important;
-    gap: 8px !important;
-    border-radius: var(--radius-sm) !important;
-  }
-  
-  .categorySidebar::-webkit-scrollbar {
     display: none !important;
-  }
-
-  .categorySidebarTitle {
-    display: none !important; /* Hide categories title to save vertical height */
-  }
-
-  .categoryItem {
-    flex-shrink: 0 !important;
-    padding: 8px 16px !important;
-    border-radius: 20px !important;
-    background: var(--bg-input) !important;
-    border: 1px solid var(--border-color) !important;
-    font-size: 12.5px !important;
-  }
-
-  .categoryItemActive {
-    background: var(--primary-light) !important;
-    color: var(--primary) !important;
-    border-color: var(--primary) !important;
   }
   
   .servicesGrid {
