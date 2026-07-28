@@ -14,6 +14,11 @@ export async function GET(request: Request) {
     const logs = await prisma.notificationLog.findMany({
       where: { clinicId },
       orderBy: { sentAt: "desc" },
+      include: {
+        appointment: {
+          select: { start: true, service: { select: { name: true } } },
+        },
+      },
     });
 
     return NextResponse.json(logs);

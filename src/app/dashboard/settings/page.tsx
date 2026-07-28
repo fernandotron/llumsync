@@ -8531,13 +8531,24 @@ export default function SettingsPage() {
                             <th style={{ padding: "10px" }}>Paciente</th>
                             <th style={{ padding: "10px" }}>Destinatario</th>
                             <th style={{ padding: "10px" }}>Canal</th>
+                            <th style={{ padding: "10px" }}>Fecha Cita</th>
+                            <th style={{ padding: "10px" }}>Servicio</th>
                             <th style={{ padding: "10px" }}>Mensaje</th>
-                            <th style={{ padding: "10px" }}>Fecha Envió</th>
+                            <th style={{ padding: "10px" }}>Fecha Envío</th>
                             <th style={{ padding: "10px" }}>Estado</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {reminderLogs.map((log: any) => (
+                          {reminderLogs.map((log: any) => {
+                            const apptDate = log.appointment?.start
+                              ? new Date(log.appointment.start).toLocaleString("es-ES", {
+                                  day: "2-digit", month: "2-digit", year: "numeric",
+                                  hour: "2-digit", minute: "2-digit",
+                                  timeZone: "Europe/Madrid"
+                                })
+                              : "—";
+                            const apptService = log.appointment?.service?.name || "—";
+                            return (
                             <tr key={log.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                               <td style={{ padding: "10px" }}><strong>{log.clientName}</strong></td>
                               <td style={{ padding: "10px" }}>{log.recipient}</td>
@@ -8550,21 +8561,30 @@ export default function SettingsPage() {
                                   {log.channel === "WHATSAPP_MANUAL" ? "WhatsApp Manual" : log.channel === "WHATSAPP" ? "WhatsApp Auto" : log.channel}
                                 </span>
                               </td>
+                              <td style={{ padding: "10px", whiteSpace: "nowrap", fontSize: "11px", color: "var(--text-secondary)" }}>
+                                📅 {apptDate}
+                              </td>
+                              <td style={{ padding: "10px", fontSize: "11px", whiteSpace: "nowrap" }}>
+                                {apptService}
+                              </td>
                               <td style={{ padding: "10px", maxHeight: "40px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }} title={log.message}>
                                 {log.message}
                               </td>
-                              <td style={{ padding: "10px" }}>{new Date(log.sentAt).toLocaleString("es-ES")}</td>
+                              <td style={{ padding: "10px", whiteSpace: "nowrap", fontSize: "11px" }}>
+                                {new Date(log.sentAt).toLocaleString("es-ES", { timeZone: "Europe/Madrid" })}
+                              </td>
                               <td style={{ padding: "10px" }}>
                                 <span style={{
                                   padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: 600,
                                   background: log.status === "SENT" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)",
                                   color: log.status === "SENT" ? "#10b981" : "#ef4444"
                                 }}>
-                                  {log.status === "SENT" ? "Enviado" : "Fallido"}
+                                  {log.status === "SENT" ? "✓ Enviado" : "✗ Fallido"}
                                 </span>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
