@@ -3337,6 +3337,7 @@ export default function AgendaPage() {
 
                     const staffIdx = visibleStaff.findIndex(s => s.id === staff.id);
                     const isRightHalf = visibleStaff.length > 1 && staffIdx >= visibleStaff.length / 2;
+                    const isBottomHalf = startHours >= 17 || top > 400;
 
                     let cardSizeClass = "";
                     if (durationMins < 25) {
@@ -3390,7 +3391,7 @@ export default function AgendaPage() {
                           </div>
                           <span className={`${styles.statusDot} ${styles[app.status.toLowerCase()]}`} style={{ flexShrink: 0, marginLeft: "6px" }}></span>
                           {savingAppIds.includes(app.id) && (
-                            <svg className={styles.spinningIconMini} viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "4px", opacity: 0.8 }}>
+                            <svg className={styles.spinningIconMini} viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "4px", opacity: 0.8 }}>
                               <line x1="12" y1="2" x2="12" y2="6"></line>
                               <line x1="12" y1="18" x2="12" y2="22"></line>
                               <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
@@ -3411,7 +3412,7 @@ export default function AgendaPage() {
 
                         {/* Tooltip on hover */}
                         {!draggedApp && !touchDraggedApp && (
-                          <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""}`}>
+                          <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""} ${isBottomHalf ? styles.tooltipUp : ""}`}>
                           <div className={styles.tooltipUserRow}>
                             <div className={styles.tooltipAvatar}>
                               <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
@@ -3812,6 +3813,7 @@ export default function AgendaPage() {
                             if (app.status === "CANCELLED") statusClass = styles.statusCancelled;
 
                             const isRightHalf = idx >= (hideWeekends ? 2 : 3);
+                            const isBottomHalf = startHours >= 17 || top > 400;
 
                             let cardSizeClass = "";
                             if (durationMins < 25) {
@@ -3885,7 +3887,7 @@ export default function AgendaPage() {
 
                                 {/* Tooltip on hover */}
                                 {!draggedApp && !touchDraggedApp && (
-                                <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""}`}>
+                                <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""} ${isBottomHalf ? styles.tooltipUp : ""}`}>
                                   <div className={styles.tooltipUserRow}>
                                     <div className={styles.tooltipAvatar}>
                                       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">

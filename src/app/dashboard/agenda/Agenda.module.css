@@ -2695,6 +2695,15 @@
     border-width: 6px 0 6px 6px;
     border-color: transparent transparent transparent var(--bg-card, #ffffff);
   }
+  /* Near bottom edge: expand UPWARDS so content is never cut off */
+  .appointmentCard:hover .tooltipUp {
+    top: auto !important;
+    bottom: 0 !important;
+  }
+  .appointmentCard:hover .tooltipUp::after {
+    top: auto !important;
+    bottom: 16px !important;
+  }
 }
 
 .tooltipUserRow {

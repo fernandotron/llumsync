@@ -235,6 +235,19 @@ export async function POST(request: Request) {
 
     await triggerAdminNotifications(appointment, true);
 
+    // Automatic trigger of client reminder notifications on new appointment creation
+    try {
+      const host = request.headers.get("host") || "localhost:3000";
+      const protocol = host.includes("localhost") ? "http" : "https";
+      fetch(`${protocol}://${host}/api/notifications/trigger-cron`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinicId: appointment.clinicId }),
+      }).catch((e) => console.error("Auto trigger-cron error on POST:", e));
+    } catch (cronErr) {
+      console.error("Cron trigger error on POST:", cronErr);
+    }
+
     return NextResponse.json(appointment);
   } catch (error) {
     console.error("Error creating appointment:", error);
@@ -381,6 +394,19 @@ export async function PUT(request: Request) {
     }
 
     await triggerAdminNotifications(appointment, false);
+
+    // Always trigger automatic client reminders evaluation on any appointment update
+    try {
+      const host = request.headers.get("host") || "localhost:3000";
+      const protocol = host.includes("localhost") ? "http" : "https";
+      fetch(`${protocol}://${host}/api/notifications/trigger-cron`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinicId: appointment.clinicId }),
+      }).catch((e) => console.error("Auto trigger-cron error on PUT:", e));
+    } catch (cronErr) {
+      console.error("Cron trigger error on PUT:", cronErr);
+    }
 
     return NextResponse.json(appointment);
   } catch (error) {
