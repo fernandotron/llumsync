@@ -447,3 +447,14 @@ button, input, select, textarea {
   }
 }
 
+
+/* === Agenda Drag-and-Drop: suppress hover effects on all appointment cards while dragging === */
+body.agenda-dragging [class*='appointmentCard'] {
+  pointer-events: none !important;
+  transform: none !important;
+}
+body.agenda-dragging [class*='isDraggingCard'] {
+  pointer-events: auto !important;
+  cursor: grabbing !important;
+}
+

@@ -2737,6 +2737,7 @@ export default function AgendaPage() {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", app.id);
     }
+    document.body.classList.add("agenda-dragging");
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -2758,6 +2759,7 @@ export default function AgendaPage() {
   const handleDragEnd = () => {
     setDraggedApp(null);
     setDraggedOverSlot(null);
+    document.body.classList.remove("agenda-dragging");
   };
 
   const handleDrop = async (e: React.DragEvent, newUserId: string, hour: number, minute: number, dateObj: Date) => {
