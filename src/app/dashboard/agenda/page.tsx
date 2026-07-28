@@ -3335,7 +3335,8 @@ export default function AgendaPage() {
                         </div>
 
                         {/* Tooltip on hover */}
-                        <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""}`}>
+                        {!draggedApp && !touchDraggedApp && (
+                          <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""}`}>
                           <div className={styles.tooltipUserRow}>
                             <div className={styles.tooltipAvatar}>
                               <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
@@ -3396,6 +3397,7 @@ export default function AgendaPage() {
                             </>
                           )}
                         </div>
+                        )}
                       </div>
                     );
                   })}
@@ -3464,6 +3466,7 @@ export default function AgendaPage() {
                         )}
 
                         {/* Tooltip on hover for time block */}
+                        {!draggedApp && !touchDraggedApp && (
                         <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""}`}>
                           <div className={styles.tooltipDetailsRow}>
                             <div 
@@ -3507,6 +3510,7 @@ export default function AgendaPage() {
                             </>
                           )}
                         </div>
+                        )}
                       </div>
                     );
                   })}
@@ -3807,6 +3811,7 @@ export default function AgendaPage() {
                                 </div>
 
                                 {/* Tooltip on hover */}
+                                {!draggedApp && !touchDraggedApp && (
                                 <div className={`${styles.appointmentTooltip} ${isRightHalf ? styles.tooltipLeft : ""}`}>
                                   <div className={styles.tooltipUserRow}>
                                     <div className={styles.tooltipAvatar}>
@@ -3868,6 +3873,7 @@ export default function AgendaPage() {
                                     </>
                                   )}
                                 </div>
+                                )}
                               </div>
                             );
                           })}
