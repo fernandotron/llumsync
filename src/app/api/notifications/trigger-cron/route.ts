@@ -88,32 +88,34 @@ export async function POST(request: Request) {
         const hoursBefore = reminder.hoursBefore || 0;
         const minutesBefore = reminder.minutesBefore || 0;
         const triggerTimeOffset = (hoursBefore * 60 * 60 * 1000) + (minutesBefore * 60 * 1000);
+        // Ventana de envío: el recordatorio solo se envía dentro de las 2h siguientes al momento exacto de disparo.
+        // Esto evita que citas antiguas o de último minuto reciban mensajes incorrectos.
+        const SEND_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 horas
 
         if (reminder.timing === "AFTER") {
-          // AFTER: enviar cuando now >= appointmentStart + offset
-          // Ventana de validez: solo enviar dentro de las 48h siguientes al momento de disparo
-          // Esto evita enviar recordatorios de citas de hace días si no se han procesado
+          // AFTER: disparar cuando now >= cita + offset, dentro de ventana de 2h
           const timeToSend = startD.getTime() + triggerTimeOffset;
-          const expiryWindow = timeToSend + (48 * 60 * 60 * 1000); // máx 48h después de trigger
-          if (now.getTime() < timeToSend || now.getTime() > expiryWindow) {
-            // Aún no toca, o ya expiró la ventana
+          if (now.getTime() < timeToSend || now.getTime() > timeToSend + SEND_WINDOW_MS) {
             continue;
           }
         } else {
-          // BEFORE: enviar cuando now >= appointmentStart - offset
-          // CRÍTICO: también verificar que la cita aún NO haya ocurrido (+ 30 min gracia)
-          // Esto evita enviar recordatorios de citas pasadas de días anteriores
+          // BEFORE: disparar cuando now >= cita - offset, dentro de ventana de 2h
+          // También verificar que la cita aún esté en el futuro (no haya comenzado)
           const timeToSend = startD.getTime() - triggerTimeOffset;
-          const graceAfterStart = startD.getTime() + (30 * 60 * 1000); // 30 min después del inicio
-          if (now.getTime() < timeToSend || now.getTime() > graceAfterStart) {
-            // Demasiado temprano para enviar, o la cita ya ocurrió (pasó la gracia)
+          if (
+            now.getTime() < timeToSend ||                     // Aún no llegó el momento
+            now.getTime() > timeToSend + SEND_WINDOW_MS ||   // Pasaron más de 2h desde el disparo
+            now.getTime() >= startD.getTime()                 // La cita ya comenzó
+          ) {
             continue;
           }
         }
 
-        const dateFormatted = startD.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
-        const timeFormatted = startD.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-        const longDateFormatted = startD.toLocaleDateString("es-ES", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        // Usar zona horaria Europe/Madrid para mostrar horas correctas en mensajes
+        const TZ = "Europe/Madrid";
+        const dateFormatted = startD.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
+        const timeFormatted = startD.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+        const longDateFormatted = startD.toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: TZ });
 
         const vars: Record<string, string> = {
           "{{Cliente:Nombre}}": app.client?.firstName || "",
