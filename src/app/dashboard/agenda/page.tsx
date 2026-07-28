@@ -250,7 +250,7 @@ export default function AgendaPage() {
         setIsTouchDevice(
           "ontouchstart" in window ||
           navigator.maxTouchPoints > 0 ||
-          window.innerWidth < 768
+          window.matchMedia("(pointer: coarse)").matches
         );
       };
       checkTouch();

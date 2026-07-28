@@ -64,17 +64,23 @@ export async function POST(request: Request) {
       }
 
       for (const reminder of activeReminders) {
-        // Verificar condición de estado
-        if (reminder.condition !== app.status) continue;
+        // 1. Flexible status condition check
+        const isStatusMatch =
+          reminder.condition === app.status ||
+          (reminder.timing === "BEFORE" && reminder.condition === "CONFIRMED" && (app.status === "PENDING" || app.status === "CONFIRMED")) ||
+          (reminder.timing === "BEFORE" && reminder.condition === "PENDING" && (app.status === "PENDING" || app.status === "CONFIRMED")) ||
+          (reminder.timing === "AFTER" && reminder.condition === "COMPLETED" && app.status === "COMPLETED");
 
-        // Verificar asignación de servicios
+        if (!isStatusMatch) continue;
+
+        // 2. Service match check
         const serviceMatch =
           reminder.allServices ||
           (reminder.serviceIds ? reminder.serviceIds.split(",").includes(app.serviceId) : false);
 
         if (!serviceMatch) continue;
 
-        // Formatear el mensaje de recordatorio automático
+        // 3. Formatear el mensaje de recordatorio automático
         const startD = new Date(app.start);
 
         // Controlar el tiempo de envío para citas en base a configuración ANTES (BEFORE) o DESPUÉS (AFTER)
@@ -90,7 +96,7 @@ export async function POST(request: Request) {
             continue;
           }
         } else {
-          // Para envíos antes de la cita (ej: recordatorio tradicional)
+          // Para envíos antes de la cita (ej: recordatorio tradicional 24h)
           const timeToSend = startD.getTime() - triggerTimeOffset;
           if (now.getTime() < timeToSend) {
             continue;
@@ -135,7 +141,7 @@ export async function POST(request: Request) {
           : reminder.channel === "SMS" ? "CLIFAV" : "notificaciones@clifav.com";
 
 
-        // Comprobar si ya existe un log similar para evitar duplicados en la simulación
+        // Comprobar si ya existe un log guardado para evitar duplicar envíos
         const existingLog = await prisma.notificationLog.findFirst({
           where: {
             appointmentId: app.id,
@@ -162,7 +168,7 @@ export async function POST(request: Request) {
             const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
 
             if (metaAccessToken && metaPhoneNumberId) {
-              // 1. OPCIÓN RECOMENDADA: Meta WhatsApp Cloud API (Oficial)
+              // 1. Meta WhatsApp Cloud API
               try {
                 const targetUrl = `https://graph.facebook.com/v18.0/${metaPhoneNumberId}/messages`;
                 
@@ -171,7 +177,7 @@ export async function POST(request: Request) {
                   weekday: 'long',
                   day: 'numeric',
                   month: 'long'
-                }); // Ejemplo: "jueves, 2 de julio"
+                });
                 const horaTexto = timeFormatted;
                 const servicioTexto = app.service?.name || "su consulta médica";
                 const nombreConsulta = app.clinic?.name || "nuestro centro";
@@ -193,11 +199,11 @@ export async function POST(request: Request) {
                         {
                           type: "body",
                           parameters: [
-                            { type: "text", text: nombrePaciente },   // {{1}} -> Nombre del paciente
-                            { type: "text", text: fechaTexto },       // {{2}} -> Fecha de la cita (ej: "jueves, 2 de julio")
-                            { type: "text", text: horaTexto },        // {{3}} -> Hora de la cita (ej: "12:15")
-                            { type: "text", text: servicioTexto },    // {{4}} -> Nombre del servicio (ej: "Fisioterapia")
-                            { type: "text", text: nombreConsulta }    // {{5}} -> Nombre de la consulta (ej: "Clínica...")
+                            { type: "text", text: nombrePaciente },
+                            { type: "text", text: fechaTexto },
+                            { type: "text", text: horaTexto },
+                            { type: "text", text: servicioTexto },
+                            { type: "text", text: nombreConsulta }
                           ]
                         }
                       ]
@@ -217,13 +223,9 @@ export async function POST(request: Request) {
                 console.error("Error de conexión con Meta API:", err);
               }
             } else if (clinicApiUrl && clinicInstance && clinicToken) {
-              // 2. OPCIÓN DE FALLBACK: Evolution API (Código QR)
+              // 2. Evolution API (Código QR)
               try {
-                const hasImage = !!reminder.imageUrl;
-                const targetUrl = hasImage
-                  ? `${clinicApiUrl}/message/sendMedia/${clinicInstance}`
-                  : `${clinicApiUrl}/message/sendText/${clinicInstance}`;
-
+                let hasImage = !!reminder.imageUrl;
                 let mediaValue = "";
                 let mediatype = "image";
                 let mimetype = "image/jpeg";
@@ -237,19 +239,14 @@ export async function POST(request: Request) {
                   if (ext === ".png") mimetype = "image/png";
                   else if (ext === ".webp") mimetype = "image/webp";
                   else if (ext === ".gif") mimetype = "image/gif";
-                  else if (ext === ".svg") mimetype = "image/svg+xml";
                   else if (ext === ".pdf") {
                     mimetype = "application/pdf";
                     mediatype = "document";
                   }
 
-                  if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-                    mediaValue = cleanUrl;
-                  } else if (cleanUrl.startsWith("data:")) {
-                    // Evolution API exige la cadena Base64 PURA sin el prefijo "data:image/...;base64,"
+                  if (cleanUrl.startsWith("data:")) {
                     mediaValue = cleanUrl.replace(/^data:[^;]+;base64,/, "");
                   } else {
-                    // Es una ruta relativa local (ej. "/api/uploads/upload-12345.png")
                     const privatePath = path.join(process.cwd(), "private-uploads", fileName);
                     const publicPath = path.join(process.cwd(), "public", "uploads", fileName);
 
@@ -262,19 +259,20 @@ export async function POST(request: Request) {
 
                     if (targetFilePath) {
                       const fileBuffer = fs.readFileSync(targetFilePath);
-                      // IMPORTANTE: Evolution API requiere la cadena Base64 LIMPIA (sin prefijo data:)
                       mediaValue = fileBuffer.toString("base64");
+                    } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                      mediaValue = cleanUrl;
                     } else {
-                      // Si no está en disco local, formar URL pública absoluta con el origen del request o variables de entorno
-                      const reqUrl = new URL(request.url);
-                      const requestOrigin = `${reqUrl.protocol}//${reqUrl.host}`;
-                      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-                        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
-                        : (process.env.NEXT_PUBLIC_APP_URL || requestOrigin);
-                      mediaValue = `${baseUrl.replace(/\/$/, "")}${cleanUrl.startsWith("/") ? "" : "/"}${cleanUrl}`;
+                      // Imagen no presente en disco local (ej. desplegado efímero en Railway)
+                      // Fallback seguro a texto plano para evitar error 404 en Evolution API
+                      hasImage = false;
                     }
                   }
                 }
+
+                const targetUrl = hasImage
+                  ? `${clinicApiUrl}/message/sendMedia/${clinicInstance}`
+                  : `${clinicApiUrl}/message/sendText/${clinicInstance}`;
 
                 const requestBody = hasImage
                   ? {
@@ -291,9 +289,9 @@ export async function POST(request: Request) {
                     }
                   : {
                       number: formattedPhone,
-                      text: message, // Nueva versión de Evolution API (v2.x)
+                      text: message,
                       textMessage: {
-                        text: message // Compatibilidad con versiones anteriores
+                        text: message
                       },
                       options: {
                         delay: 1200,
@@ -311,7 +309,7 @@ export async function POST(request: Request) {
                   body: JSON.stringify(requestBody),
                 });
 
-                // Si falló el envío con imagen (ej. 404 en URL de imagen efímera), reintentar enviar como mensaje de texto plano
+                // Si falló el envío con imagen, reintentar enviar como texto plano
                 if (!res.ok && hasImage) {
                   const errText = await res.text();
                   console.warn("Error enviando imagen en Evolution API, reintentando como texto plano:", errText);
