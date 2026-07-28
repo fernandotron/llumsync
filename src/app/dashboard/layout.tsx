@@ -39,12 +39,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className={styles.menuBtn} 
           onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
           aria-label="Abrir menú"
+          title="Abrir menú"
         >
-          <Icons.Menu size={20} />
+          <div className={styles.logoIcon}>LS</div>
+          <Icons.ChevronRight size={16} />
         </button>
         <div className={styles.logoArea}>
-          <div className={styles.logoIcon}>LS</div>
-          <span style={{ maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 700, fontSize: "14px" }}>
             {activeClinic?.name || "LLUMSYNC"}
           </span>
         </div>
