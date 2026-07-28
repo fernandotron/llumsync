@@ -105,7 +105,114 @@ export default function SettingsPage() {
     }
     return `${currencySymbol}${amount.toFixed(2)}`;
   };
-  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "productos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales" | null>(null);
+  const [activeTab, setActiveTab] = useState<"clinic" | "services" | "users" | "sync" | "documents" | "import" | "bonos" | "productos" | "formularios" | "papelera" | "notifications" | "inventario" | "liquidaciones" | "datosFiscales" | "backup" | null>(null);
+
+  // Backup module states
+  const [backupsList, setBackupsList] = useState<any[]>([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const restoreFileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchBackupsList = useCallback(async () => {
+    setLoadingBackups(true);
+    try {
+      const res = await fetch("/api/backup?action=list");
+      const data = await res.json();
+      if (res.ok && data.backups) {
+        setBackupsList(data.backups);
+      }
+    } catch (err) {
+      console.error("Error fetching backups:", err);
+    } finally {
+      setLoadingBackups(false);
+    }
+  }, []);
+
+  const handleManualBackupDownload = async () => {
+    try {
+      const cId = activeClinic?.id || "";
+      window.open(`/api/backup?action=export${cId ? `&clinicId=${cId}` : ""}`, "_blank");
+      toast.success("Descarga de copia de seguridad iniciada.");
+      setTimeout(() => fetchBackupsList(), 2000);
+    } catch (err) {
+      toast.error("Error al descargar la copia de seguridad.");
+    }
+  };
+
+  const handleCreateServerBackup = async () => {
+    setCreatingBackup(true);
+    try {
+      const res = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", clinicId: activeClinic?.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`Copia de seguridad creada: ${data.filename}`);
+        fetchBackupsList();
+      } else {
+        toast.error(data.error || "Error al crear copia de seguridad");
+      }
+    } catch (err) {
+      toast.error("Error al conectar con el servidor para crear backup.");
+    } finally {
+      setCreatingBackup(false);
+    }
+  };
+
+  const handleDeleteBackup = async (filename: string) => {
+    if (!confirm(`¿Eliminar la copia de seguridad "${filename}"?`)) return;
+    try {
+      const res = await fetch(`/api/backup?filename=${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Copia de seguridad eliminada.");
+        fetchBackupsList();
+      } else {
+        toast.error(data.error || "Error al eliminar");
+      }
+    } catch (err) {
+      toast.error("Error de conexión al eliminar copia.");
+    }
+  };
+
+  const handleRestoreBackupFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("Restaurar un backup actualizará los registros del sistema con los datos guardados en la copia. ¿Deseas continuar?")) {
+      e.target.value = "";
+      return;
+    }
+
+    setRestoringBackup(true);
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      const res = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", backupData }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success("Backup restaurado con éxito.");
+      } else {
+        toast.error(data.error || "Error al restaurar el archivo de backup.");
+      }
+    } catch (err) {
+      toast.error("El archivo seleccionado no tiene un formato de backup JSON válido.");
+    } finally {
+      setRestoringBackup(false);
+      if (e.target) e.target.value = "";
+    }
+  };
 
   // Commercial Products module states
   const [commProductsList, setCommProductsList] = useState<any[]>([]);
@@ -3361,6 +3468,19 @@ export default function SettingsPage() {
               >
                 <Icons.Trash size={16} />
                 <span>{t("trash")}</span>
+              </button>
+            )}
+            {currentUser?.role === "ADMIN" && (
+              <button 
+                type="button"
+                className={`${styles.sidebarItem} ${activeTab === "backup" ? styles.sidebarItemActive : ""}`}
+                onClick={() => {
+                  setActiveTab("backup");
+                  fetchBackupsList();
+                }}
+              >
+                <Icons.Database size={16} />
+                <span>Copias de Seguridad</span>
               </button>
             )}
           </div>
@@ -8774,6 +8894,191 @@ export default function SettingsPage() {
                     </div>
                   )}
 
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 11: BACKUP / COPIAS DE SEGURIDAD */}
+        {activeTab === "backup" && (
+          <div style={{ padding: "24px", width: "100%" }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
+              <div>
+                <h2 style={{ margin: "0 0 6px 0", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Icons.Database size={24} style={{ color: "var(--primary)" }} />
+                  Copias de Seguridad (Backups)
+                </h2>
+                <p style={{ margin: 0, fontSize: "13px", color: "var(--text-secondary)" }}>
+                  Protege la información de tu clínica con copias de seguridad automáticas diarias y descargas manuales inmediatas.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleManualBackupDownload}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}
+                >
+                  <Icons.Download size={16} />
+                  Descargar Copia JSON Ahora
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleCreateServerBackup}
+                  disabled={creatingBackup}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}
+                >
+                  <Icons.Save size={16} />
+                  {creatingBackup ? "Creando Copia..." : "Generar Backup en Servidor"}
+                </button>
+              </div>
+            </div>
+
+            {/* Status Card: Backup Automático Diario */}
+            <div style={{ background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px", marginBottom: "24px", boxShadow: "var(--shadow-sm)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                  <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "rgba(16, 185, 129, 0.12)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icons.Check size={22} />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                        Backup Diario Automático
+                      </span>
+                      <span style={{ background: "#10b981", color: "#ffffff", fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px" }}>
+                        ACTIVADO (03:00 AM)
+                      </span>
+                    </div>
+                    <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                      El sistema ejecuta automáticamente una copia de seguridad completa del sistema todos los días a las 03:00 AM y conserva los últimos 30 días de historial.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block" }}>Estado del Servidor</span>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#10b981" }}>Protegido & Sincronizado</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Restauration */}
+            <div style={{ background: "var(--bg-panel-solid)", border: "1px dashed var(--border-color)", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span>📥</span> Restaurar Copia de Seguridad
+              </h3>
+              <p style={{ margin: "0 0 16px 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                Selecciona un archivo <code>.json</code> de backup generado previamente para importar y restaurar los datos en el sistema.
+              </p>
+              <input
+                ref={restoreFileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleRestoreBackupFile}
+                style={{ display: "none" }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => restoreFileInputRef.current?.click()}
+                disabled={restoringBackup}
+                style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                {restoringBackup ? "Restaurando..." : "Seleccionar Archivo de Backup (.json)"}
+              </button>
+            </div>
+
+            {/* Section: Historical Backups Table */}
+            <div style={{ background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                  Historial de Backups Almacenados en Servidor
+                </h3>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={fetchBackupsList}
+                  style={{ fontSize: "11px", padding: "4px 10px" }}
+                >
+                  Refrescar
+                </button>
+              </div>
+
+              {loadingBackups ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }}>
+                  Cargando copias de seguridad...
+                </div>
+              ) : backupsList.length === 0 ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px", background: "var(--bg-card)", borderRadius: "8px", border: "1px dashed var(--border-color)" }}>
+                  <Icons.Database size={32} style={{ opacity: 0.4, marginBottom: "8px", display: "block", margin: "0 auto 8px auto" }} />
+                  No hay archivos de backup guardados en el servidor todavía.
+                  <br />
+                  Haz clic en <strong>"Generar Backup en Servidor"</strong> para crear la primera copia.
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid var(--border-color)", color: "var(--text-secondary)", fontSize: "12px" }}>
+                        <th style={{ padding: "10px 12px", fontWeight: 600 }}>Nombre del Archivo</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 600 }}>Fecha de Creación</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 600 }}>Tamaño</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 600, textAlign: "right" }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {backupsList.map((bk) => {
+                        const dateFormatted = new Date(bk.createdAt).toLocaleString("es-ES", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        });
+                        return (
+                          <tr key={bk.filename} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                            <td style={{ padding: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                              📄 {bk.filename}
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
+                              {dateFormatted}
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
+                              <span style={{ background: "var(--bg-card)", padding: "2px 8px", borderRadius: "4px", border: "1px solid var(--border-color)", fontSize: "11px", fontWeight: 600 }}>
+                                {bk.sizeFormatted}
+                              </span>
+                            </td>
+                            <td style={{ padding: "12px", textAlign: "right" }}>
+                              <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                                <a
+                                  href={`/api/backup?action=download&filename=${encodeURIComponent(bk.filename)}`}
+                                  download={bk.filename}
+                                  className="btn btn-secondary"
+                                  style={{ padding: "4px 10px", fontSize: "11px", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                >
+                                  <Icons.Download size={12} />
+                                  Descargar
+                                </a>
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  onClick={() => handleDeleteBackup(bk.filename)}
+                                  style={{ padding: "4px 10px", fontSize: "11px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: 600 }}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

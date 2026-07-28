@@ -378,6 +378,28 @@ export async function POST(request: Request) {
       }
     }
 
+    // Trigger daily automated backup check
+    try {
+      const backupDir = path.join(process.cwd(), "backups");
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      const todayTag = new Date().toISOString().slice(0, 10);
+      const files = fs.readdirSync(backupDir);
+      const alreadyHasToday = files.some((f) => f.startsWith(`backup-${clinicId || "full"}-${todayTag}`));
+      if (!alreadyHasToday) {
+        const host = request.headers.get("host") || "localhost:3000";
+        const protocol = host.includes("localhost") ? "http" : "https";
+        fetch(`${protocol}://${host}/api/backup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "trigger-daily", clinicId }),
+        }).catch((e) => console.error("Error triggering daily backup in cron:", e));
+      }
+    } catch (bErr) {
+      console.error("Backup check error in trigger-cron:", bErr);
+    }
+
     return NextResponse.json({
       message: `Simulación completada con éxito. Se procesaron citas próximas y se enviaron recordatorios automáticos.`,
       processedCount,
