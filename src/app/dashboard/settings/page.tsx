@@ -3354,30 +3354,6 @@ export default function SettingsPage() {
 
         {/* Right Column: Active Tab Content Canvas */}
         <div className={`${styles.contentCanvas} ${styles.settingsContent} glass`}>
-          {activeTab && (
-            <button
-              type="button"
-              onClick={() => setActiveTab(null)}
-              className={styles.mobileBackBtn}
-              style={{
-                alignItems: "center",
-                gap: "8px",
-                padding: "8px 12px",
-                background: "var(--bg-input)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "6px",
-                color: "var(--text-primary)",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-                marginBottom: "16px",
-                width: "100%"
-              }}
-            >
-              <Icons.ChevronLeft size={16} />
-              <span>Volver a Configuración</span>
-            </button>
-          )}
         {/* TAB 1: Clinic Profile */}
         {activeTab === "clinic" && (
           <div className={styles.clinicTabContainer}>
