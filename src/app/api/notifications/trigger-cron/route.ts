@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import fs from "fs";
 import path from "path";
 
+const activeSendingKeys = new Set<string>();
+
 // POST /api/notifications/trigger-cron
 export async function POST(request: Request) {
   try {
@@ -151,6 +153,11 @@ export async function POST(request: Request) {
           : reminder.channel === "SMS" ? "CLIFAV" : "notificaciones@clifav.com";
 
 
+        const sendingKey = `${app.id}_${reminder.id}_${reminder.channel}`;
+        if (activeSendingKeys.has(sendingKey)) {
+          continue; // Evitar envío simultáneo por llamadas concurrentes
+        }
+
         // Comprobar si ya existe un log guardado para evitar duplicar envíos
         const existingLog = await prisma.notificationLog.findFirst({
           where: {
@@ -161,7 +168,9 @@ export async function POST(request: Request) {
         });
 
         if (!existingLog) {
-          let sentStatus = "SENT";
+          activeSendingKeys.add(sendingKey);
+          try {
+            let sentStatus = "SENT";
           let apiError = "";
 
           // Envío real de WhatsApp si la API está configurada
@@ -243,30 +252,38 @@ export async function POST(request: Request) {
 
                 if (hasImage && reminder.imageUrl) {
                   const cleanUrl = reminder.imageUrl.trim();
-                  fileName = path.basename(cleanUrl) || "imagen.jpg";
-                  const ext = path.extname(fileName).toLowerCase();
-
-                  if (ext === ".png") mimetype = "image/png";
-                  else if (ext === ".webp") mimetype = "image/webp";
-                  else if (ext === ".gif") mimetype = "image/gif";
-                  else if (ext === ".pdf") {
-                    mimetype = "application/pdf";
-                    mediatype = "document";
-                  }
 
                   if (cleanUrl.startsWith("data:")) {
-                    // Base64 inline data
-                    mediaValue = cleanUrl.replace(/^data:[^;]+;base64,/, "");
-                  } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-                    // Already a full URL — use directly
-                    mediaValue = cleanUrl;
-                  } else if (cleanUrl.startsWith("/")) {
-                    // Relative URL (e.g. /api/uploads/...) — build full URL from request host
-                    const reqHost = request.headers.get("host") || "localhost:3000";
-                    const reqProtocol = reqHost.includes("localhost") ? "http" : "https";
-                    mediaValue = `${reqProtocol}://${reqHost}${cleanUrl}`;
+                    // Base64 inline data (ej: data:image/png;base64,iVBORw0...)
+                    const match = cleanUrl.match(/^data:([^;]+);base64,(.*)$/);
+                    if (match) {
+                      mimetype = match[1];
+                      mediaValue = match[2];
+                      if (mimetype === "image/png") fileName = "imagen.png";
+                      else if (mimetype === "image/webp") fileName = "imagen.webp";
+                      else if (mimetype === "image/gif") fileName = "imagen.gif";
+                      else if (mimetype === "application/pdf") {
+                        fileName = "documento.pdf";
+                        mediatype = "document";
+                      } else {
+                        fileName = "imagen.jpg";
+                      }
+                    } else {
+                      hasImage = false;
+                    }
                   } else {
-                    // Try local disk paths as last resort
+                    const rawFileName = path.basename(cleanUrl) || "imagen.jpg";
+                    fileName = rawFileName.split("?")[0];
+                    const ext = path.extname(fileName).toLowerCase();
+
+                    if (ext === ".png") mimetype = "image/png";
+                    else if (ext === ".webp") mimetype = "image/webp";
+                    else if (ext === ".gif") mimetype = "image/gif";
+                    else if (ext === ".pdf") {
+                      mimetype = "application/pdf";
+                      mediatype = "document";
+                    }
+
                     const privatePath = path.join(process.cwd(), "private-uploads", fileName);
                     const publicPath = path.join(process.cwd(), "public", "uploads", fileName);
 
@@ -278,10 +295,17 @@ export async function POST(request: Request) {
                     }
 
                     if (targetFilePath) {
+                      // Si la imagen existe físicamente en disco local, usar Base64 directo
                       const fileBuffer = fs.readFileSync(targetFilePath);
                       mediaValue = fileBuffer.toString("base64");
+                    } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                      mediaValue = cleanUrl;
+                    } else if (cleanUrl.startsWith("/")) {
+                      // URL relativa a dominio
+                      const reqHost = request.headers.get("host") || "localhost:3000";
+                      const reqProtocol = reqHost.includes("localhost") ? "http" : "https";
+                      mediaValue = `${reqProtocol}://${reqHost}${cleanUrl}`;
                     } else {
-                      // Imagen no encontrada en ningún lado — enviar solo texto
                       hasImage = false;
                     }
                   }
@@ -389,6 +413,9 @@ export async function POST(request: Request) {
           });
           simulatedLogs.push(log);
           processedCount++;
+          } finally {
+            activeSendingKeys.delete(sendingKey);
+          }
         }
       }
     }

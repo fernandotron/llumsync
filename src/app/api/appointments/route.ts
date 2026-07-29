@@ -301,18 +301,6 @@ export async function PUT(request: Request) {
         translateStatus(status)
       );
 
-      // Trigger automatic reminder execution on status change (e.g. post-treatment for COMPLETED)
-      try {
-        const host = request.headers.get("host") || "localhost:3000";
-        const protocol = host.includes("localhost") ? "http" : "https";
-        fetch(`${protocol}://${host}/api/notifications/trigger-cron`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clinicId: appointment.clinicId }),
-        }).catch((e) => console.error("Auto trigger-cron error:", e));
-      } catch (cronErr) {
-        console.error("Cron trigger error:", cronErr);
-      }
 
       // Descuento automático de stock si la cita pasa a COMPLETADA
       if (status === "COMPLETED") {
