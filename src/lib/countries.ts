@@ -6,17 +6,18 @@ export interface CountryConfig {
   taxDefault: number;    // Default tax rate (e.g. 21, 16, 19)
   idName: string;        // ID label (e.g. "DNI/NIF", "RFC", "CC/NIT", "RUT", "DNI/RUC", "Cédula/RUC")
   phonePrefix: string;   // Phone prefix (e.g. "+34", "+52", "+57", "+54", "+56", "+51")
+  timezone: string;      // IANA Time Zone (e.g. "Europe/Madrid", "America/Bogota")
 }
 
 export const COUNTRIES: Record<string, CountryConfig> = {
-  ES: { code: "ES", name: "España", currency: "€", taxName: "IVA", taxDefault: 21, idName: "DNI/NIF", phonePrefix: "+34" },
-  MX: { code: "MX", name: "México", currency: "$", taxName: "IVA", taxDefault: 16, idName: "RFC", phonePrefix: "+52" },
-  CO: { code: "CO", name: "Colombia", currency: "$", taxName: "IVA", taxDefault: 19, idName: "CC/NIT", phonePrefix: "+57" },
-  AR: { code: "AR", name: "Argentina", currency: "$", taxName: "IVA", taxDefault: 21, idName: "DNI/CUIT", phonePrefix: "+54" },
-  CL: { code: "CL", name: "Chile", currency: "$", taxName: "IVA", taxDefault: 19, idName: "RUT", phonePrefix: "+56" },
-  PE: { code: "PE", name: "Perú", currency: "S/", taxName: "IGV", taxDefault: 18, idName: "DNI/RUC", phonePrefix: "+51" },
-  US: { code: "US", name: "Estados Unidos", currency: "$", taxName: "Tax", taxDefault: 0, idName: "SSN/EIN", phonePrefix: "+1" },
-  EC: { code: "EC", name: "Ecuador", currency: "$", taxName: "IVA", taxDefault: 15, idName: "Cédula/RUC", phonePrefix: "+593" }
+  ES: { code: "ES", name: "España", currency: "€", taxName: "IVA", taxDefault: 21, idName: "DNI/NIF", phonePrefix: "+34", timezone: "Europe/Madrid" },
+  MX: { code: "MX", name: "México", currency: "$", taxName: "IVA", taxDefault: 16, idName: "RFC", phonePrefix: "+52", timezone: "America/Mexico_City" },
+  CO: { code: "CO", name: "Colombia", currency: "$", taxName: "IVA", taxDefault: 19, idName: "CC/NIT", phonePrefix: "+57", timezone: "America/Bogota" },
+  AR: { code: "AR", name: "Argentina", currency: "$", taxName: "IVA", taxDefault: 21, idName: "DNI/CUIT", phonePrefix: "+54", timezone: "America/Argentina/Buenos_Aires" },
+  CL: { code: "CL", name: "Chile", currency: "$", taxName: "IVA", taxDefault: 19, idName: "RUT", phonePrefix: "+56", timezone: "America/Santiago" },
+  PE: { code: "PE", name: "Perú", currency: "S/", taxName: "IGV", taxDefault: 18, idName: "DNI/RUC", phonePrefix: "+51", timezone: "America/Lima" },
+  US: { code: "US", name: "Estados Unidos", currency: "$", taxName: "Tax", taxDefault: 0, idName: "SSN/EIN", phonePrefix: "+1", timezone: "America/New_York" },
+  EC: { code: "EC", name: "Ecuador", currency: "$", taxName: "IVA", taxDefault: 15, idName: "Cédula/RUC", phonePrefix: "+593", timezone: "America/Guayaquil" }
 };
 
 export function getCountryConfig(countryCodeOrName?: string): CountryConfig {
@@ -38,6 +39,11 @@ export function getCountryConfig(countryCodeOrName?: string): CountryConfig {
   return COUNTRIES.ES; // Default fallback
 }
 
+export function getTimezoneForClinic(countryCodeOrName?: string): string {
+  const config = getCountryConfig(countryCodeOrName);
+  return config.timezone || "Europe/Madrid";
+}
+
 export function formatCurrency(amount: number | null | undefined, countryCodeOrName?: string): string {
   const val = amount ?? 0;
   const config = getCountryConfig(countryCodeOrName);
@@ -47,3 +53,4 @@ export function formatCurrency(amount: number | null | undefined, countryCodeOrN
   }
   return `${config.currency}${formatted}`;
 }
+

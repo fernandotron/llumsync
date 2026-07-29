@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import fs from "fs";
 import path from "path";
+import { getTimezoneForClinic } from "@/lib/countries";
 
 const activeSendingKeys = new Set<string>();
 
@@ -31,14 +32,14 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Obtener todas las citas (del pasado -7 días a los próximos 7 días) con sus clientes y servicios
+    // 2. Obtener todas las citas (del pasado -30 días a los próximos 30 días) con sus clientes y servicios
     const now = new Date();
     
     const pastLimit = new Date();
-    pastLimit.setDate(now.getDate() - 7);
+    pastLimit.setDate(now.getDate() - 30);
     
     const futureLimit = new Date();
-    futureLimit.setDate(now.getDate() + 7);
+    futureLimit.setDate(now.getDate() + 30);
 
     const appointments = await prisma.appointment.findMany({
       where: {
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
       for (const reminder of activeReminders) {
         // 1. Flexible status condition check
         const isStatusMatch =
+          reminder.condition === "ANY" ||
+          reminder.condition === "ALL" ||
           reminder.condition === app.status ||
           (reminder.timing === "BEFORE" && reminder.condition === "CONFIRMED" && (app.status === "PENDING" || app.status === "CONFIRMED")) ||
           (reminder.timing === "BEFORE" && reminder.condition === "PENDING" && (app.status === "PENDING" || app.status === "CONFIRMED")) ||
@@ -76,10 +79,10 @@ export async function POST(request: Request) {
 
         if (!isStatusMatch) continue;
 
-        // 2. Service match check
+        // 2. Service match check (limpiando espacios al separar serviceIds)
         const serviceMatch =
           reminder.allServices ||
-          (reminder.serviceIds ? reminder.serviceIds.split(",").includes(app.serviceId) : false);
+          (reminder.serviceIds ? reminder.serviceIds.split(",").map((s: string) => s.trim()).includes(app.serviceId) : false);
 
         if (!serviceMatch) continue;
 
@@ -91,7 +94,6 @@ export async function POST(request: Request) {
         const minutesBefore = reminder.minutesBefore || 0;
         const triggerTimeOffset = (hoursBefore * 60 * 60 * 1000) + (minutesBefore * 60 * 1000);
         // Ventana de envío: el recordatorio solo se envía dentro de las 2h siguientes al momento exacto de disparo.
-        // Esto evita que citas antiguas o de último minuto reciban mensajes incorrectos.
         const SEND_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 horas
 
         if (reminder.timing === "AFTER") {
@@ -102,19 +104,20 @@ export async function POST(request: Request) {
           }
         } else {
           // BEFORE: disparar cuando now >= cita - offset, dentro de ventana de 2h
-          // También verificar que la cita aún esté en el futuro (no haya comenzado)
+          // Permitir margen de 15 minutos tras el inicio para disparos exactos de 0 min antes
           const timeToSend = startD.getTime() - triggerTimeOffset;
+          const maxBeforeLimit = startD.getTime() + 15 * 60 * 1000; // Margen de gracia de 15 minutos
           if (
             now.getTime() < timeToSend ||                     // Aún no llegó el momento
             now.getTime() > timeToSend + SEND_WINDOW_MS ||   // Pasaron más de 2h desde el disparo
-            now.getTime() >= startD.getTime()                 // La cita ya comenzó
+            now.getTime() > maxBeforeLimit                    // Pasó el inicio de la cita + margen
           ) {
             continue;
           }
         }
 
-        // Usar zona horaria Europe/Madrid para mostrar horas correctas en mensajes
-        const TZ = "Europe/Madrid";
+        // Usar zona horaria propia del país de la clínica (con cambio automático DST)
+        const TZ = getTimezoneForClinic(app.clinic?.country);
         const dateFormatted = startD.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
         const timeFormatted = startD.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
         const longDateFormatted = startD.toLocaleDateString("es-ES", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: TZ });
@@ -136,7 +139,7 @@ export async function POST(request: Request) {
           "{{Link_Confirmar_Cita}}": `http://localhost:3000/appointments/${app.id}/confirm`,
           "{{Link_Pago_Online}}": `http://localhost:3000/appointments/${app.id}/pay`,
           "{{Recurso}}": "",
-          "{{Zona_horaria}}": "Europe/Madrid",
+          "{{Zona_horaria}}": TZ,
           "{{Deuda}}": "0.00",
         };
 

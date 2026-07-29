@@ -98,11 +98,16 @@ export async function POST(
     // Generate unique name
     const uniqueFilename = `photo-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
     const filePath = path.join(uploadDir, uniqueFilename);
-    const photoUrl = `/api/uploads/${uniqueFilename}`;
 
     // Write file
     const buffer = Buffer.from(await file.arrayBuffer());
     fs.writeFileSync(filePath, buffer);
+
+    let photoUrl = `/api/uploads/${uniqueFilename}`;
+    if (file.size <= 10 * 1024 * 1024) {
+      const mimeType = file.type || "image/jpeg";
+      photoUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+    }
 
     // Save to database
     const clientPhoto = await prisma.clientPhoto.create({
