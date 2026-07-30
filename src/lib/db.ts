@@ -105,3 +105,7 @@ if (globalForPrisma.prisma && globalForPrisma.prisma.cashRegisterSession) {
 
 export const prisma = prismaInstance;
 
+if (typeof window === "undefined") {
+  import("./cronScheduler").then((m) => m.initCronScheduler()).catch(() => {});
+}
+

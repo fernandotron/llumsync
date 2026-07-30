@@ -389,14 +389,18 @@
   position: fixed;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 99999;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .modalContent {
@@ -3075,5 +3079,299 @@
 .filterTagBadge button:hover {
   color: #0284c7;
 }
+
+/* ===== PREMIUM DISCOUNT MODAL ===== */
+.discountModalBox {
+  width: 480px;
+  max-width: 92vw;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--bg-panel-solid, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: modalSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.discountModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-panel-solid, #ffffff);
+}
+
+.discountHeaderTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.discountHeaderIconBadge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--primary, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.discountModalTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.discountModalSubtitle {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  margin: 2px 0 0 0;
+  font-weight: 500;
+}
+
+.discountModalCloseBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.discountModalCloseBtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary, #0f172a);
+}
+
+.discountModalBody {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.discountTypeSegmented {
+  display: flex;
+  background: var(--bg-main, #f8fafc);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  gap: 4px;
+}
+
+.discountSegmentBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.discountSegmentActive {
+  background: var(--bg-panel-solid, #ffffff);
+  color: var(--primary, #6366f1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.discountPresetsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.discountPresetBadge {
+  flex: 1;
+  min-width: 50px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-main, #f8fafc);
+  color: var(--text-primary, #334155);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.discountPresetBadge:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--primary, #6366f1);
+  color: var(--primary, #6366f1);
+}
+
+.discountPresetActive {
+  background: var(--primary, #6366f1) !important;
+  border-color: var(--primary, #6366f1) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.discountInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.discountInputLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #475569);
+}
+
+.discountInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.discountBigInput {
+  width: 100%;
+  padding: 12px 45px 12px 16px;
+  font-size: 20px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  background: var(--bg-panel-solid, #ffffff);
+  color: var(--text-primary, #0f172a);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.discountBigInput:focus {
+  border-color: var(--primary, #6366f1);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+.discountInputSuffix {
+  position: absolute;
+  right: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-secondary, #64748b);
+  pointer-events: none;
+}
+
+.discountSummaryCard {
+  background: var(--bg-main, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.discountSummaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+}
+
+.discountOriginalPrice {
+  font-weight: 600;
+  color: var(--text-primary, #334155);
+}
+
+.discountAppliedAmount {
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.discountDivider {
+  height: 1px;
+  background: var(--border-color, #e2e8f0);
+  margin: 2px 0;
+}
+
+.discountFinalRow {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.discountFinalPrice {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--primary, #6366f1);
+}
+
+.discountModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-panel-solid, #ffffff);
+}
+
+.discountBtnSecondary {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: transparent;
+  color: var(--text-primary, #475569);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.discountBtnSecondary:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.discountBtnPrimary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary, #6366f1);
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.discountBtnPrimary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+}
+
+.discountBtnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 
 

@@ -5949,7 +5949,7 @@ export default function SalesPage() {
         </div>
 
           {/* Edit Service Modal */}
-          {showEditServiceModal && (
+          {showEditServiceModal && typeof window !== "undefined" && createPortal(
             <div className={styles.modalOverlay} onClick={() => setShowEditServiceModal(false)}>
               <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
@@ -6059,49 +6059,153 @@ export default function SalesPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
-          {/* Discount Modal */}
-          {showDiscountModal && (
+          {/* Premium Discount Modal */}
+          {showDiscountModal && typeof window !== "undefined" && createPortal(
             <div className={styles.modalOverlay} onClick={() => setShowDiscountModal(false)}>
-              <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.modalHeader}>
-                  <span className={styles.modalTitle}>APLICAR DESCUENTO</span>
-                  <button type="button" className={styles.modalCloseBtn} onClick={() => setShowDiscountModal(false)}>×</button>
+              <div className={`${styles.modalBox} ${styles.discountModalBox}`} onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className={styles.discountModalHeader}>
+                  <div className={styles.discountHeaderTitleGroup}>
+                    <div className={styles.discountHeaderIconBadge}>
+                      <Icons.Percent size={20} />
+                    </div>
+                    <div>
+                      <h3 className={styles.discountModalTitle}>Aplicar Descuento</h3>
+                      <p className={styles.discountModalSubtitle}>
+                        {selectedItemForPayment
+                          ? `Para: ${(selectedItemForPayment as any)?.name || (selectedItemForPayment as any)?.detalle}`
+                          : "Aplica un descuento a la venta actual"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.discountModalCloseBtn}
+                    onClick={() => setShowDiscountModal(false)}
+                    aria-label="Cerrar"
+                  >
+                    <Icons.Plus size={18} style={{ transform: "rotate(45deg)" }} />
+                  </button>
                 </div>
-                <div className={styles.modalBody}>
-                  <div className={styles.discountForm}>
-                    <div className={styles.formField} style={{ flex: 1 }}>
-                      <label className={styles.formFieldLabel}>Descuento</label>
+
+                {/* Body */}
+                <div className={styles.discountModalBody}>
+                  {/* Segmented Type Selector */}
+                  <div className={styles.discountTypeSegmented}>
+                    <button
+                      type="button"
+                      className={`${styles.discountSegmentBtn} ${discountModalType === "percentage" ? styles.discountSegmentActive : ""}`}
+                      onClick={() => setDiscountModalType("percentage")}
+                    >
+                      <Icons.Percent size={15} />
+                      <span>Porcentaje (%)</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.discountSegmentBtn} ${discountModalType === "fixed" ? styles.discountSegmentActive : ""}`}
+                      onClick={() => setDiscountModalType("fixed")}
+                    >
+                      <Icons.Euro size={15} />
+                      <span>Monto Fijo (€)</span>
+                    </button>
+                  </div>
+
+                  {/* Preset Pills */}
+                  {discountModalType === "percentage" && (
+                    <div className={styles.discountPresetsRow}>
+                      {[5, 10, 15, 20, 25, 50].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          className={`${styles.discountPresetBadge} ${discountModalValue === String(preset) ? styles.discountPresetActive : ""}`}
+                          onClick={() => setDiscountModalValue(String(preset))}
+                        >
+                          {preset}%
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Numeric Input */}
+                  <div className={styles.discountInputGroup}>
+                    <label className={styles.discountInputLabel}>
+                      {discountModalType === "percentage" ? "Porcentaje de Descuento" : "Importe de Descuento (€)"}
+                    </label>
+                    <div className={styles.discountInputWrapper}>
                       <input
                         type="number"
-                        className="input"
+                        min="0"
+                        max={discountModalType === "percentage" ? "100" : undefined}
+                        step="any"
+                        className={styles.discountBigInput}
                         placeholder="0"
                         value={discountModalValue}
                         onChange={(e) => setDiscountModalValue(e.target.value)}
+                        autoFocus
                       />
-                    </div>
-                    <div className={styles.formField} style={{ flex: 1 }}>
-                      <label className={styles.formFieldLabel}>Tipo</label>
-                      <select
-                        className="input select"
-                        value={discountModalType}
-                        onChange={(e) => setDiscountModalType(e.target.value as "percentage" | "fixed")}
-                      >
-                        <option value="percentage">(%) Porcentaje</option>
-                        <option value="fixed">(€) Monto fijo</option>
-                      </select>
+                      <span className={styles.discountInputSuffix}>
+                        {discountModalType === "percentage" ? "%" : "€"}
+                      </span>
                     </div>
                   </div>
+
+                  {/* Live Calculation Preview */}
+                  {selectedItemForPayment && (
+                    <div className={styles.discountSummaryCard}>
+                      <div className={styles.discountSummaryRow}>
+                        <span>Precio original:</span>
+                        <span className={styles.discountOriginalPrice}>{selectedItemForPayment.price.toFixed(2)} €</span>
+                      </div>
+                      {Boolean(discountModalValue) && parseFloat(discountModalValue) > 0 && (
+                        <>
+                          <div className={styles.discountSummaryRow}>
+                            <span>Descuento ({discountModalType === "percentage" ? `${discountModalValue}%` : "Fijo"}):</span>
+                            <span className={styles.discountAppliedAmount}>
+                              -{(() => {
+                                const val = parseFloat(discountModalValue) || 0;
+                                let amt = discountModalType === "percentage"
+                                  ? (selectedItemForPayment.price * val) / 100
+                                  : val;
+                                return Math.min(amt, selectedItemForPayment.price).toFixed(2);
+                              })()} €
+                            </span>
+                          </div>
+                          <div className={styles.discountDivider} />
+                          <div className={`${styles.discountSummaryRow} ${styles.discountFinalRow}`}>
+                            <span>Precio final:</span>
+                            <span className={styles.discountFinalPrice}>
+                              {(() => {
+                                const val = parseFloat(discountModalValue) || 0;
+                                let amt = discountModalType === "percentage"
+                                  ? (selectedItemForPayment.price * val) / 100
+                                  : val;
+                                amt = Math.min(amt, selectedItemForPayment.price);
+                                return Math.max(0, selectedItemForPayment.price - amt).toFixed(2);
+                              })()} €
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className={styles.modalFooter}>
-                  <button type="button" className={styles.btnModalSecondary} onClick={() => setShowDiscountModal(false)}>
+
+                {/* Footer */}
+                <div className={styles.discountModalFooter}>
+                  <button
+                    type="button"
+                    className={styles.discountBtnSecondary}
+                    onClick={() => setShowDiscountModal(false)}
+                  >
                     Cancelar
                   </button>
                   <button
                     type="button"
-                    className={styles.btnModalPrimary}
+                    className={styles.discountBtnPrimary}
                     disabled={!discountModalValue || parseFloat(discountModalValue) <= 0}
                     onClick={() => {
                       if (selectedItemForPayment) {
@@ -6123,11 +6227,13 @@ export default function SalesPage() {
                       setDiscountModalValue("");
                     }}
                   >
-                    Aplicar
+                    <Icons.Check size={16} />
+                    <span>Aplicar Descuento</span>
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Voucher Selection Modal */}
