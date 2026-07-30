@@ -267,7 +267,7 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
                     const match = cleanUrl.match(/^data:([^;]+);base64,(.*)$/);
                     if (match) {
                       mimetype = match[1];
-                      mediaValue = match[2];
+                      mediaValue = cleanUrl; // Evolution API accepts full Data URLs natively
                       if (mimetype === "image/png") fileName = "imagen.png";
                       else if (mimetype === "image/webp") fileName = "imagen.webp";
                       else if (mimetype === "image/gif") fileName = "imagen.gif";
@@ -305,13 +305,17 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
 
                     if (targetFilePath) {
                       const fileBuffer = fs.readFileSync(targetFilePath);
-                      mediaValue = fileBuffer.toString("base64");
+                      mediaValue = `data:${mimetype};base64,${fileBuffer.toString("base64")}`;
                     } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
                       mediaValue = cleanUrl;
                     } else if (cleanUrl.startsWith("/")) {
-                      const reqHost = requestHost || "localhost:3000";
-                      const reqProtocol = reqHost.includes("localhost") ? "http" : "https";
-                      mediaValue = `${reqProtocol}://${reqHost}${cleanUrl}`;
+                      const reqHost = requestHost || process.env.RAILWAY_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_APP_URL?.replace(/^https?:\/\//, "") || "";
+                      if (reqHost && !reqHost.includes("localhost")) {
+                        const reqProtocol = "https";
+                        mediaValue = `${reqProtocol}://${reqHost}${cleanUrl}`;
+                      } else {
+                        hasImage = false;
+                      }
                     } else {
                       hasImage = false;
                     }
