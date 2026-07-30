@@ -267,7 +267,7 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
                     const match = cleanUrl.match(/^data:([^;]+);base64,(.*)$/);
                     if (match) {
                       mimetype = match[1];
-                      mediaValue = cleanUrl; // Evolution API accepts full Data URLs natively
+                      mediaValue = match[2]; // Evolution API requires raw base64 string without data: header
                       if (mimetype === "image/png") fileName = "imagen.png";
                       else if (mimetype === "image/webp") fileName = "imagen.webp";
                       else if (mimetype === "image/gif") fileName = "imagen.gif";
@@ -305,7 +305,7 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
 
                     if (targetFilePath) {
                       const fileBuffer = fs.readFileSync(targetFilePath);
-                      mediaValue = `data:${mimetype};base64,${fileBuffer.toString("base64")}`;
+                      mediaValue = fileBuffer.toString("base64");
                     } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
                       mediaValue = cleanUrl;
                     } else if (cleanUrl.startsWith("/")) {
