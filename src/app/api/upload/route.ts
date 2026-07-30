@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { cookies } from "next/headers";
 import { checkRateLimit } from "@/lib/rateLimit";
+import sharp from "sharp";
 
 export async function POST(request: Request) {
   try {
@@ -47,13 +48,26 @@ export async function POST(request: Request) {
     const filePath = path.join(uploadDir, uniqueFilename);
     const fileUrl = `/api/uploads/${uniqueFilename}`;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    let buffer = Buffer.from(await file.arrayBuffer());
+    let mimeType = file.type || "image/png";
+
+    // Auto-compress high resolution images to max 1200px JPEG to prevent HTTP 413 Payload Too Large in Evolution API
+    if (mimeType.startsWith("image/") && !mimeType.includes("svg")) {
+      try {
+        const compressed = await sharp(buffer)
+          .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 80, mozjpeg: true })
+          .toBuffer();
+        buffer = Buffer.from(compressed);
+        mimeType = "image/jpeg";
+      } catch (sharpErr) {
+        console.error("Error compressing upload with sharp:", sharpErr);
+      }
+    }
+
     fs.writeFileSync(filePath, buffer);
 
-    // Para imágenes y documentos de <= 10MB, devolver Data URL Base64 para garantizar
-    // que la imagen persista en la base de datos PostgreSQL incluso en entornos efímeros como Railway
-    if (file.size <= 10 * 1024 * 1024) {
-      const mimeType = file.type || "image/png";
+    if (file.size <= 15 * 1024 * 1024) {
       const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
       return NextResponse.json({ url: dataUrl, fallbackUrl: fileUrl });
     }
