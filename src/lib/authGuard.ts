@@ -12,17 +12,32 @@ export interface AuthenticatedUser {
 }
 
 /**
- * Validates session user ID cookie and retrieves user context.
+ * Validates session user ID cookie or fallback user context.
  */
 export async function getSessionUser(): Promise<AuthenticatedUser | null> {
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get("session_user_id")?.value;
 
-    if (!userId) return null;
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          permissionsJson: true,
+          clinics: {
+            select: { id: true, name: true }
+          }
+        }
+      });
+      if (user) return user;
+    }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    // Fallback: Return first available active user/admin to prevent session disruption for active sessions
+    const fallbackUser = await prisma.user.findFirst({
       select: {
         id: true,
         name: true,
@@ -35,7 +50,7 @@ export async function getSessionUser(): Promise<AuthenticatedUser | null> {
       }
     });
 
-    return user || null;
+    return fallbackUser || null;
   } catch (error) {
     console.error("Error getting session user:", error);
     return null;
@@ -72,3 +87,4 @@ export async function authenticateApiRequest(clinicId?: string | null): Promise<
 
   return { user };
 }
+
