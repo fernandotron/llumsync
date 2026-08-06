@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import fs from "fs";
 import path from "path";
 import { getTimezoneForClinic } from "@/lib/countries";
+import { createDailyBackup } from "@/lib/backup";
 
 const activeSendingKeys = new Set<string>();
 
@@ -433,23 +434,7 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
 
   // Trigger daily automated backup check
   try {
-    const backupDir = path.join(process.cwd(), "backups");
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
-    const todayTag = new Date().toISOString().slice(0, 10);
-    const files = fs.readdirSync(backupDir);
-    const targetClinicTag = clinicId && clinicId !== "ALL" ? clinicId : "full";
-    const alreadyHasToday = files.some((f) => f.startsWith(`backup-${targetClinicTag}-${todayTag}`));
-    if (!alreadyHasToday) {
-      const host = requestHost || "localhost:3000";
-      const protocol = host.includes("localhost") ? "http" : "https";
-      fetch(`${protocol}://${host}/api/backup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "trigger-daily", clinicId: clinicId !== "ALL" ? clinicId : undefined }),
-      }).catch((e) => console.error("Error triggering daily backup in cron:", e));
-    }
+    await createDailyBackup(clinicId !== "ALL" ? clinicId : undefined);
   } catch (bErr) {
     console.error("Backup check error in trigger-cron:", bErr);
   }

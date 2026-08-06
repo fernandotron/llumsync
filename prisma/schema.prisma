@@ -188,6 +188,9 @@ model Client {
   isMember           Boolean          @default(false)
   membershipDate     DateTime?
   debts              ClientDebt[]
+
+  @@index([clinicId, deletedAt])
+  @@index([lastName, firstName])
 }
 
 model Appointment {
@@ -210,7 +213,12 @@ model Appointment {
   updatedAt DateTime @updatedAt
   photos    ClientPhoto[]
   notificationLogs NotificationLog[]
+
+  @@index([clinicId, deletedAt])
+  @@index([start, end])
+  @@index([userId, start])
 }
+
 
 model Sale {
   id            String   @id @default(uuid())

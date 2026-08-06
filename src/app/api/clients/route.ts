@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCountryConfig } from "@/lib/countries";
+import { authenticateApiRequest } from "@/lib/authGuard";
+import { encrypt, decrypt } from "@/lib/crypto";
 
 export async function GET(request: Request) {
   try {
@@ -11,6 +13,9 @@ export async function GET(request: Request) {
     if (!clinicId) {
       return NextResponse.json({ error: "Falta clinicId" }, { status: 400 });
     }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const clients = await prisma.client.findMany({
       where: {
@@ -37,7 +42,14 @@ export async function GET(request: Request) {
       }
     });
 
-    return NextResponse.json(clients);
+    // Decrypt sensitive fields for response
+    const decryptedClients = clients.map((c: any) => ({
+      ...c,
+      iban: c.iban ? decrypt(c.iban) : c.iban,
+      dniNif: c.dniNif ? decrypt(c.dniNif) : c.dniNif,
+    }));
+
+    return NextResponse.json(decryptedClients);
   } catch (error) {
     console.error("Error fetching clients:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
@@ -92,76 +104,86 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Nombre, apellidos y clínica son obligatorios" }, { status: 400 });
     }
 
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
+
     const clinic = await prisma.clinic.findUnique({
       where: { id: clinicId }
     });
     const cConfig = getCountryConfig(clinic?.country || "ES");
     const resolvedCountry = country || cConfig.name;
 
-    // Generate unique clientNumber (find max client number and add 1)
-    const maxClient = await prisma.client.findFirst({
-      orderBy: { clientNumber: "desc" },
-    });
-    const nextClientNumber = maxClient ? maxClient.clientNumber + 1 : 1001;
+    // Use transaction to ensure unique sequential clientNumber without race conditions
+    const client = await prisma.$transaction(async (tx: any) => {
+      const maxClient = await tx.client.findFirst({
+        orderBy: { clientNumber: "desc" },
+      });
+      const nextClientNumber = maxClient ? maxClient.clientNumber + 1 : 1001;
 
-    const client = await prisma.client.create({
-      data: {
-        clientNumber: nextClientNumber,
-        firstName,
-        lastName,
-        phone,
-        email,
-        dniNif,
-        birthDate: (() => {
-          if (!birthDate) return null;
-          if (typeof birthDate === "string" && birthDate.includes("/")) {
-            const parts = birthDate.split("/");
-            if (parts.length === 3) {
-              const parsedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-              return isNaN(parsedDate.getTime()) ? null : parsedDate;
+      return await tx.client.create({
+        data: {
+          clientNumber: nextClientNumber,
+          firstName,
+          lastName,
+          phone,
+          email,
+          dniNif: dniNif ? encrypt(dniNif) : null,
+          birthDate: (() => {
+            if (!birthDate) return null;
+            if (typeof birthDate === "string" && birthDate.includes("/")) {
+              const parts = birthDate.split("/");
+              if (parts.length === 3) {
+                const parsedDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                return isNaN(parsedDate.getTime()) ? null : parsedDate;
+              }
             }
-          }
-          const d = new Date(birthDate);
-          return isNaN(d.getTime()) ? null : d;
-        })(),
-        gender,
-        address,
-        municipality,
-        postalCode,
-        country: resolvedCountry,
-        province,
-        landline,
-        iban,
-        bic,
-        tags,
-        clinicId,
-        // Medical history
-        aestheticTreatments,
-        allergies,
-        medication,
-        medicalHistory,
-        otherNotes,
-        // Tutor details
-        tutorName,
-        tutorLastName,
-        tutorDniNif,
-        tutorPhone,
-        tutorEmail,
-        tutorAddress,
-        tutorPostalCode,
-        tutorMunicipality,
-        // Custom fields
-        isSelfEmployed: isSelfEmployed ?? false,
-        isCompany: isCompany ?? false,
-        receivesReminders: receivesReminders ?? true,
-        occupation,
-        maritalStatus,
-      },
+            const d = new Date(birthDate);
+            return isNaN(d.getTime()) ? null : d;
+          })(),
+          gender,
+          address,
+          municipality,
+          postalCode,
+          country: resolvedCountry,
+          province,
+          landline,
+          iban: iban ? encrypt(iban) : null,
+          bic,
+          tags,
+          clinicId,
+          // Medical history
+          aestheticTreatments,
+          allergies,
+          medication,
+          medicalHistory,
+          otherNotes,
+          // Tutor details
+          tutorName,
+          tutorLastName,
+          tutorDniNif,
+          tutorPhone,
+          tutorEmail,
+          tutorAddress,
+          tutorPostalCode,
+          tutorMunicipality,
+          // Custom fields
+          isSelfEmployed: isSelfEmployed ?? false,
+          isCompany: isCompany ?? false,
+          receivesReminders: receivesReminders ?? true,
+          occupation,
+          maritalStatus,
+        },
+      });
     });
 
-    return NextResponse.json(client);
+    return NextResponse.json({
+      ...client,
+      iban: client.iban ? decrypt(client.iban) : client.iban,
+      dniNif: client.dniNif ? decrypt(client.dniNif) : client.dniNif,
+    });
   } catch (error) {
     console.error("Error creating client:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }
+

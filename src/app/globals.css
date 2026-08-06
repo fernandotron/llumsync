@@ -466,3 +466,26 @@ body.agenda-dragging {
   -webkit-user-select: none !important;
 }
 
+/* Skeleton Pulse Loading Utility */
+.skeleton-pulse {
+  background: linear-gradient(90deg, var(--bg-input) 0%, rgba(226, 232, 240, 0.6) 50%, var(--bg-input) 100%);
+  background-size: 200% 100%;
+  animation: pulse-glow 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes pulse-glow {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Premium Interactive Card Hover Effect */
+.glass-hover-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+
