@@ -2045,6 +2045,17 @@ export default function AgendaPage() {
       return;
     }
 
+    const previousStatus = selectedAppointment.status;
+    setShowStatusDropdown(false);
+
+    // Optimistic UI update - immediate visual feedback
+    const updatedApp = { ...selectedAppointment, status: newStatus };
+    setSelectedAppointment(updatedApp);
+    setFormStatus(newStatus);
+    setAppointments((prev) =>
+      prev.map((app) => (app.id === selectedAppointment.id ? { ...app, status: newStatus } : app))
+    );
+
     const payload = {
       id: selectedAppointment.id,
       userId: selectedAppointment.userId,
@@ -2065,7 +2076,7 @@ export default function AgendaPage() {
       });
 
       if (res.ok) {
-        if (useVoucherSession && matchingVoucher && newStatus === "COMPLETED" && selectedAppointment.status !== "COMPLETED") {
+        if (useVoucherSession && matchingVoucher && newStatus === "COMPLETED" && previousStatus !== "COMPLETED") {
           try {
             await fetch(`/api/clients/${selectedAppointment.clientId}/vouchers`, {
               method: "PUT",
@@ -2076,17 +2087,28 @@ export default function AgendaPage() {
             console.error("Error consuming voucher session:", vErr);
           }
         }
-        const updatedApp = { ...selectedAppointment, status: newStatus };
-        setSelectedAppointment(updatedApp);
-        setFormStatus(newStatus);
-        fetchAppointments();
         triggerAutoSync();
+      } else {
+        // Revert on server error
+        setSelectedAppointment((prev) => (prev ? { ...prev, status: previousStatus } : null));
+        setFormStatus(previousStatus);
+        setAppointments((prev) =>
+          prev.map((app) => (app.id === selectedAppointment.id ? { ...app, status: previousStatus } : app))
+        );
+        toast.error("No se pudo actualizar el estado de la cita.");
       }
     } catch (err) {
       console.error("Error updating status:", err);
+      // Revert on catch error
+      setSelectedAppointment((prev) => (prev ? { ...prev, status: previousStatus } : null));
+      setFormStatus(previousStatus);
+      setAppointments((prev) =>
+        prev.map((app) => (app.id === selectedAppointment.id ? { ...app, status: previousStatus } : app))
+      );
+      toast.error("Error de conexión al actualizar la cita.");
     }
-    setShowStatusDropdown(false);
   };
+
 
   const formatDrawerDate = (dateStr: string) => {
     if (!dateStr) return "";

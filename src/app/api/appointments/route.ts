@@ -381,7 +381,10 @@ export async function PUT(request: Request) {
       );
     }
 
-    await triggerAdminNotifications(appointment, false);
+    // Run notifications asynchronously so HTTP response is instant
+    triggerAdminNotifications(appointment, false).catch((err) =>
+      console.error("Admin notification error:", err)
+    );
 
     // Always trigger automatic client reminders evaluation on any appointment update
     try {
@@ -397,6 +400,7 @@ export async function PUT(request: Request) {
     }
 
     return NextResponse.json(appointment);
+
   } catch (error) {
     console.error("Error updating appointment:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
