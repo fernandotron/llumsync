@@ -202,6 +202,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Faltan datos obligatorios para la cita" }, { status: 400 });
     }
 
+    // Deduplication check: prevent duplicate appointments if clicked multiple times within 15 seconds
+    const startDateObj = new Date(start);
+    const existingRecent = await prisma.appointment.findFirst({
+      where: {
+        clientId,
+        userId,
+        clinicId,
+        serviceId,
+        start: startDateObj,
+        deletedAt: null,
+        createdAt: {
+          gte: new Date(Date.now() - 15000), // 15 seconds window
+        },
+      },
+      include: { client: true, user: true, service: true },
+    });
+
+    if (existingRecent) {
+      return NextResponse.json(existingRecent);
+    }
+
     // Fetch service and user names for the log snapshot
     const [service, user] = await Promise.all([
       prisma.service.findUnique({ where: { id: serviceId } }),
@@ -214,7 +235,7 @@ export async function POST(request: Request) {
         userId,
         serviceId,
         clinicId,
-        start: new Date(start),
+        start: startDateObj,
         end: new Date(end),
         notes,
         status: status || "PENDING",
@@ -233,7 +254,10 @@ export async function POST(request: Request) {
       `${service?.name || "Servicio"} con ${user?.name || "Profesional"} el ${formatDate(start)}`
     );
 
-    await triggerAdminNotifications(appointment, true);
+    // Run notifications asynchronously for instant response
+    triggerAdminNotifications(appointment, true).catch((err) =>
+      console.error("Admin notification error on POST:", err)
+    );
 
     // Automatic trigger of client reminder notifications on new appointment creation
     try {
@@ -249,6 +273,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(appointment);
+
   } catch (error) {
     console.error("Error creating appointment:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });

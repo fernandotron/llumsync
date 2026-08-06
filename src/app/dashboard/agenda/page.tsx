@@ -733,8 +733,11 @@ export default function AgendaPage() {
   
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const isCreatingAppRef = useRef(false);
+  const [isCreatingApp, setIsCreatingApp] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [formClinicId, setFormClinicId] = useState("");
+
   const [showCreateContactModal, setShowCreateContactModal] = useState(false);
   const [showFormStatusDropdown, setShowFormStatusDropdown] = useState(false);
   const [showServiceDropdown, setShowServiceDropdown] = useState(false);
@@ -2265,168 +2268,182 @@ export default function AgendaPage() {
       return null;
     }
 
-    const selectedService = servicesList.find((s) => s.id === formServiceId);
-    if (!forceProceed && selectedService?.allowedUserIds) {
-      const allowed = selectedService.allowedUserIds.split(",");
-      if (!allowed.includes(formUserId)) {
-        setWarningModalConfirmCallback(() => () => {
-          handleCreateAppointment(e, true, andCheckout);
-        });
-        setShowServiceWarningModal(true);
-        return null;
-      }
-    }
+    if (isCreatingAppRef.current) return null;
+    isCreatingAppRef.current = true;
+    setIsCreatingApp(true);
 
-    let clientIdToUse = formClientId;
-
-    if (isNewPatient) {
-      if (!formPatFirstName || !formPatLastName || !activeClinic) {
-        toast.warning("Nombre y apellidos son obligatorios para registrar al paciente");
-        return;
-      }
-
-      const newClientPayload = {
-        firstName: formPatFirstName,
-        lastName: formPatLastName,
-        phone: formPatPhone,
-        email: formPatEmail,
-        dniNif: formPatDniNif,
-        birthDate: formPatBirthDate || null,
-        gender: formPatGender,
-        address: formPatAddress,
-        municipality: formPatMunicipality,
-        postalCode: formPatPostalCode,
-        country: formPatCountry,
-        iban: formPatIban,
-        bic: formPatBic,
-        tags: "",
-        clinicId: activeClinic.id,
-        isSelfEmployed: formPatIsSelfEmployed,
-        isCompany: formPatIsCompany,
-        receivesReminders: formPatReceivesReminders,
-        occupation: formPatOccupation,
-        maritalStatus: formPatMaritalStatus,
-      };
-
-      const clientRes = await fetch("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newClientPayload),
-      });
-
-      if (!clientRes.ok) {
-        const errData = await clientRes.json();
-        toast.error(`Error al registrar el paciente: ${errData.error || "error desconocido"}`);
-        return;
-      }
-
-      const newClient = await clientRes.json();
-      setClientsList((prev) => [...prev, newClient]);
-      clientIdToUse = newClient.id;
-    }
-
-    if (!clientIdToUse || !formUserId || !formServiceId || !formDate || !formTime || !formClinicId) {
-      toast.warning("Por favor, selecciona o crea un paciente y rellena todos los campos.");
-      return;
-    }
-
-    // Save tags to the client
-    if (appointmentTags.length > 0) {
-      const clientObj = clientsList.find(c => c.id === clientIdToUse);
-      if (clientObj) {
-        const existingTags = clientObj.tags ? clientObj.tags.split(",") : [];
-        const combinedTags = Array.from(new Set([...existingTags, ...appointmentTags])).join(",");
-        try {
-          await fetch(`/api/clients/${clientIdToUse}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...clientObj, tags: combinedTags })
+    try {
+      const selectedService = servicesList.find((s) => s.id === formServiceId);
+      if (!forceProceed && selectedService?.allowedUserIds) {
+        const allowed = selectedService.allowedUserIds.split(",");
+        if (!allowed.includes(formUserId)) {
+          setWarningModalConfirmCallback(() => () => {
+            handleCreateAppointment(e, true, andCheckout);
           });
-        } catch (err) {
-          console.error("Error saving client tags:", err);
+          setShowServiceWarningModal(true);
+          return null;
         }
       }
-    }
 
-    const startDateTime = new Date(`${formDate}T${formTime}`);
-    const duration = selectedService ? selectedService.duration : 45;
+      let clientIdToUse = formClientId;
 
-    if (checkIfOutsideShift(formUserId, formDate, formTime, duration)) {
-      const confirmSave = window.confirm(
-        "Estás asignando una cita fuera del horario laboral establecido para este profesional. ¿Deseas guardarla igualmente?"
-      );
-      if (!confirmSave) {
+      if (isNewPatient) {
+        if (!formPatFirstName || !formPatLastName || !activeClinic) {
+          toast.warning("Nombre y apellidos son obligatorios para registrar al paciente");
+          return null;
+        }
+
+        const newClientPayload = {
+          firstName: formPatFirstName,
+          lastName: formPatLastName,
+          phone: formPatPhone,
+          email: formPatEmail,
+          dniNif: formPatDniNif,
+          birthDate: formPatBirthDate || null,
+          gender: formPatGender,
+          address: formPatAddress,
+          municipality: formPatMunicipality,
+          postalCode: formPatPostalCode,
+          country: formPatCountry,
+          iban: formPatIban,
+          bic: formPatBic,
+          tags: "",
+          clinicId: activeClinic.id,
+          isSelfEmployed: formPatIsSelfEmployed,
+          isCompany: formPatIsCompany,
+          receivesReminders: formPatReceivesReminders,
+          occupation: formPatOccupation,
+          maritalStatus: formPatMaritalStatus,
+        };
+
+        const clientRes = await fetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newClientPayload),
+        });
+
+        if (!clientRes.ok) {
+          const errData = await clientRes.json();
+          toast.error(`Error al registrar el paciente: ${errData.error || "error desconocido"}`);
+          return null;
+        }
+
+        const newClient = await clientRes.json();
+        setClientsList((prev) => [...prev, newClient]);
+        clientIdToUse = newClient.id;
+      }
+
+      if (!clientIdToUse || !formUserId || !formServiceId || !formDate || !formTime || !formClinicId) {
+        toast.warning("Por favor, selecciona o crea un paciente y rellena todos los campos.");
         return null;
       }
-    }
 
-    let endDateTime: Date;
-    if (formEndTime) {
-      endDateTime = new Date(`${formDate}T${formEndTime}`);
-      if (endDateTime.getTime() <= startDateTime.getTime()) {
+      // Save tags to the client
+      if (appointmentTags.length > 0) {
+        const clientObj = clientsList.find(c => c.id === clientIdToUse);
+        if (clientObj) {
+          const existingTags = clientObj.tags ? clientObj.tags.split(",") : [];
+          const combinedTags = Array.from(new Set([...existingTags, ...appointmentTags])).join(",");
+          try {
+            await fetch(`/api/clients/${clientIdToUse}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...clientObj, tags: combinedTags })
+            });
+          } catch (err) {
+            console.error("Error saving client tags:", err);
+          }
+        }
+      }
+
+      const startDateTime = new Date(`${formDate}T${formTime}`);
+      const duration = selectedService ? selectedService.duration : 45;
+
+      if (checkIfOutsideShift(formUserId, formDate, formTime, duration)) {
+        const confirmSave = window.confirm(
+          "Estás asignando una cita fuera del horario laboral establecido para este profesional. ¿Deseas guardarla igualmente?"
+        );
+        if (!confirmSave) {
+          return null;
+        }
+      }
+
+      let endDateTime: Date;
+      if (formEndTime) {
+        endDateTime = new Date(`${formDate}T${formEndTime}`);
+        if (endDateTime.getTime() <= startDateTime.getTime()) {
+          endDateTime = new Date(startDateTime.getTime() + duration * 60000);
+        }
+      } else {
         endDateTime = new Date(startDateTime.getTime() + duration * 60000);
       }
-    } else {
-      endDateTime = new Date(startDateTime.getTime() + duration * 60000);
-    }
 
-    const payload = {
-      clientId: clientIdToUse,
-      userId: formUserId,
-      serviceId: formServiceId,
-      clinicId: formClinicId,
-      start: startDateTime.toISOString(),
-      end: endDateTime.toISOString(),
-      notes: formNotes,
-      status: formStatus || "CONFIRMED",
-      actorName: currentUser ? currentUser.name : "Sistema",
-      actorId: currentUser?.id,
-    };
+      const payload = {
+        clientId: clientIdToUse,
+        userId: formUserId,
+        serviceId: formServiceId,
+        clinicId: formClinicId,
+        start: startDateTime.toISOString(),
+        end: endDateTime.toISOString(),
+        notes: formNotes,
+        status: formStatus || "CONFIRMED",
+        actorName: currentUser ? currentUser.name : "Sistema",
+        actorId: currentUser?.id,
+      };
 
-    const res = await fetch("/api/appointments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    if (res.ok) {
-      const createdApp = await res.json();
-      if (useVoucherSession && matchingVoucher && (formStatus === "COMPLETED" || createdApp.status === "COMPLETED")) {
-        try {
-          await fetch(`/api/clients/${createdApp.clientId}/vouchers`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ clientVoucherId: matchingVoucher.id, action: "consume" }),
-          });
-        } catch (vErr) {
-          console.error("Error consuming voucher session:", vErr);
+      if (res.ok) {
+        const createdApp = await res.json();
+        if (useVoucherSession && matchingVoucher && (formStatus === "COMPLETED" || createdApp.status === "COMPLETED")) {
+          try {
+            await fetch(`/api/clients/${createdApp.clientId}/vouchers`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ clientVoucherId: matchingVoucher.id, action: "consume" }),
+            });
+          } catch (vErr) {
+            console.error("Error consuming voucher session:", vErr);
+          }
         }
-      }
-      if (activeWaitlistEntryForAppointment) {
-        try {
-          await fetch(`/api/waitlist/${activeWaitlistEntryForAppointment.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "ASSIGNED" }),
-          });
-          setActiveWaitlistEntryForAppointment(null);
-          fetchWaitlist();
-        } catch (wErr) {
-          console.error("Error updating waitlist entry status:", wErr);
+        if (activeWaitlistEntryForAppointment) {
+          try {
+            await fetch(`/api/waitlist/${activeWaitlistEntryForAppointment.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "ASSIGNED" }),
+            });
+            setActiveWaitlistEntryForAppointment(null);
+            fetchWaitlist();
+          } catch (wErr) {
+            console.error("Error updating waitlist entry status:", wErr);
+          }
         }
+        setShowCreateModal(false);
+        fetchAppointments();
+        triggerAutoSync();
+        if (andCheckout) {
+          window.location.href = `/dashboard/sales?clientId=${createdApp.clientId}&serviceId=${createdApp.serviceId}&appointmentId=${createdApp.id}`;
+        }
+        return createdApp;
+      } else {
+        toast.error("Error al reservar la cita");
+        return null;
       }
-      setShowCreateModal(false);
-      fetchAppointments();
-      triggerAutoSync();
-      if (andCheckout) {
-        window.location.href = `/dashboard/sales?clientId=${createdApp.clientId}&serviceId=${createdApp.serviceId}&appointmentId=${createdApp.id}`;
-      }
-      return createdApp;
-    } else {
-      toast.error("Error al reservar la cita");
+    } catch (err) {
+      console.error("Error in handleCreateAppointment:", err);
+      toast.error("Error inesperado al crear la cita.");
       return null;
+    } finally {
+      isCreatingAppRef.current = false;
+      setIsCreatingApp(false);
     }
   };
+
 
   // Submit appointment edit
   const handleUpdateAppointment = async (e: React.FormEvent | null, forceProceed = false, shouldRedirectToCaja = false) => {
@@ -5653,20 +5670,23 @@ export default function AgendaPage() {
                   <button
                     type="button"
                     className={styles.chargeBtn}
+                    disabled={isCreatingApp}
                     onClick={async (e) => {
                       await handleCreateAppointment(e, false, true);
                     }}
                   >
-                    Crear cita y cobrar
+                    {isCreatingApp ? "Creando..." : "Crear cita y cobrar"}
                   </button>
                   <button
                     type="submit"
                     className={styles.createApptBtn}
+                    disabled={isCreatingApp}
                   >
-                    Crear cita
+                    {isCreatingApp ? "Creando..." : "Crear cita"}
                   </button>
                 </div>
               </div>
+
             </form>
           </div>
         </div>,
