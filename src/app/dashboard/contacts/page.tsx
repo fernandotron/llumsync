@@ -804,7 +804,8 @@ export default function ContactsPage() {
       setFormTutorMunicipality("");
       fetchClients();
     } else {
-      toast.error("Error al crear cliente");
+      const errData = await res.json().catch(() => null);
+      toast.error(errData?.error || "Error al crear cliente");
     }
   };
 

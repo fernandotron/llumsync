@@ -107,6 +107,31 @@ export async function POST(request: Request) {
     const auth = await authenticateApiRequest(clinicId);
     if ("errorResponse" in auth) return auth.errorResponse;
 
+    // Helper to normalize DNI/NIF (removing spaces, dots, hyphens)
+    const normalizeDni = (s: string | null | undefined) => (s ? String(s).replace(/[\s\.\-\/]/g, "").toLowerCase() : "");
+
+    // Validate DNI uniqueness within clinic if provided
+    if (dniNif && typeof dniNif === "string" && dniNif.trim() !== "") {
+      const cleanInputDni = normalizeDni(dniNif);
+      if (cleanInputDni) {
+        const existingClients = await prisma.client.findMany({
+          where: { clinicId, deletedAt: null, dniNif: { not: null } },
+          select: { id: true, dniNif: true },
+        });
+        const isDuplicate = existingClients.some((c: any) => {
+          if (!c.dniNif) return false;
+          const dec = decrypt(c.dniNif);
+          return dec && normalizeDni(dec) === cleanInputDni;
+        });
+        if (isDuplicate) {
+          return NextResponse.json(
+            { error: `Ya existe un cliente registrado con el documento de identidad (${dniNif.trim().toUpperCase()})` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const clinic = await prisma.clinic.findUnique({
       where: { id: clinicId }
     });

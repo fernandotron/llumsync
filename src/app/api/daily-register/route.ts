@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getTimezoneForClinic } from "@/lib/countries";
 
 export async function GET(request: Request) {
   try {
@@ -11,15 +12,26 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Falta clinicId" }, { status: 400 });
     }
 
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
-    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
-    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
+    const clinic = await prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { country: true },
+    });
+    const tz = getTimezoneForClinic(clinic?.country);
 
-    // 1. Fetch appointments for target date
-    const appointments = await prisma.appointment.findMany({
+    // Target date YYYY-MM-DD in clinic's timezone
+    const targetDateStr = dateStr || new Date().toLocaleDateString("en-CA", { timeZone: tz });
+
+    // Wide search window around target date (±36 hours UTC buffer)
+    const targetUtcBase = new Date(`${targetDateStr}T12:00:00.000Z`);
+    const searchStart = new Date(targetUtcBase.getTime() - 36 * 3600 * 1000);
+    const searchEnd = new Date(targetUtcBase.getTime() + 36 * 3600 * 1000);
+
+    // 1. Fetch appointments around target date
+    const rawAppointments = await prisma.appointment.findMany({
       where: {
         clinicId,
-        start: { gte: startOfDay, lte: endOfDay },
+        start: { gte: searchStart, lte: searchEnd },
+        deletedAt: null,
       },
       include: {
         client: true,
@@ -29,16 +41,28 @@ export async function GET(request: Request) {
       orderBy: { start: "asc" },
     });
 
-    // 2. Fetch sales for target date
-    const sales = await prisma.sale.findMany({
+    // Filter appointments matching targetDateStr in clinic timezone
+    const appointments = rawAppointments.filter((appt: any) => {
+      const localDate = new Date(appt.start).toLocaleDateString("en-CA", { timeZone: tz });
+      return localDate === targetDateStr;
+    });
+
+    // 2. Fetch sales around target date
+    const rawSales = await prisma.sale.findMany({
       where: {
         clinicId,
-        createdAt: { gte: startOfDay, lte: endOfDay },
+        createdAt: { gte: searchStart, lte: searchEnd },
       },
       include: {
         client: true,
       },
       orderBy: { createdAt: "asc" },
+    });
+
+    // Filter sales matching targetDateStr in clinic timezone
+    const sales = rawSales.filter((sale: any) => {
+      const localDate = new Date(sale.createdAt).toLocaleDateString("en-CA", { timeZone: tz });
+      return localDate === targetDateStr;
     });
 
     // Grouping by Client ID for the target day to consolidate split/partial payments & multiple services into a single clean visit row
@@ -47,8 +71,8 @@ export async function GET(request: Request) {
     // Process appointments first
     for (const appt of appointments) {
       const apptDate = new Date(appt.start);
-      const formattedDate = apptDate.toLocaleDateString("es-ES");
-      const formattedTime = apptDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+      const formattedDate = apptDate.toLocaleDateString("es-ES", { timeZone: tz });
+      const formattedTime = apptDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz });
       const clientId = appt.clientId;
 
       if (!clientGroupMap.has(clientId)) {
@@ -83,8 +107,8 @@ export async function GET(request: Request) {
     for (const sale of sales) {
       const clientId = sale.clientId || `guest-${sale.id}`;
       const saleDate = new Date(sale.createdAt);
-      const formattedDate = saleDate.toLocaleDateString("es-ES");
-      const formattedTime = saleDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+      const formattedDate = saleDate.toLocaleDateString("es-ES", { timeZone: tz });
+      const formattedTime = saleDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz });
 
       if (!clientGroupMap.has(clientId)) {
         clientGroupMap.set(clientId, {
@@ -150,14 +174,17 @@ export async function GET(request: Request) {
           where: {
             clinicId,
             clientId: entry.clientId,
-            start: { gt: endOfDay },
+            start: { gt: entry.rawDate },
             status: { notIn: ["CANCELLED", "NOSHOW"] },
+            deletedAt: null,
           },
           orderBy: { start: "asc" },
         });
 
         if (nextAppt) {
-          nextApptText = `${new Date(nextAppt.start).toLocaleDateString("es-ES")} ${new Date(nextAppt.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
+          const nDateStr = new Date(nextAppt.start).toLocaleDateString("es-ES", { timeZone: tz });
+          const nTimeStr = new Date(nextAppt.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz });
+          nextApptText = `${nDateStr} ${nTimeStr}`;
         }
       }
 
@@ -197,7 +224,7 @@ export async function GET(request: Request) {
     const totalGrand = totalCash + totalCard;
 
     return NextResponse.json({
-      date: startOfDay.toISOString().split("T")[0],
+      date: targetDateStr,
       items: resultList,
       metrics: {
         totalConsultations: resultList.filter((i) => i.status !== "CANCELLED" && i.status !== "NOSHOW").length,

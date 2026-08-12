@@ -77,6 +77,80 @@ export async function POST(request: Request) {
       },
     });
 
+    // Automatic inventory stock deduction for consumables & direct products
+    if (Array.isArray(items) && items.length > 0) {
+      for (const item of items) {
+        const itemQty = Math.max(1, parseInt(item.quantity || item.qty || 1));
+        const serviceId = item.serviceId || (item.type === "SERVICE" || item.type === "servicio" ? item.id : null);
+        const productId = item.inventoryProductId || item.productId || (item.type === "PRODUCT" || item.type === "producto" ? item.id : null);
+
+        // 1. If item is a Service with consumables attached
+        if (serviceId) {
+          try {
+            const consumables = await prisma.serviceProduct.findMany({
+              where: { serviceId },
+            });
+            for (const consumable of consumables) {
+              const qtyToDeduct = consumable.quantity * itemQty;
+              if (qtyToDeduct > 0) {
+                await prisma.inventoryProduct.update({
+                  where: { id: consumable.productId },
+                  data: {
+                    stock: {
+                      decrement: qtyToDeduct,
+                    },
+                  },
+                }).catch(() => null);
+
+                await prisma.inventoryTransaction.create({
+                  data: {
+                    productId: consumable.productId,
+                    type: "CONSUMPTION",
+                    quantity: qtyToDeduct,
+                    notes: `Consumo automático por servicio en factura ${invoiceNumber}`,
+                    clinicId,
+                  },
+                }).catch(() => null);
+              }
+            }
+          } catch (e) {
+            console.error("Error deducting service consumables:", e);
+          }
+        }
+
+        // 2. If item is a direct Inventory Product
+        if (productId) {
+          try {
+            const invProd = await prisma.inventoryProduct.findUnique({
+              where: { id: productId },
+            });
+            if (invProd) {
+              await prisma.inventoryProduct.update({
+                where: { id: productId },
+                data: {
+                  stock: {
+                    decrement: itemQty,
+                  },
+                },
+              }).catch(() => null);
+
+              await prisma.inventoryTransaction.create({
+                data: {
+                  productId,
+                  type: "CONSUMPTION",
+                  quantity: itemQty,
+                  notes: `Venta directa en factura ${invoiceNumber}`,
+                  clinicId,
+                },
+              }).catch(() => null);
+            }
+          } catch (e) {
+            console.error("Error deducting direct product inventory:", e);
+          }
+        }
+      }
+    }
+
     return NextResponse.json(sale);
   } catch (error) {
     console.error("Error creating sale:", error);

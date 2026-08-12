@@ -978,6 +978,43 @@ export default function SalesPage() {
     }
   }, [paymentMethods]);
 
+  const handleExportGestoriaExcel = async () => {
+    if (!salesHistory || salesHistory.length === 0) {
+      toast.error("No hay facturas registradas en el período seleccionado.");
+      return;
+    }
+    try {
+      const XLSX = await import("xlsx");
+      const exportData = salesHistory.map((sale) => {
+        const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}`.trim() : "Cliente Varios";
+        const taxRate = 21;
+        const baseImponible = sale.total / (1 + taxRate / 100);
+        const cuotaIva = sale.total - baseImponible;
+
+        return {
+          "Nº Factura": sale.invoiceNumber,
+          "Fecha": new Date(sale.createdAt).toLocaleDateString("es-ES"),
+          "Cliente": clientName,
+          "DNI / NIF": sale.client?.dniNif || "-",
+          "Forma de Pago": sale.paymentMethod,
+          "Base Imponible (€)": parseFloat(baseImponible.toFixed(2)),
+          "% IVA": taxRate,
+          "Cuota IVA (€)": parseFloat(cuotaIva.toFixed(2)),
+          "Total Factura (€)": sale.total,
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Libro Facturas Emitidas");
+      XLSX.writeFile(workbook, `Libro_Facturas_Gestoria_${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success("Excel del Libro de Facturas para Gestoría descargado con éxito.");
+    } catch (e) {
+      console.error("Error exporting gestoría excel:", e);
+      toast.error("Error al exportar el archivo Excel.");
+    }
+  };
+
   // Reset states when checkout item changes
   useEffect(() => {
     setCheckoutDiscount(null);

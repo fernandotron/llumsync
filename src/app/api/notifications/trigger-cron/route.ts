@@ -432,6 +432,68 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
     }
   }
 
+  // 4. Automated Birthday Greetings (Felicitaciones de Cumpleaños)
+  try {
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentDay = today.getDate();
+
+    const clientWhere: any = {
+      deletedAt: null,
+      receivesReminders: true,
+      birthDate: { not: null },
+    };
+
+    if (clinicId && clinicId !== "ALL") {
+      clientWhere.clinicId = clinicId;
+    }
+
+    const clients = await prisma.client.findMany({
+      where: clientWhere,
+      include: { clinic: true },
+    });
+
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    for (const client of clients) {
+      if (!client.birthDate) continue;
+      const bDate = new Date(client.birthDate);
+      const bMonth = bDate.getMonth() + 1;
+      const bDay = bDate.getDate();
+
+      if (bMonth === currentMonth && bDay === currentDay) {
+        // Check if already congratulated today
+        const existingLog = await prisma.notificationLog.findFirst({
+          where: {
+            clientId: client.id,
+            sentAt: { gte: startOfToday },
+            message: { contains: "Cumpleaños" },
+          },
+        });
+
+        if (!existingLog) {
+          const birthdayMessage = `🎉 ¡Feliz Cumpleaños, ${client.firstName}! 🎂 De parte de todo el equipo de ${client.clinic?.name || "nuestra clínica"}, te deseamos un excelente día. ¡Queremos regalarte un descuento especial en tu próximo tratamiento!`;
+          
+          const log = await prisma.notificationLog.create({
+            data: {
+              clinicId: client.clinicId,
+              clientId: client.id,
+              clientName: `${client.firstName} ${client.lastName}`.trim(),
+              channel: client.phone ? "WHATSAPP" : "EMAIL",
+              recipient: client.phone || client.email || "Cliente sin contacto",
+              message: birthdayMessage,
+              status: "SENT",
+            },
+          });
+          simulatedLogs.push(log);
+          processedCount++;
+        }
+      }
+    }
+  } catch (bdayErr) {
+    console.error("Error processing birthday greetings:", bdayErr);
+  }
+
   // Trigger daily automated backup check
   try {
     await createDailyBackup(clinicId !== "ALL" ? clinicId : undefined);
@@ -440,7 +502,7 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
   }
 
   return {
-    message: `Procesamiento completado con éxito. Se enviaron ${processedCount} recordatorios.`,
+    message: `Procesamiento completado con éxito. Se procesaron ${processedCount} notificaciones (recordatorios y cumpleaños).`,
     processedCount,
     simulatedLogs,
   };

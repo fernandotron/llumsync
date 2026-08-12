@@ -2857,9 +2857,9 @@ export default function ClientDetailPage() {
       setShowFullEditModal(false);
       fetchClientDetails();
       fetchSidebarClientsList();
-      toast.success("Datos del cliente actualizados con éxito.");
     } else {
-      toast.error("Error al actualizar los datos.");
+      const errData = await res.json().catch(() => null);
+      toast.error(errData?.error || "Error al actualizar los datos.");
     }
   };
 

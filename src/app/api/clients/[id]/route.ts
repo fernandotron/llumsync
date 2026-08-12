@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { encrypt, decrypt } from "@/lib/crypto";
 
 export async function GET(
   request: Request,
@@ -80,6 +81,56 @@ export async function PUT(
       return NextResponse.json({ error: "Falta ID de cliente" }, { status: 400 });
     }
 
+    // Helper to normalize DNI/NIF
+    const normalizeDni = (s: string | null | undefined) => (s ? String(s).replace(/[\s\.\-\/]/g, "").toLowerCase() : "");
+
+    // Check DNI uniqueness if body.dniNif is being updated
+    if (body.dniNif && typeof body.dniNif === "string" && body.dniNif.trim() !== "") {
+      const plainDni = decrypt(body.dniNif) || body.dniNif;
+      const cleanInputDni = normalizeDni(plainDni);
+      
+      if (cleanInputDni) {
+        const currentClient = await prisma.client.findUnique({
+          where: { id },
+          select: { clinicId: true },
+        });
+
+        if (currentClient) {
+          const otherClients = await prisma.client.findMany({
+            where: {
+              clinicId: currentClient.clinicId,
+              deletedAt: null,
+              id: { not: id },
+              dniNif: { not: null },
+            },
+            select: { id: true, dniNif: true },
+          });
+
+          const isDuplicate = otherClients.some((c: any) => {
+            if (!c.dniNif) return false;
+            const dec = decrypt(c.dniNif);
+            return dec && normalizeDni(dec) === cleanInputDni;
+          });
+
+          if (isDuplicate) {
+            return NextResponse.json(
+              { error: `Ya existe otro cliente registrado con el documento de identidad (${plainDni.trim().toUpperCase()})` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
+
+    // Formatted DNI & IBAN encrypted
+    const finalDniNif = body.dniNif !== undefined 
+      ? (body.dniNif ? (typeof body.dniNif === "string" && body.dniNif.includes(":") ? body.dniNif : encrypt(body.dniNif)) : null)
+      : undefined;
+
+    const finalIban = body.iban !== undefined
+      ? (body.iban ? (typeof body.iban === "string" && body.iban.includes(":") ? body.iban : encrypt(body.iban)) : null)
+      : undefined;
+
     const client = await prisma.client.update({
       where: { id },
       data: {
@@ -87,7 +138,7 @@ export async function PUT(
         lastName: body.lastName,
         phone: body.phone,
         email: body.email,
-        dniNif: body.dniNif,
+        ...(finalDniNif !== undefined && { dniNif: finalDniNif }),
         birthDate: (() => {
           if (!body.birthDate) return null;
           if (typeof body.birthDate === "string" && body.birthDate.includes("/")) {
@@ -107,7 +158,7 @@ export async function PUT(
         country: body.country,
         province: body.province,
         landline: body.landline,
-        iban: body.iban,
+        ...(finalIban !== undefined && { iban: finalIban }),
         bic: body.bic,
         tags: body.tags,
         
