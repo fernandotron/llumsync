@@ -8716,6 +8716,32 @@ export default function SettingsPage() {
                           <option value="App">App (WhatsApp Desktop / Móvil)</option>
                         </select>
                       </div>
+
+                      {/* Tarjeta de Felicitación Automática de Cumpleaños */}
+                      <div style={{ marginTop: "24px", padding: "20px", background: "linear-gradient(135deg, rgba(236, 72, 153, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)", border: "1px solid rgba(236, 72, 153, 0.2)", borderRadius: "12px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                          <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#be185d", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span>🎉</span> Felicitaciones Automáticas de Cumpleaños
+                          </h4>
+                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "4px 10px", borderRadius: "12px", background: "rgba(190, 24, 93, 0.12)", color: "#be185d" }}>
+                            AUTOMÁTICO 24/7
+                          </span>
+                        </div>
+                        <p style={{ margin: "0 0 16px", fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                          El sistema comprueba diariamente la fecha de nacimiento de tus clientes en la zona horaria del centro y envía automáticamente una felicitación personalizada por WhatsApp o Email con tu regalo o descuento especial.
+                        </p>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleRunCronAndRefreshLogs}
+                            disabled={runningCronSimulation}
+                            style={{ fontSize: "12.5px", padding: "8px 16px", background: "linear-gradient(135deg, #be185d, #8b5cf6)", border: "none" }}
+                          >
+                            ⚡ {runningCronSimulation ? "Verificando cumpleañeros..." : "Probar / Enviar Cumpleaños Hoy"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -876,6 +876,98 @@ export default function ClientDetailPage() {
       });
   };
 
+  const handleExportClinicalHistoryPdf = async () => {
+    if (!client) return;
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      
+      // Clinic Header
+      doc.setFontSize(16);
+      doc.setTextColor(30, 41, 59);
+      doc.text(client.clinic?.name || activeClinic?.name || "CLIFAV - HISTORIAL CLÍNICO", 14, 20);
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Emisión: ${new Date().toLocaleDateString("es-ES")} | Ficha de Paciente #${client.clientNumber || ""}`, 14, 26);
+      doc.setLineWidth(0.5);
+      doc.line(14, 29, 196, 29);
+
+      // Patient Identity
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Paciente: ${client.firstName} ${client.lastName}`, 14, 38);
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${identityLabel}: ${client.dniNif || "N/D"} | Tel: ${client.phone || "N/D"} | Email: ${client.email || "N/D"}`, 14, 44);
+      doc.text(`Dirección: ${client.address || "N/D"} ${client.municipality ? `, ${client.municipality}` : ""}`, 14, 50);
+
+      let y = 60;
+      // 1. Medical History
+      doc.setFontSize(11);
+      doc.setTextColor(37, 99, 235);
+      doc.text("1. ANTECEDENTES Y SALUD", 14, y);
+      doc.line(14, y + 2, 196, y + 2);
+      y += 8;
+
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`Alergias: ${client.allergies || "Ninguna registrada"}`, 14, y); y += 6;
+      doc.text(`Medicación: ${client.medication || "Ninguna registrada"}`, 14, y); y += 6;
+      doc.text(`Historial Médico: ${client.medicalHistory || "Sin antecedentes"}`, 14, y); y += 6;
+      doc.text(`Tratamientos Estéticos: ${client.aestheticTreatments || "Ninguno"}`, 14, y); y += 6;
+      doc.text(`Observaciones: ${client.otherNotes || "Sin notas"}`, 14, y); y += 10;
+
+      // 2. Appointments
+      doc.setFontSize(11);
+      doc.setTextColor(37, 99, 235);
+      doc.text("2. HISTORIAL DE CITAS", 14, y);
+      doc.line(14, y + 2, 196, y + 2);
+      y += 8;
+
+      if (client.appointments && client.appointments.length > 0) {
+        client.appointments.slice(0, 15).forEach((app) => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const appDate = new Date(app.start).toLocaleDateString("es-ES");
+          doc.setFontSize(8.5);
+          doc.text(`• ${appDate} - ${app.service?.name || "Servicio"} (${app.status}) - Prof: ${app.user?.name || "N/A"}`, 14, y);
+          y += 5;
+        });
+      } else {
+        doc.setFontSize(9);
+        doc.text("No se registran citas previas.", 14, y);
+        y += 6;
+      }
+
+      y += 6;
+      // 3. Signed Documents
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFontSize(11);
+      doc.setTextColor(37, 99, 235);
+      doc.text("3. DOCUMENTOS Y CONSENTIMIENTOS", 14, y);
+      doc.line(14, y + 2, 196, y + 2);
+      y += 8;
+
+      if (client.documents && client.documents.length > 0) {
+        client.documents.forEach((docItem) => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const docDate = new Date(docItem.createdAt).toLocaleDateString("es-ES");
+          doc.setFontSize(8.5);
+          doc.text(`• ${docItem.name} - Firmado el ${docDate}`, 14, y);
+          y += 5;
+        });
+      } else {
+        doc.setFontSize(9);
+        doc.text("Sin consentimientos firmados.", 14, y);
+      }
+
+      doc.save(`Ficha_Clinica_${client.firstName}_${client.lastName}.pdf`);
+      toast.success("Ficha clínica en PDF generada correctamente.");
+    } catch (e) {
+      console.error("Error generating PDF:", e);
+      toast.error("Error al generar el PDF del historial clínico.");
+    }
+  };
+
   const fetchClientProducts = useCallback(async () => {
     if (!id) return;
     try {
@@ -3889,7 +3981,7 @@ export default function ClientDetailPage() {
             })()}
           </div>
 
-          {/* Action Buttons: Full Edit / Options */}
+          {/* Action Buttons: Full Edit / Options / Export PDF */}
           <div className={styles.profileActionsArea}>
             <button className={styles.editProfileBtn} onClick={() => setShowFullEditModal(true)}>
               <Icons.Edit size={14} />
@@ -3906,6 +3998,17 @@ export default function ClientDetailPage() {
 
               {showOptionsDropdown && (
                 <div className={`${styles.optionsDropdown} glass`}>
+                  <button
+                    className={styles.optionItem}
+                    onClick={() => {
+                      setShowOptionsDropdown(false);
+                      handleExportClinicalHistoryPdf();
+                    }}
+                  >
+                    <Icons.FileText size={14} style={{ color: "var(--primary)" }} />
+                    <span style={{ fontWeight: 700, color: "var(--primary)" }}>Exportar Ficha (PDF)</span>
+                  </button>
+
                   <Link 
                     href={`/dashboard/agenda?createAppointmentForClientId=${client.id}`}
                     className={styles.optionItem}
@@ -3976,6 +4079,31 @@ export default function ClientDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Direct PDF Export Button */}
+          <button
+            onClick={handleExportClinicalHistoryPdf}
+            style={{
+              marginTop: "12px",
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: "10px",
+              border: "1px solid rgba(13, 148, 136, 0.3)",
+              background: "rgba(13, 148, 136, 0.08)",
+              color: "var(--primary)",
+              fontWeight: 700,
+              fontSize: "12.5px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              transition: "all 0.15s ease"
+            }}
+          >
+            <Icons.FileText size={15} />
+            <span>Exportar Ficha (PDF)</span>
+          </button>
         </div>
       </aside>
 
