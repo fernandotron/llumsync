@@ -11,6 +11,7 @@ import styles from "./Settings.module.css";
 import { COUNTRIES, getCountryConfig } from "@/lib/countries";
 import { translate } from "@/lib/translations";
 import { toast } from "@/components/ToastContainer";
+import { BirthdayCardSettings } from "@/components/BirthdayCardSettings";
 
 interface Clinic {
   id: string;
@@ -28,6 +29,11 @@ interface Clinic {
   whatsappInstanceName?: string;
   whatsappApiToken?: string;
   whatsappConnected?: boolean;
+  birthdayEnabled?: boolean;
+  birthdayMessage?: string;
+  birthdayDiscount?: number;
+  birthdayImageUrl?: string;
+  birthdayCardTheme?: string;
 }
 
 
@@ -7902,20 +7908,21 @@ export default function SettingsPage() {
           <div style={{ display: "flex", gap: "24px", minHeight: "600px", padding: "16px" }}>
             {/* Sidebar de notificaciones (izquierda) */}
             <div style={{ width: "240px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
-              {(["recordatorios", "notificaciones", "logs", "config", "whatsapp"] as const).map((t) => {
+              {(["recordatorios", "notificaciones", "cumpleanos", "logs", "config", "whatsapp"] as const).map((t) => {
                 const isActive = notificationsSubTab === t;
                 return (
                   <button
                     key={t}
                     type="button"
                     onClick={() => {
-                      setNotificationsSubTab(t);
+                      setNotificationsSubTab(t as any);
                       setShowReminderForm(false);
                     }}
                     className={`${styles.notifSidebarBtn} ${isActive ? styles.notifSidebarBtnActive : ""}`}
                   >
                     {t === "recordatorios" ? "Recordatorios" :
                      t === "notificaciones" ? "Notificaciones" :
+                     t === "cumpleanos" ? "🎉 Cumpleaños y Descuentos" :
                      t === "logs" ? "Registro de envíos" :
                      t === "config" ? "Configuración" : "Conexión WhatsApp"}
                   </button>
@@ -8501,6 +8508,16 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {/* SUBTAB CUMPLEAÑOS Y TARJETA DE SOCIO DESCUENTO */}
+              {(notificationsSubTab as string) === "cumpleanos" && (
+                <BirthdayCardSettings
+                  clinic={activeClinic}
+                  onSaveSuccess={(updatedClinic) => setActiveClinic(updatedClinic)}
+                  onTestCron={handleRunCronAndRefreshLogs}
+                  runningCronSimulation={runningCronSimulation}
+                />
+              )}
+
               {/* SUBTAB 3: REGISTRO DE ENVÍOS */}
               {notificationsSubTab === "logs" && (
                 <div>
@@ -8730,15 +8747,23 @@ export default function SettingsPage() {
                         <p style={{ margin: "0 0 16px", fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
                           El sistema comprueba diariamente la fecha de nacimiento de tus clientes en la zona horaria del centro y envía automáticamente una felicitación personalizada por WhatsApp o Email con tu regalo o descuento especial.
                         </p>
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
                           <button
                             type="button"
                             className="btn btn-primary"
+                            onClick={() => setNotificationsSubTab("cumpleanos" as any)}
+                            style={{ fontSize: "12.5px", padding: "8px 16px", background: "linear-gradient(135deg, #be185d, #8b5cf6)", border: "none", color: "#fff", fontWeight: 700 }}
+                          >
+                            🎨 Diseñar Tarjeta & Editar Mensaje
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
                             onClick={handleRunCronAndRefreshLogs}
                             disabled={runningCronSimulation}
-                            style={{ fontSize: "12.5px", padding: "8px 16px", background: "linear-gradient(135deg, #be185d, #8b5cf6)", border: "none" }}
+                            style={{ fontSize: "12.5px", padding: "8px 16px" }}
                           >
-                            ⚡ {runningCronSimulation ? "Verificando cumpleañeros..." : "Probar / Enviar Cumpleaños Hoy"}
+                            ⚡ {runningCronSimulation ? "Verificando..." : "Probar Envíos Hoy"}
                           </button>
                         </div>
                       </div>

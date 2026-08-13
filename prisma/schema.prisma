@@ -56,6 +56,11 @@ model Clinic {
   metaPhoneNumberId     String?
   metaBusinessAccountId String?
   metaTemplateName      String? @default("recordatorio_cita")
+  birthdayEnabled       Boolean @default(true)
+  birthdayMessage       String  @default("🎉 ¡Feliz Cumpleaños, {{Cliente:Nombre}}! 🎂 De parte de todo el equipo de {{Nombre_Consulta}}, te deseamos un excelente día. ¡Queremos regalarte un {{Descuento}}% de descuento en tu próximo tratamiento! 🎁")
+  birthdayDiscount      Int     @default(15)
+  birthdayImageUrl      String?
+  birthdayCardTheme     String  @default("GOLD")
 }
 
 

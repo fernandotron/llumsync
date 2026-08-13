@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import fs from "fs";
 import path from "path";
+import sharp from "sharp";
 import { getTimezoneForClinic } from "@/lib/countries";
 import { createDailyBackup } from "@/lib/backup";
 
@@ -457,6 +458,11 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
 
     for (const client of clients) {
       if (!client.birthDate) continue;
+      const clinic = client.clinic;
+      if (clinic && clinic.birthdayEnabled === false) {
+        continue; // Clinic disabled birthday greetings
+      }
+
       const bDate = new Date(client.birthDate);
       const bMonth = bDate.getMonth() + 1;
       const bDay = bDate.getDate();
@@ -472,17 +478,134 @@ export async function processCronReminders(clinicId?: string, requestHost?: stri
         });
 
         if (!existingLog) {
-          const birthdayMessage = `🎉 ¡Feliz Cumpleaños, ${client.firstName}! 🎂 De parte de todo el equipo de ${client.clinic?.name || "nuestra clínica"}, te deseamos un excelente día. ¡Queremos regalarte un descuento especial en tu próximo tratamiento!`;
+          const discountVal = (clinic?.birthdayDiscount !== undefined && clinic?.birthdayDiscount !== null) ? clinic.birthdayDiscount : 15;
+          const templateMsg = clinic?.birthdayMessage || `🎉 ¡Feliz Cumpleaños, {{Cliente:Nombre}}! 🎂 De parte de todo el equipo de {{Nombre_Consulta}}, te deseamos un excelente día. ¡Queremos regalarte un {{Descuento}} de descuento en tu próximo tratamiento! 🎁`;
           
+          let birthdayMessage = templateMsg
+            .replaceAll("{{Cliente:Nombre}}", client.firstName || "")
+            .replaceAll("{{Cliente:Apellidos}}", client.lastName || "")
+            .replaceAll("{{Nombre_Consulta}}", clinic?.name || "nuestra clínica")
+            .replaceAll("{{Descuento}}%", `${discountVal}%`)
+            .replaceAll("{{Descuento}}", `${discountVal}%`)
+            .replaceAll("{{Dirección_Consulta}}", clinic?.address || "")
+            .replaceAll("{{Telefono_Consulta}}", clinic?.phone || "");
+
+          const cleanPhone = (client.phone || "").replace(/\D/g, "");
+          const recipient = cleanPhone || client.email || "Cliente sin contacto";
+          let sentStatus = "SENT";
+          let apiError = "";
+
+          // Send real WhatsApp if phone is present and WhatsApp is configured
+          if (cleanPhone && clinic) {
+            const clinicApiUrl = clinic.whatsappApiUrl || process.env.WHATSAPP_API_URL;
+            const clinicInstance = clinic.whatsappInstanceName || process.env.WHATSAPP_INSTANCE_NAME;
+            const clinicToken = clinic.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+
+            if (clinicApiUrl && clinicInstance && clinicToken) {
+              try {
+                const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
+                const bdayImage = clinic.birthdayImageUrl;
+                let hasImage = !!bdayImage;
+                let mediaValue = "";
+                let mediatype = "image";
+                let mimetype = "image/png";
+                let fileName = "tarjeta_cumpleanos.png";
+
+                if (hasImage && bdayImage) {
+                  const cleanUrl = bdayImage.trim();
+                  if (cleanUrl.startsWith("data:")) {
+                    const match = cleanUrl.match(/^data:([^;]+);base64,(.*)$/);
+                    if (match) {
+                      mimetype = match[1];
+                      mediaValue = match[2];
+                    } else {
+                      hasImage = false;
+                    }
+                  } else {
+                    const rawFileName = path.basename(cleanUrl) || "tarjeta.png";
+                    fileName = rawFileName.split("?")[0];
+                    const privatePath = path.join(process.cwd(), "private-uploads", fileName);
+                    const publicPath = path.join(process.cwd(), "public", "uploads", fileName);
+
+                    let targetFilePath = "";
+                    if (fs.existsSync(privatePath)) targetFilePath = privatePath;
+                    else if (fs.existsSync(publicPath)) targetFilePath = publicPath;
+
+                    if (targetFilePath) {
+                      const fileBuffer = fs.readFileSync(targetFilePath);
+                      mediaValue = fileBuffer.toString("base64");
+                    } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                      mediaValue = cleanUrl;
+                    } else {
+                      hasImage = false;
+                    }
+                  }
+                }
+
+                // Compress base64 images with Sharp to JPEG format to ensure compatibility with WhatsApp WebSocket
+                if (hasImage && mediaValue && mimetype.startsWith("image/") && !mediaValue.startsWith("http")) {
+                  try {
+                    const rawBuf = Buffer.from(mediaValue, "base64");
+                    const jpegBuf = await sharp(rawBuf)
+                      .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+                      .jpeg({ quality: 85, mozjpeg: true })
+                      .toBuffer();
+                    mediaValue = jpegBuf.toString("base64");
+                    mimetype = "image/jpeg";
+                    fileName = "tarjeta_cumpleanos.jpg";
+                  } catch (sharpErr) {
+                    console.error("Error compressing birthday image with sharp:", sharpErr);
+                  }
+                }
+
+                const targetUrl = hasImage
+                  ? `${clinicApiUrl}/message/sendMedia/${clinicInstance}`
+                  : `${clinicApiUrl}/message/sendText/${clinicInstance}`;
+
+                const requestBody = hasImage
+                  ? {
+                      number: formattedPhone,
+                      mediatype,
+                      mimetype,
+                      media: mediaValue,
+                      caption: birthdayMessage,
+                      fileName,
+                      options: { delay: 1200, presence: "composing" }
+                    }
+                  : {
+                      number: formattedPhone,
+                      text: birthdayMessage,
+                      textMessage: { text: birthdayMessage },
+                      options: { delay: 1200, presence: "composing", linkPreview: false }
+                    };
+
+                const res = await fetch(targetUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", apikey: clinicToken },
+                  body: JSON.stringify(requestBody),
+                });
+
+                if (!res.ok) {
+                  const errText = await res.text();
+                  sentStatus = "FAILED";
+                  apiError = `WhatsApp API Error (${res.status}): ${errText}`;
+                }
+              } catch (err: any) {
+                sentStatus = "FAILED";
+                apiError = err.message || "Error de red WhatsApp";
+              }
+            }
+          }
+
           const log = await prisma.notificationLog.create({
             data: {
               clinicId: client.clinicId,
               clientId: client.id,
               clientName: `${client.firstName} ${client.lastName}`.trim(),
               channel: client.phone ? "WHATSAPP" : "EMAIL",
-              recipient: client.phone || client.email || "Cliente sin contacto",
+              recipient: sentStatus === "FAILED" ? `${recipient} [Error: ${apiError}]` : recipient,
               message: birthdayMessage,
-              status: "SENT",
+              status: sentStatus,
             },
           });
           simulatedLogs.push(log);
@@ -529,6 +652,126 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const clinicId = body.clinicId || undefined;
     const reqHost = request.headers.get("host") || undefined;
+
+    // Direct test send to a specified contact (e.g., Fernando Montilla)
+    if (body.testPhone && clinicId) {
+      const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } });
+      if (!clinic) {
+        return NextResponse.json({ error: "Clínica no encontrada" }, { status: 400 });
+      }
+
+      const cleanPhone = (body.testPhone || "").replace(/\D/g, "");
+      const formattedPhone = cleanPhone.startsWith("34") || cleanPhone.length > 9 ? cleanPhone : `34${cleanPhone}`;
+      const clinicApiUrl = clinic.whatsappApiUrl || process.env.WHATSAPP_API_URL;
+      const clinicInstance = clinic.whatsappInstanceName || process.env.WHATSAPP_INSTANCE_NAME;
+      const clinicToken = clinic.whatsappApiToken || process.env.WHATSAPP_API_TOKEN;
+
+      if (!clinicApiUrl || !clinicInstance || !clinicToken) {
+        return NextResponse.json({ error: "WhatsApp no está configurado en esta clínica" }, { status: 400 });
+      }
+
+      let testImg = body.testImage || clinic.birthdayImageUrl || "";
+      let hasImage = !!testImg;
+      let mediaValue = "";
+      let mimetype = "image/png";
+      let fileName = "tarjeta_cumpleanos.png";
+
+      if (hasImage && testImg) {
+        const cleanUrl = testImg.trim();
+        if (cleanUrl.startsWith("data:")) {
+          const match = cleanUrl.match(/^data:([^;]+);base64,(.*)$/);
+          if (match) {
+            mimetype = match[1];
+            mediaValue = match[2];
+          } else {
+            hasImage = false;
+          }
+        } else {
+          const rawFileName = path.basename(cleanUrl) || "tarjeta.png";
+          fileName = rawFileName.split("?")[0];
+          const privatePath = path.join(process.cwd(), "private-uploads", fileName);
+          const publicPath = path.join(process.cwd(), "public", "uploads", fileName);
+
+          let targetFilePath = "";
+          if (fs.existsSync(privatePath)) targetFilePath = privatePath;
+          else if (fs.existsSync(publicPath)) targetFilePath = publicPath;
+
+          if (targetFilePath) {
+            const fileBuffer = fs.readFileSync(targetFilePath);
+            mediaValue = fileBuffer.toString("base64");
+          } else if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+            mediaValue = cleanUrl;
+          } else {
+            hasImage = false;
+          }
+        }
+      }
+
+      // Compress test image with Sharp to JPEG format to ensure compatibility with WhatsApp WebSocket
+      if (hasImage && mediaValue && mimetype.startsWith("image/") && !mediaValue.startsWith("http")) {
+        try {
+          const rawBuf = Buffer.from(mediaValue, "base64");
+          const jpegBuf = await sharp(rawBuf)
+            .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 85, mozjpeg: true })
+            .toBuffer();
+          mediaValue = jpegBuf.toString("base64");
+          mimetype = "image/jpeg";
+          fileName = "tarjeta_cumpleanos.jpg";
+        } catch (sharpErr) {
+          console.error("Error compressing test image with sharp:", sharpErr);
+        }
+      }
+
+      const targetUrl = hasImage
+        ? `${clinicApiUrl}/message/sendMedia/${clinicInstance}`
+        : `${clinicApiUrl}/message/sendText/${clinicInstance}`;
+
+      const requestBody = hasImage
+        ? {
+            number: formattedPhone,
+            mediatype: "image",
+            mimetype: mimetype,
+            media: mediaValue,
+            caption: body.testMessage || "🎉 ¡Feliz Cumpleaños!",
+            fileName: fileName,
+            options: { delay: 1200, presence: "composing" }
+          }
+        : {
+            number: formattedPhone,
+            text: body.testMessage || "🎉 ¡Feliz Cumpleaños!",
+            textMessage: { text: body.testMessage || "🎉 ¡Feliz Cumpleaños!" },
+            options: { delay: 1200, presence: "composing", linkPreview: false }
+          };
+
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: clinicToken },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        return NextResponse.json({ error: `WhatsApp API Error (${res.status}): ${errText}` }, { status: 500 });
+      }
+
+      const resData = await res.json().catch(() => ({}));
+
+      // Log test notification
+      await prisma.notificationLog.create({
+        data: {
+          clinicId: clinic.id,
+          clientId: body.testClientId || "test-client-id",
+          clientName: body.testClientName || "Fernando Montilla",
+          channel: "WHATSAPP",
+          recipient: formattedPhone,
+          message: body.testMessage || "🎉 ¡Feliz Cumpleaños!",
+          status: "SENT",
+        },
+      });
+
+      return NextResponse.json({ success: true, message: "Prueba de tarjeta de cumpleaños enviada por WhatsApp.", apiResponse: resData });
+    }
 
     const result = await processCronReminders(clinicId, reqHost);
     return NextResponse.json(result);
