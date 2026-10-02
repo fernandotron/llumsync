@@ -7571,37 +7571,72 @@ export default function ClientDetailPage() {
                                       </div>
 
                                       <div className={styles.followUpVerticalList}>
-                                        {Object.entries(item.values || {}).map(([key, val]: any) => (
-                                          <div key={key} className={styles.followUpVerticalField}>
-                                            <strong className={styles.verticalLabel}>{key}</strong>
-                                            <div className={styles.verticalText}>
-                                              {val || <span style={{ fontStyle: "italic", color: "var(--text-secondary)" }}>Sin respuesta</span>}
-                                            </div>
-                                          </div>
-                                        ))}
+                                        {(() => {
+                                          const filledEntries = Object.entries(item.values || {}).filter(([_, val]: any) => {
+                                            if (val === null || val === undefined) return false;
+                                            if (typeof val === "string") {
+                                              const trimmed = val.trim();
+                                              return trimmed !== "" && trimmed.toLowerCase() !== "sin respuesta";
+                                            }
+                                            if (Array.isArray(val)) return val.length > 0;
+                                            return true;
+                                          });
 
-                                        {item.notes && (
-                                          <div className={styles.followUpVerticalField}>
-                                            <strong className={styles.verticalLabel}>Notas</strong>
-                                            <div
-                                              className={styles.verticalText}
-                                              dangerouslySetInnerHTML={{ __html: item.notes }}
-                                            />
-                                          </div>
-                                        )}
+                                          const hasNotes = Boolean(
+                                            item.notes &&
+                                            typeof item.notes === "string" &&
+                                            item.notes.replace(/<[^>]*>/g, "").trim() !== "" &&
+                                            item.notes.trim().toLowerCase() !== "sin respuesta"
+                                          );
+                                          const hasAttachments = Boolean(item.attachments && item.attachments.length > 0);
+                                          const hasAnyContent = filledEntries.length > 0 || hasNotes || hasAttachments;
 
-                                        {item.attachments && item.attachments.length > 0 && (
-                                          <div className={styles.followUpVerticalField}>
-                                            <strong className={styles.verticalLabel}>Archivos adjuntos</strong>
-                                            <div className={styles.attachmentsListInline}>
-                                              {item.attachments.map((file: any, i: number) => (
-                                                <a key={i} href={file.dataUrl} download={file.name} className={styles.attachmentLinkInline}>
-                                                  📎 {file.name} ({Math.round(file.size / 1024)} KB)
-                                                </a>
+                                          if (!hasAnyContent) {
+                                            return (
+                                              <div className={styles.followUpVerticalField}>
+                                                <div style={{ fontStyle: "italic", color: "var(--text-secondary)", fontSize: "13px" }}>
+                                                  Sin contenido registrado
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+
+                                          return (
+                                            <>
+                                              {filledEntries.map(([key, val]: any) => (
+                                                <div key={key} className={styles.followUpVerticalField}>
+                                                  <strong className={styles.verticalLabel}>{key}</strong>
+                                                  <div className={styles.verticalText}>
+                                                    {val}
+                                                  </div>
+                                                </div>
                                               ))}
-                                            </div>
-                                          </div>
-                                        )}
+
+                                              {hasNotes && (
+                                                <div className={styles.followUpVerticalField}>
+                                                  <strong className={styles.verticalLabel}>Notas</strong>
+                                                  <div
+                                                    className={styles.verticalText}
+                                                    dangerouslySetInnerHTML={{ __html: item.notes }}
+                                                  />
+                                                </div>
+                                              )}
+
+                                              {hasAttachments && (
+                                                <div className={styles.followUpVerticalField}>
+                                                  <strong className={styles.verticalLabel}>Archivos adjuntos</strong>
+                                                  <div className={styles.attachmentsListInline}>
+                                                    {item.attachments.map((file: any, i: number) => (
+                                                      <a key={i} href={file.dataUrl} download={file.name} className={styles.attachmentLinkInline}>
+                                                        📎 {file.name} ({Math.round(file.size / 1024)} KB)
+                                                      </a>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
                                       </div>
 
                                       <button
@@ -7781,37 +7816,72 @@ export default function ClientDetailPage() {
 
                                       {item.type === "seguimiento" && (
                                         <div className={styles.followUpVerticalList} style={{ marginTop: "8px" }}>
-                                          {Object.entries(item.values || {}).map(([key, val]: any) => (
-                                            <div key={key} className={styles.followUpVerticalField}>
-                                              <strong className={styles.verticalLabel}>{key}</strong>
-                                              <div className={styles.verticalText}>
-                                                {val || <span style={{ fontStyle: "italic", color: "var(--text-secondary)" }}>Sin respuesta</span>}
-                                              </div>
-                                            </div>
-                                          ))}
+                                          {(() => {
+                                            const filledEntries = Object.entries(item.values || {}).filter(([_, val]: any) => {
+                                              if (val === null || val === undefined) return false;
+                                              if (typeof val === "string") {
+                                                const trimmed = val.trim();
+                                                return trimmed !== "" && trimmed.toLowerCase() !== "sin respuesta";
+                                              }
+                                              if (Array.isArray(val)) return val.length > 0;
+                                              return true;
+                                            });
 
-                                          {item.notes && (
-                                            <div className={styles.followUpVerticalField}>
-                                              <strong className={styles.verticalLabel}>Notas</strong>
-                                              <div
-                                                className={styles.verticalText}
-                                                dangerouslySetInnerHTML={{ __html: item.notes }}
-                                              />
-                                            </div>
-                                          )}
+                                            const hasNotes = Boolean(
+                                              item.notes &&
+                                              typeof item.notes === "string" &&
+                                              item.notes.replace(/<[^>]*>/g, "").trim() !== "" &&
+                                              item.notes.trim().toLowerCase() !== "sin respuesta"
+                                            );
+                                            const hasAttachments = Boolean(item.attachments && item.attachments.length > 0);
+                                            const hasAnyContent = filledEntries.length > 0 || hasNotes || hasAttachments;
 
-                                          {item.attachments && item.attachments.length > 0 && (
-                                            <div className={styles.followUpVerticalField}>
-                                              <strong className={styles.verticalLabel}>Archivos adjuntos</strong>
-                                              <div className={styles.attachmentsListInline}>
-                                                {item.attachments.map((file: any, i: number) => (
-                                                  <a key={i} href={file.dataUrl} download={file.name} className={styles.attachmentLinkInline}>
-                                                    📎 {file.name} ({Math.round(file.size / 1024)} KB)
-                                                  </a>
+                                            if (!hasAnyContent) {
+                                              return (
+                                                <div className={styles.followUpVerticalField}>
+                                                  <div style={{ fontStyle: "italic", color: "var(--text-secondary)", fontSize: "13px" }}>
+                                                    Sin contenido registrado
+                                                  </div>
+                                                </div>
+                                              );
+                                            }
+
+                                            return (
+                                              <>
+                                                {filledEntries.map(([key, val]: any) => (
+                                                  <div key={key} className={styles.followUpVerticalField}>
+                                                    <strong className={styles.verticalLabel}>{key}</strong>
+                                                    <div className={styles.verticalText}>
+                                                      {val}
+                                                    </div>
+                                                  </div>
                                                 ))}
-                                              </div>
-                                            </div>
-                                          )}
+
+                                                {hasNotes && (
+                                                  <div className={styles.followUpVerticalField}>
+                                                    <strong className={styles.verticalLabel}>Notas</strong>
+                                                    <div
+                                                      className={styles.verticalText}
+                                                      dangerouslySetInnerHTML={{ __html: item.notes }}
+                                                    />
+                                                  </div>
+                                                )}
+
+                                                {hasAttachments && (
+                                                  <div className={styles.followUpVerticalField}>
+                                                    <strong className={styles.verticalLabel}>Archivos adjuntos</strong>
+                                                    <div className={styles.attachmentsListInline}>
+                                                      {item.attachments.map((file: any, i: number) => (
+                                                        <a key={i} href={file.dataUrl} download={file.name} className={styles.attachmentLinkInline}>
+                                                          📎 {file.name} ({Math.round(file.size / 1024)} KB)
+                                                        </a>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </>
+                                            );
+                                          })()}
                                         </div>
                                       )}
 
