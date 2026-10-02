@@ -674,11 +674,358 @@
   font-family: inherit;
 }
 
-.modalTextarea:focus {
+.modalContentWide {
+  max-width: 640px !important;
+}
+
+.modalSelect {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  font-size: 13.5px;
+  font-weight: 500;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  appearance: auto;
+}
+
+.modalSelect:focus {
   border-color: var(--primary);
   background: var(--bg-panel-solid);
   box-shadow: 0 0 0 3.5px var(--primary-light);
   outline: none;
+}
+
+/* Trazabilidad Sanitaria y Badges */
+.traceabilityTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+.batchBadge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.expiryBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.expiryExpired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  animation: pulseAlert 2.5s infinite ease-in-out;
+}
+
+@keyframes pulseAlert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+.expiryUrgent {
+  background: rgba(245, 158, 11, 0.18);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.expiryWarning {
+  background: rgba(234, 179, 8, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.expiryValid {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.categoryBadge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2.5px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.catConsumible {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0284c7;
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+.catVentaDirecta {
+  background: rgba(168, 85, 247, 0.12);
+  color: #9333ea;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
+.catFarmaco {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0d9488;
+  border: 1px solid rgba(13, 148, 136, 0.25);
+}
+
+.catQuirurgico {
+  background: rgba(244, 63, 94, 0.12);
+  color: #e11d48;
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
+
+.supplierTag {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.locationTag {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pricingGrid {
+  border-top: 1px dashed var(--border-color);
+  padding-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  font-size: 12px;
+}
+
+.priceCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.priceColLabel {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.priceColValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.marginValue {
+  color: #10b981;
+}
+
+.cardActionButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.quickBtnEntry {
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.18s ease;
+}
+
+.quickBtnEntry:hover {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.quickBtnWaste {
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.18s ease;
+}
+
+.quickBtnWaste:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.secondaryActionsRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.adjustBtnSmall {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.adjustBtnSmall:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.editBtnSmall {
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.editBtnSmall:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Alerta Sanitaria Banner */
+.sanitaryBanner {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.08) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sanitaryBannerContent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sanitaryBannerIcon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.sanitaryBannerTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #b91c1c;
+  margin: 0 0 2px;
+}
+
+[data-theme="dark"] .sanitaryBannerTitle {
+  color: #f87171;
+}
+
+.sanitaryBannerDesc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Transacciones y Auditoría enriquecidas */
+.stockFlowCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+
+.stockPrev {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.stockArrow {
+  color: var(--text-secondary);
+}
+
+.stockNext {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.txTypeEntryBadge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.txTypeWasteBadge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+.txTypeSaleBadge {
+  background: rgba(168, 85, 247, 0.15);
+  color: #7e22ce;
+}
+
+.txTypeAdjustBadge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.txTypeReturnBadge {
+  background: rgba(14, 165, 233, 0.15);
+  color: #0284c7;
 }
 
 /* ==========================================

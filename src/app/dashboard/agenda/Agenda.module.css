@@ -527,24 +527,31 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding-left: 12px;
+  padding-left: 10px;
+  border-bottom: 1px dotted transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.hourRow:hover .quarter:not(:last-child) {
+  border-bottom: 1px dashed rgba(0, 130, 152, 0.22);
 }
 
 .quarter span {
   display: none;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--primary);
   background: var(--bg-panel-solid);
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   border: 1px solid var(--primary);
   box-shadow: var(--shadow-sm);
   pointer-events: none;
+  z-index: 5;
 }
 
 .quarter:hover {
-  background: var(--primary-light);
+  background: rgba(0, 130, 152, 0.12) !important;
 }
 
 .outsideShiftSlot {
@@ -559,11 +566,12 @@
 }
 
 .outsideShiftSlot:hover {
-  background: rgba(0, 143, 163, 0.12) !important;
+  background: rgba(0, 143, 163, 0.16) !important;
 }
 
 .quarter:hover span {
-  display: block;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Appointment Cards */
@@ -5166,4 +5174,117 @@
   border-width: 4px 0 4px 4px;
   border-style: solid;
   border-color: transparent transparent transparent var(--primary, #14b8a6);
+}
+
+/* Conflict and Overbooking Modal */
+.conflictModalCard {
+  width: 90%;
+  max-width: 520px;
+  background: var(--bg-panel-solid);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  border: 1.5px solid rgba(245, 158, 11, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.conflictModalHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.conflictIconBadge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.conflictModalTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.conflictModalSubtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.conflictModalBody {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.conflictAlertBox {
+  background: #fffbeb;
+  border: 1.5px solid #f59e0b;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.conflictNoticeText {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.conflictModalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-panel);
+}
+
+.conflictCancelBtn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-panel-solid);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.conflictCancelBtn:hover {
+  background: var(--bg-input);
+}
+
+.conflictProceedBtn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: none;
+  background: #d97706;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+
+.conflictProceedBtn:hover {
+  opacity: 0.9;
 }

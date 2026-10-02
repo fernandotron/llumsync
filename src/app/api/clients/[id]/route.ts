@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/crypto";
+import { authenticateApiRequest } from "@/lib/authGuard";
+import { logEhrAccess } from "@/lib/auditLogger";
 
 export async function GET(
   request: Request,
@@ -12,6 +14,9 @@ export async function GET(
     if (!id) {
       return NextResponse.json({ error: "Falta ID de cliente" }, { status: 400 });
     }
+
+    const auth = await authenticateApiRequest();
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const client = await prisma.client.findUnique({
       where: { id },
@@ -39,6 +44,13 @@ export async function GET(
         photos: {
           orderBy: { takenAt: "desc" },
         },
+        debts: {
+          orderBy: { date: "desc" },
+        },
+        budgets: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: "desc" },
+        },
         clinic: true,
         allowedUsers: {
           select: { id: true },
@@ -49,6 +61,20 @@ export async function GET(
     if (!client) {
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
     }
+
+    if (auth.user.role !== "ADMIN" && !auth.user.clinics.some((c) => c.id === client.clinicId)) {
+      return NextResponse.json({ error: "Acceso denegado a los datos de esta clínica" }, { status: 403 });
+    }
+
+    // Record EHR access audit log
+    await logEhrAccess({
+      clientId: client.id,
+      userId: auth.user.id,
+      userName: auth.user.name,
+      action: "VIEW",
+      details: "Consulta completa de historia clínica y ficha médica",
+      clinicId: client.clinicId,
+    });
 
     // Fetch signed documents using Prisma
     let rawDocs: any[] = [];
@@ -80,6 +106,9 @@ export async function PUT(
     if (!id) {
       return NextResponse.json({ error: "Falta ID de cliente" }, { status: 400 });
     }
+
+    const auth = await authenticateApiRequest();
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     // Helper to normalize DNI/NIF
     const normalizeDni = (s: string | null | undefined) => (s ? String(s).replace(/[\s\.\-\/]/g, "").toLowerCase() : "");
@@ -122,14 +151,9 @@ export async function PUT(
       }
     }
 
-    // Formatted DNI & IBAN encrypted
-    const finalDniNif = body.dniNif !== undefined 
-      ? (body.dniNif ? (typeof body.dniNif === "string" && body.dniNif.includes(":") ? body.dniNif : encrypt(body.dniNif)) : null)
-      : undefined;
-
-    const finalIban = body.iban !== undefined
-      ? (body.iban ? (typeof body.iban === "string" && body.iban.includes(":") ? body.iban : encrypt(body.iban)) : null)
-      : undefined;
+    // Set plaintext values; db extension will handle single AES-256 encryption safely
+    const finalDniNif = body.dniNif !== undefined ? (body.dniNif || null) : undefined;
+    const finalIban = body.iban !== undefined ? (body.iban || null) : undefined;
 
     const client = await prisma.client.update({
       where: { id },
@@ -190,6 +214,16 @@ export async function PUT(
       },
     });
 
+    // Record EHR update in audit log
+    await logEhrAccess({
+      clientId: client.id,
+      userId: auth.user.id,
+      userName: auth.user.name,
+      action: "UPDATE",
+      details: "Actualización de datos personales / historia clínica del paciente",
+      clinicId: client.clinicId,
+    });
+
     return NextResponse.json(client);
   } catch (error) {
     console.error("Error updating client:", error);
@@ -208,10 +242,31 @@ export async function DELETE(
       return NextResponse.json({ error: "Falta ID de cliente" }, { status: 400 });
     }
 
+    const auth = await authenticateApiRequest();
+    if ("errorResponse" in auth) return auth.errorResponse;
+
+    const existingClient = await prisma.client.findUnique({
+      where: { id },
+      select: { id: true, clinicId: true },
+    });
+
+    if (!existingClient) {
+      return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+    }
+
     // Soft delete — move to trash
     await prisma.client.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+
+    await logEhrAccess({
+      clientId: id,
+      userId: auth.user.id,
+      userName: auth.user.name,
+      action: "UPDATE",
+      details: "Envío del paciente a la papelera (soft delete)",
+      clinicId: existingClient.clinicId,
     });
 
     return NextResponse.json({ success: true, deletedId: id });

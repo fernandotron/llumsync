@@ -2,21 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { authenticateApiRequest } from "@/lib/authGuard";
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { searchParams } = new URL(request.url);
-    const clinicId = searchParams.get("clinicId");
-
-    const where: any = {};
-    if (clinicId) {
-      where.OR = [
-        { clinicId },
-        { clinicId: null }
-      ];
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ error: "Falta ID de servicio" }, { status: 400 });
     }
 
-    const services = await prisma.service.findMany({
-      where,
+    const service = await prisma.service.findUnique({
+      where: { id },
       include: {
         consumibles: {
           include: {
@@ -24,79 +21,46 @@ export async function GET(request: Request) {
           },
         },
       },
-      orderBy: { name: "asc" },
     });
-    return NextResponse.json(services);
-  } catch (error) {
-    console.error("Error fetching services:", error);
-    return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
-  }
-}
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { name, price, duration, color, category, description, type, tax, total, allowedUserIds, clinicId } = body;
+    if (!service) {
+      return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 });
+    }
 
-    const auth = await authenticateApiRequest(clinicId);
+    const auth = await authenticateApiRequest(service.clinicId);
     if ("errorResponse" in auth) {
       return auth.errorResponse;
     }
 
-    if (!name || price === undefined || !duration || !color) {
-      return NextResponse.json({ error: "Faltan datos obligatorios (nombre, precio, duración o color)" }, { status: 400 });
-    }
-
-    const service = await prisma.service.create({
-      data: {
-        name: name.trim(),
-        price: parseFloat(price) || 0,
-        duration: parseInt(duration) || 15,
-        color: color || "#3b82f6",
-        category: category?.trim() || null,
-        description: description?.trim() || null,
-        type: type || "Presencial",
-        tax: tax !== undefined ? parseFloat(tax) : 0,
-        total: total !== undefined ? parseFloat(total) : parseFloat(price) || 0,
-        allowedUserIds: allowedUserIds || "",
-        clinicId: clinicId || null,
-      },
-      include: {
-        consumibles: {
-          include: {
-            product: true,
-          },
-        },
-      },
-    });
-
     return NextResponse.json(service);
   } catch (error) {
-    console.error("Error creating service:", error);
+    console.error("Error fetching service by id:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const body = await request.json();
-    const { id, name, price, duration, color, category, description, type, tax, total, allowedUserIds, clinicId } = body;
-
+    const { id } = await params;
     if (!id) {
-      return NextResponse.json({ error: "Falta ID de servicio a actualizar" }, { status: 400 });
+      return NextResponse.json({ error: "Falta ID de servicio" }, { status: 400 });
     }
 
-    // Check existing service to verify clinic access
     const existing = await prisma.service.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 });
     }
 
-    const effectiveClinicId = clinicId || existing.clinicId;
-    const auth = await authenticateApiRequest(effectiveClinicId);
+    const auth = await authenticateApiRequest(existing.clinicId);
     if ("errorResponse" in auth) {
       return auth.errorResponse;
     }
+
+    const body = await request.json();
+    const { name, price, duration, color, category, description, type, tax, total, allowedUserIds, clinicId } = body;
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = name.trim();
@@ -111,7 +75,7 @@ export async function PUT(request: Request) {
     if (allowedUserIds !== undefined) updateData.allowedUserIds = allowedUserIds;
     if (clinicId !== undefined) updateData.clinicId = clinicId;
 
-    const service = await prisma.service.update({
+    const updated = await prisma.service.update({
       where: { id },
       data: updateData,
       include: {
@@ -123,19 +87,21 @@ export async function PUT(request: Request) {
       },
     });
 
-    return NextResponse.json(service);
+    return NextResponse.json(updated);
   } catch (error) {
-    console.error("Error updating service:", error);
+    console.error("Error updating service by id:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    const { id } = await params;
     if (!id) {
-      return NextResponse.json({ error: "Falta ID de servicio a eliminar" }, { status: 400 });
+      return NextResponse.json({ error: "Falta ID de servicio" }, { status: 400 });
     }
 
     const existing = await prisma.service.findUnique({
@@ -158,7 +124,6 @@ export async function DELETE(request: Request) {
       return auth.errorResponse;
     }
 
-    // Safety: prevent accidental wipe of historical appointment clinical history
     if (existing._count.appointments > 0) {
       return NextResponse.json(
         {
@@ -174,7 +139,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting service:", error);
+    console.error("Error deleting service by id:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }

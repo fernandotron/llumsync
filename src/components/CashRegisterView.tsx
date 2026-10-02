@@ -74,10 +74,15 @@ const parseNumber = (val: string | number | undefined): number => {
 export default function CashRegisterView() {
   const { activeClinic, user } = useApp();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"movements" | "debts">("movements");
+  const [activeTab, setActiveTab] = useState<"movements" | "debts" | "history">("movements");
 
   // State from API
   const [session, setSession] = useState<any>(null);
+  const [lastClosedSession, setLastClosedSession] = useState<any>(null);
+  const [closedSessions, setClosedSessions] = useState<any[]>([]);
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState<any>(null);
+  const [showSessionDetailModal, setShowSessionDetailModal] = useState(false);
+
   const [metrics, setMetrics] = useState({
     initialCash: 0,
     cashSalesTotal: 0,
@@ -125,6 +130,19 @@ export default function CashRegisterView() {
   // Pay Debt Form
   const [debtPayMethod, setDebtPayMethod] = useState("CASH");
 
+  const fetchClosedSessions = async () => {
+    if (!activeClinic?.id) return;
+    try {
+      const res = await fetch(`/api/cash-register/sessions?clinicId=${activeClinic.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setClosedSessions(data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching closed sessions:", err);
+    }
+  };
+
   const fetchCashState = async () => {
     if (!activeClinic?.id) return;
     setLoading(true);
@@ -133,10 +151,14 @@ export default function CashRegisterView() {
       if (res.ok) {
         const data = await res.json();
         setSession(data.activeSession);
+        setLastClosedSession(data.lastClosedSession || null);
         if (data.metrics) setMetrics(data.metrics);
         setMovements(data.movements || []);
         setDebts(data.pendingDebts || []);
       }
+
+      // Fetch closed sessions
+      fetchClosedSessions();
 
       // Fetch clients list for debt assignment dropdown
       const clientsRes = await fetch(`/api/clients?clinicId=${activeClinic.id}`);
@@ -343,9 +365,12 @@ export default function CashRegisterView() {
           toast.warning(`Caja cerrada con descuadre de ${disc > 0 ? "+" : ""}${disc.toFixed(2)} €`);
         }
         setShowCloseModal(false);
+        setSelectedSessionDetail(closed);
+        setShowSessionDetailModal(true);
         fetchCashState();
       } else {
-        toast.error("Error al cerrar la caja");
+        const errData = await res.json();
+        toast.error(errData.error || "Error al cerrar la caja");
       }
     } catch (err) {
       toast.error("Error de conexión");
@@ -394,6 +419,8 @@ export default function CashRegisterView() {
             <p className={styles.headerSub}>
               {isSessionOpen
                 ? `Abierta el ${new Date(session.openedAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} (Apertura: ${session.initialCash?.toFixed(2)} €)`
+                : lastClosedSession
+                ? `Último arqueo archivado: ${new Date(lastClosedSession.closedAt).toLocaleString("es-ES")} · Recuento: ${lastClosedSession.actualCash?.toFixed(2)} € (Descuadre: ${lastClosedSession.discrepancy > 0 ? "+" : ""}${lastClosedSession.discrepancy?.toFixed(2)} €)`
                 : "No hay sesión de caja abierta actualmente."}
             </p>
           </div>
@@ -416,6 +443,19 @@ export default function CashRegisterView() {
           >
             📊 Descargar Excel
           </button>
+
+          {!isSessionOpen && lastClosedSession && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setSelectedSessionDetail(lastClosedSession);
+                setShowSessionDetailModal(true);
+              }}
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              📄 Ver Último Arqueo
+            </button>
+          )}
 
           {!isSessionOpen ? (
             <button className="btn btn-primary" onClick={() => setShowOpenModal(true)}>
@@ -507,6 +547,15 @@ export default function CashRegisterView() {
               onClick={() => setActiveTab("debts")}
             >
               ⚠️ Deudas Pendientes de Clientes ({metrics.pendingDebtsCount})
+            </button>
+            <button
+              className={`${styles.tabBtn} ${activeTab === "history" ? styles.tabBtnActive : ""}`}
+              onClick={() => {
+                setActiveTab("history");
+                fetchClosedSessions();
+              }}
+            >
+              📜 Historial de Cierres y Arqueos ({closedSessions.length})
             </button>
           </div>
 
@@ -655,6 +704,87 @@ export default function CashRegisterView() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {activeTab === "history" && (
+          <div className={styles.tableContainer}>
+            {closedSessions.length === 0 ? (
+              <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: "30px 0" }}>
+                No hay cierres de caja archivados en el histórico.
+              </p>
+            ) : (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Fecha Cierre</th>
+                    <th>Apertura</th>
+                    <th>Responsable Cierre</th>
+                    <th>Fondo Inicial</th>
+                    <th>Teórico</th>
+                    <th>Recuento Real</th>
+                    <th>Descuadre</th>
+                    <th>TPV Tarjeta</th>
+                    <th>Notas</th>
+                    <th style={{ textAlign: "center" }}>Ticket Arqueo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {closedSessions.map((s) => {
+                    const diff = s.discrepancy || 0;
+                    return (
+                      <tr key={s.id}>
+                        <td>
+                          {s.closedAt ? new Date(s.closedAt).toLocaleDateString("es-ES") : "-"}
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>
+                            {s.closedAt ? new Date(s.closedAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : ""}
+                          </span>
+                        </td>
+                        <td>
+                          {new Date(s.openedAt).toLocaleDateString("es-ES")}
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block" }}>
+                            {new Date(s.openedAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>
+                          {s.closedByUser?.name || s.openedByUser?.name || "Personal Clínica"}
+                        </td>
+                        <td>{s.initialCash?.toFixed(2)} €</td>
+                        <td>{s.expectedCash?.toFixed(2)} €</td>
+                        <td style={{ fontWeight: 700, color: "#4f46e5" }}>
+                          {s.actualCash !== null && s.actualCash !== undefined ? `${s.actualCash.toFixed(2)} €` : "-"}
+                        </td>
+                        <td>
+                          {Math.abs(diff) < 0.01 ? (
+                            <span className={styles.badgeDiscrepancyZero}>0.00 € (OK)</span>
+                          ) : diff < 0 ? (
+                            <span className={styles.badgeDiscrepancyNeg}>{diff.toFixed(2)} €</span>
+                          ) : (
+                            <span className={styles.badgeDiscrepancyPos}>+{diff.toFixed(2)} €</span>
+                          )}
+                        </td>
+                        <td>{s.cardTotal?.toFixed(2)} €</td>
+                        <td style={{ fontSize: "12px", maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {s.notes || "-"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ fontSize: "12px", padding: "4px 10px" }}
+                            onClick={() => {
+                              setSelectedSessionDetail(s);
+                              setShowSessionDetailModal(true);
+                            }}
+                          >
+                            📄 Ver Ticket
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -965,6 +1095,148 @@ export default function CashRegisterView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL: TICKET DE ARQUEO / INFORME DE CIERRE */}
+      {showSessionDetailModal && selectedSessionDetail && typeof window !== "undefined" && createPortal(
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalBox} style={{ maxWidth: "580px", padding: "26px" }}>
+            <div className={styles.printableTicketArea}>
+              <div className={styles.ticketHeader}>
+                <h3 className={styles.ticketTitle}>🏥 {activeClinic?.name || "Clínica Médica"}</h3>
+                <p className={styles.ticketSubtitle}>
+                  {activeClinic?.address || "Centro Médico"}
+                  {activeClinic?.phone ? ` · Tel: ${activeClinic.phone}` : ""}
+                </p>
+                <div style={{ marginTop: "10px", fontWeight: 900, fontSize: "15px", color: "var(--text-primary)", letterSpacing: "0.4px" }}>
+                  INFORME DE ARQUEO Y CIERRE DE CAJA
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                  Ref. Sesión: #{selectedSessionDetail.id?.slice(0, 8).toUpperCase()}
+                </div>
+              </div>
+
+              <div className={styles.ticketRow}>
+                <span>Apertura de Caja:</span>
+                <strong>{new Date(selectedSessionDetail.openedAt).toLocaleString("es-ES")}</strong>
+              </div>
+              <div className={styles.ticketRow}>
+                <span>Cierre de Caja:</span>
+                <strong>{selectedSessionDetail.closedAt ? new Date(selectedSessionDetail.closedAt).toLocaleString("es-ES") : "En curso"}</strong>
+              </div>
+              <div className={styles.ticketRow}>
+                <span>Apertura realizada por:</span>
+                <strong>{selectedSessionDetail.openedByUser?.name || "Personal de clínica"}</strong>
+              </div>
+              <div className={styles.ticketRow}>
+                <span>Cierre realizado por:</span>
+                <strong>{selectedSessionDetail.closedByUser?.name || user?.name || "Personal de clínica"}</strong>
+              </div>
+
+              <div className={styles.ticketDivider} />
+
+              <div className={styles.ticketRow}>
+                <span>Fondo Inicial de Caja:</span>
+                <strong>{selectedSessionDetail.initialCash?.toFixed(2)} €</strong>
+              </div>
+              <div className={styles.ticketRow}>
+                <span>Total Cobros Tarjeta (TPV):</span>
+                <strong>{selectedSessionDetail.cardTotal?.toFixed(2)} €</strong>
+              </div>
+              <div className={styles.ticketRow}>
+                <span>Total Cobros Transferencia:</span>
+                <strong>{selectedSessionDetail.transferTotal?.toFixed(2)} €</strong>
+              </div>
+              <div className={styles.ticketRow}>
+                <span>Saldo Teórico Esperado en Caja:</span>
+                <strong>{selectedSessionDetail.expectedCash?.toFixed(2)} €</strong>
+              </div>
+
+              <div className={styles.ticketDivider} />
+
+              <div className={styles.ticketRow} style={{ fontSize: "15px", fontWeight: 800 }}>
+                <span>Recuento Real Físico (Efectivo):</span>
+                <span style={{ color: "#4f46e5" }}>
+                  {selectedSessionDetail.actualCash !== null && selectedSessionDetail.actualCash !== undefined
+                    ? `${selectedSessionDetail.actualCash.toFixed(2)} €`
+                    : "-"}
+                </span>
+              </div>
+
+              <div className={styles.ticketRow} style={{ fontSize: "14px", fontWeight: 800 }}>
+                <span>Descuadre de Caja:</span>
+                {(() => {
+                  const diff = selectedSessionDetail.discrepancy || 0;
+                  if (Math.abs(diff) < 0.01) {
+                    return <span style={{ color: "#16a34a" }}>0.00 € (Sin descuadre ✨)</span>;
+                  }
+                  if (diff < 0) {
+                    return <span style={{ color: "#dc2626" }}>{diff.toFixed(2)} € (Faltante ⚠️)</span>;
+                  }
+                  return <span style={{ color: "#ca8a04" }}>+{diff.toFixed(2)} € (Sobrante ℹ️)</span>;
+                })()}
+              </div>
+
+              {/* Desglose de billetes y monedas */}
+              {(() => {
+                let denoms: Record<string, number> = {};
+                try {
+                  denoms = typeof selectedSessionDetail.denominations === "string"
+                    ? JSON.parse(selectedSessionDetail.denominations || "{}")
+                    : (selectedSessionDetail.denominations || {});
+                } catch {
+                  denoms = {};
+                }
+                const activeDenoms = Object.entries(denoms).filter(([, count]) => count > 0);
+                if (activeDenoms.length === 0) return null;
+
+                return (
+                  <div style={{ marginTop: "12px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px" }}>
+                      Recuento Físico por Billetes y Monedas:
+                    </div>
+                    <div className={styles.ticketDenomList}>
+                      {activeDenoms.map(([k, count]) => {
+                        const denomObj = BILL_COIN_DENOMINATIONS.find((d) => d.key === k);
+                        const val = denomObj ? denomObj.value * count : 0;
+                        return (
+                          <div key={k}>
+                            <strong>{denomObj?.label || k}:</strong> {count} ud. ({val.toFixed(2)} €)
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {selectedSessionDetail.notes && (
+                <div style={{ marginTop: "14px", fontSize: "12px", background: "var(--bg-input)", padding: "8px 12px", borderRadius: "8px" }}>
+                  <strong>Observaciones:</strong> {selectedSessionDetail.notes}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "22px" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowSessionDetailModal(false)}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => window.print()}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                🖨️ Imprimir Ticket de Arqueo
+              </button>
+            </div>
           </div>
         </div>,
         document.body

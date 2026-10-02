@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { sessionId, actualCash, denominations, notes, closedByUserId } = body;
+    const { sessionId, actualCash, denominations, notes } = body;
 
     if (!sessionId) {
       return NextResponse.json({ error: "Falta sessionId" }, { status: 400 });
@@ -18,13 +19,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Sesión de caja no encontrada" }, { status: 404 });
     }
 
+    const auth = await authenticateApiRequest(session.clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
+
+    if (session.status === "CLOSED") {
+      return NextResponse.json(
+        { error: "Esta sesión de caja ya fue cerrada con anterioridad." },
+        { status: 400 }
+      );
+    }
+
     // Calculate sales and movements for this session
-    const startOfDay = new Date(session.openedAt);
+    const sessionStart = new Date(session.openedAt);
 
     const sales = await prisma.sale.findMany({
       where: {
         clinicId: session.clinicId,
-        createdAt: { gte: startOfDay },
+        createdAt: { gte: sessionStart },
       },
     });
 
@@ -35,14 +46,14 @@ export async function POST(request: Request) {
     sales.forEach((s: any) => {
       if (s.paymentMethod === "CASH") cashSalesTotal += s.total;
       else if (s.paymentMethod === "CARD") cardSalesTotal += s.total;
-      else if (s.paymentMethod === "TRANSFER") transferSalesTotal += s.total;
-      else cashSalesTotal += s.total;
+      else if (s.paymentMethod === "TRANSFER" || s.paymentMethod === "BIZUM") transferSalesTotal += s.total;
+      else cardSalesTotal += s.total;
     });
 
     const movements = await prisma.movement.findMany({
       where: {
         clinicId: session.clinicId,
-        date: { gte: startOfDay },
+        date: { gte: sessionStart },
       },
     });
 
@@ -66,7 +77,7 @@ export async function POST(request: Request) {
       data: {
         status: "CLOSED",
         closedAt: new Date(),
-        closedByUserId: closedByUserId || null,
+        closedByUserId: auth.user.id,
         expectedCash,
         actualCash: countActual,
         cardTotal: cardSalesTotal,

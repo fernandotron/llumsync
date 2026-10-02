@@ -36,21 +36,7 @@ export async function getSessionUser(): Promise<AuthenticatedUser | null> {
       if (user) return user;
     }
 
-    // Fallback: Return first available active user/admin to prevent session disruption for active sessions
-    const fallbackUser = await prisma.user.findFirst({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        permissionsJson: true,
-        clinics: {
-          select: { id: true, name: true }
-        }
-      }
-    });
-
-    return fallbackUser || null;
+    return null;
   } catch (error) {
     console.error("Error getting session user:", error);
     return null;

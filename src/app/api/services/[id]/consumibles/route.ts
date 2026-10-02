@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 // GET /api/services/[id]/consumibles
 export async function GET(
@@ -8,6 +9,19 @@ export async function GET(
 ) {
   try {
     const { id: serviceId } = await params;
+    
+    const service = await prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { clinicId: true },
+    });
+
+    if (service?.clinicId) {
+      const auth = await authenticateApiRequest(service.clinicId);
+      if ("errorResponse" in auth) {
+        return auth.errorResponse;
+      }
+    }
+
     const consumibles = await prisma.serviceProduct.findMany({
       where: { serviceId },
       include: {
@@ -40,6 +54,11 @@ export async function POST(
       return NextResponse.json({ error: "Faltan datos obligatorios (productId, cantidad y clinicId)" }, { status: 400 });
     }
 
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
+    }
+
     const qty = parseInt(quantity);
     if (qty <= 0) {
       return NextResponse.json({ error: "La cantidad debe ser mayor a cero" }, { status: 400 });
@@ -60,6 +79,9 @@ export async function POST(
         productId,
         quantity: qty,
         clinicId,
+      },
+      include: {
+        product: true,
       },
     });
 
@@ -82,6 +104,18 @@ export async function DELETE(
 
     if (!productId) {
       return NextResponse.json({ error: "Falta productId" }, { status: 400 });
+    }
+
+    const service = await prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { clinicId: true },
+    });
+
+    if (service?.clinicId) {
+      const auth = await authenticateApiRequest(service.clinicId);
+      if ("errorResponse" in auth) {
+        return auth.errorResponse;
+      }
     }
 
     await prisma.serviceProduct.delete({

@@ -223,6 +223,43 @@ export async function POST(request: Request) {
       return NextResponse.json(existingRecent);
     }
 
+    const endDateObj = new Date(end);
+
+    // Agenda Conflict Detection: Verify practitioner availability in timeframe
+    if (!body.allowConflict) {
+      const conflictApp = await prisma.appointment.findFirst({
+        where: {
+          clinicId,
+          userId,
+          deletedAt: null,
+          status: { not: "CANCELLED" },
+          AND: [
+            { start: { lt: endDateObj } },
+            { end: { gt: startDateObj } },
+          ],
+        },
+        include: {
+          client: { select: { firstName: true, lastName: true } },
+          service: { select: { name: true } },
+          user: { select: { name: true } },
+        },
+      });
+
+      if (conflictApp) {
+        const clientName = `${conflictApp.client?.firstName || ""} ${conflictApp.client?.lastName || ""}`.trim();
+        const startTime = new Date(conflictApp.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        const endTime = new Date(conflictApp.end).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        return NextResponse.json(
+          {
+            error: "CONFLICT",
+            message: `Conflicto de agenda: El profesional ${conflictApp.user?.name || ""} ya tiene una cita reservada ("${conflictApp.service?.name || "Servicio"}" con ${clientName || "Paciente"}) de ${startTime} a ${endTime}.`,
+            conflictAppointment: conflictApp,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Fetch service and user names for the log snapshot
     const [service, user] = await Promise.all([
       prisma.service.findUnique({ where: { id: serviceId } }),
@@ -236,7 +273,7 @@ export async function POST(request: Request) {
         serviceId,
         clinicId,
         start: startDateObj,
-        end: new Date(end),
+        end: endDateObj,
         notes,
         status: status || "PENDING",
         tags,
@@ -299,6 +336,47 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 });
     }
 
+    const nextStart = start ? new Date(start) : current.start;
+    const nextEnd = end ? new Date(end) : current.end;
+    const nextUserId = userId || current.userId;
+    const nextStatus = status || current.status;
+
+    // Check conflict if rescheduling time or reassigning practitioner
+    if (!body.allowConflict && nextStatus !== "CANCELLED" && (start || end || userId)) {
+      const conflictApp = await prisma.appointment.findFirst({
+        where: {
+          id: { not: id },
+          clinicId: clinicId || current.clinicId,
+          userId: nextUserId,
+          deletedAt: null,
+          status: { not: "CANCELLED" },
+          AND: [
+            { start: { lt: nextEnd } },
+            { end: { gt: nextStart } },
+          ],
+        },
+        include: {
+          client: { select: { firstName: true, lastName: true } },
+          service: { select: { name: true } },
+          user: { select: { name: true } },
+        },
+      });
+
+      if (conflictApp) {
+        const clientName = `${conflictApp.client?.firstName || ""} ${conflictApp.client?.lastName || ""}`.trim();
+        const startTime = new Date(conflictApp.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        const endTime = new Date(conflictApp.end).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        return NextResponse.json(
+          {
+            error: "CONFLICT",
+            message: `Conflicto de agenda: El profesional ya tiene una cita reservada de ${startTime} a ${endTime} con ${clientName || "Paciente"}.`,
+            conflictAppointment: conflictApp,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const updateData: any = {};
     if (status) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
@@ -326,40 +404,89 @@ export async function PUT(request: Request) {
         translateStatus(status)
       );
 
-
-      // Descuento automático de stock si la cita pasa a COMPLETADA
-      if (status === "COMPLETED") {
+      // Descuento automático de stock SOLO si la cita pasa a COMPLETADA por primera vez
+      if (status === "COMPLETED" && current.status !== "COMPLETED") {
         try {
           const consumibles = await prisma.serviceProduct.findMany({
             where: { serviceId: appointment.serviceId },
+            include: { product: true },
           });
 
           for (const item of consumibles) {
+            const currentStock = item.product.stock;
+            const updatedStock = Math.max(0, currentStock - item.quantity);
+
             // Descontar stock
             await prisma.inventoryProduct.update({
               where: { id: item.productId },
               data: {
-                stock: {
-                  decrement: item.quantity
-                }
-              }
+                stock: updatedStock,
+              },
             });
 
-            // Registrar transacción de salida automática
+            // Registrar transacción de salida automática con trazabilidad
             const pacienteName = `${appointment.client?.firstName || ""} ${appointment.client?.lastName || ""}`.trim();
             await prisma.inventoryTransaction.create({
               data: {
                 productId: item.productId,
-                type: "CONSUMPTION",
+                type: "CONSUMO_CITA",
                 quantity: item.quantity,
-                notes: `Consumo automático por cita completada de ${pacienteName} en el servicio ${appointment.service?.name || "General"}`,
+                previousStock: currentStock,
+                newStock: updatedStock,
+                batchNumber: item.product.batchNumber,
+                expirationDate: item.product.expirationDate,
+                costPrice: item.product.costPrice,
+                notes: `Consumo clínico automático por cita completada de ${pacienteName} en el servicio ${appointment.service?.name || "General"}`,
                 clinicId: appointment.clinicId,
                 userId: actorId || null,
-              }
+              },
             });
           }
         } catch (stockErr) {
           console.error("Error automatically deducting stock for completed appointment:", stockErr);
+        }
+      }
+
+      // Reversión automática de stock si la cita se desmarca de COMPLETADA
+      if (current.status === "COMPLETED" && status !== "COMPLETED") {
+        try {
+          const consumibles = await prisma.serviceProduct.findMany({
+            where: { serviceId: current.serviceId },
+            include: { product: true },
+          });
+
+          for (const item of consumibles) {
+            const currentStock = item.product.stock;
+            const updatedStock = currentStock + item.quantity;
+
+            // Reponer stock
+            await prisma.inventoryProduct.update({
+              where: { id: item.productId },
+              data: {
+                stock: updatedStock,
+              },
+            });
+
+            // Registrar transacción de reingreso automático
+            const pacienteName = `${appointment.client?.firstName || ""} ${appointment.client?.lastName || ""}`.trim();
+            await prisma.inventoryTransaction.create({
+              data: {
+                productId: item.productId,
+                type: "DEVOLUCION",
+                quantity: item.quantity,
+                previousStock: currentStock,
+                newStock: updatedStock,
+                batchNumber: item.product.batchNumber,
+                expirationDate: item.product.expirationDate,
+                costPrice: item.product.costPrice,
+                notes: `Devolución de stock por cambio de estado de cita (de Asistió a ${translateStatus(status)}) de ${pacienteName}`,
+                clinicId: appointment.clinicId,
+                userId: actorId || null,
+              },
+            });
+          }
+        } catch (stockErr) {
+          console.error("Error restoring stock on appointment status revert:", stockErr);
         }
       }
     }

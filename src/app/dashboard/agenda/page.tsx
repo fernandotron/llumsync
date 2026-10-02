@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
+import * as XLSX from "xlsx";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { translate } from "@/lib/translations";
@@ -33,6 +34,10 @@ interface Client {
   province?: string;
   landline?: string;
   dniNif?: string;
+  allergies?: string | null;
+  medication?: string | null;
+  medicalHistory?: string | null;
+  aestheticTreatments?: string | null;
 }
 
 interface User {
@@ -468,6 +473,95 @@ export default function AgendaPage() {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   };
+
+  const handleExportAgendaExcel = () => {
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+
+    const targetStaffIds = printCheckedStaffIds.length > 0 ? printCheckedStaffIds : checkedStaffIds;
+    const filteredStaff = staffList.filter((s) => targetStaffIds.includes(s.id));
+
+    const rows: any[] = [];
+
+    const getStatusLabel = (s: string) => {
+      const map: Record<string, string> = {
+        PENDING: "Pendiente",
+        CONFIRMED: "Confirmada",
+        COMPLETED: "Asistió",
+        CANCELLED: "Cancelada",
+        NOSHOW: "No asistió",
+      };
+      return map[s] || s;
+    };
+
+    filteredStaff.forEach((staff) => {
+      let staffApps = appointments.filter((app) => app.userId === staff.id);
+
+      if (!printCitasAnteriores && (view === "week" || view === "month")) {
+        staffApps = staffApps.filter((app) => {
+          const appDate = new Date(app.start);
+          return appDate.getTime() >= todayMidnight.getTime();
+        });
+      }
+
+      staffApps.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+      staffApps.forEach((app) => {
+        const startD = new Date(app.start);
+        const endD = new Date(app.end);
+        const startH = String(startD.getHours()).padStart(2, "0") + ":" + String(startD.getMinutes()).padStart(2, "0");
+        const endH = String(endD.getHours()).padStart(2, "0") + ":" + String(endD.getMinutes()).padStart(2, "0");
+        const durationMin = Math.round((endD.getTime() - startD.getTime()) / 60000);
+
+        const clientName = `${app.client.firstName} ${app.client.lastName || ""}`.trim();
+        const staffName = `${staff.name} ${staff.lastName || ""}`.trim();
+
+        const medicalAlerts = [
+          app.client.allergies ? `Alergias: ${app.client.allergies}` : null,
+          app.client.medicalHistory ? `Antecedentes: ${app.client.medicalHistory}` : null,
+          app.client.medication ? `Medicación: ${app.client.medication}` : null,
+        ].filter(Boolean).join(" | ");
+
+        rows.push({
+          "Profesional": staffName,
+          "Fecha": startD.toLocaleDateString("es-ES"),
+          "Hora Inicio": startH,
+          "Hora Fin": endH,
+          "Duración (min)": durationMin,
+          "Estado": getStatusLabel(app.status),
+          "Paciente": clientName,
+          "Teléfono": app.client.phone || "",
+          "Email": app.client.email || "",
+          "DNI / NIF": app.client.dniNif || "",
+          "Servicio": app.service?.name || "",
+          "Precio": app.service?.price !== undefined ? `${app.service.price.toFixed(2)} €` : "",
+          "Alertas Clínicas": medicalAlerts || "Ninguna",
+          "Etiquetas Cita": app.tags ? app.tags.split(",").map((t) => t.split(":")[0]).join(", ") : "",
+          "Etiquetas Paciente": app.client.tags || "",
+          "Notas": app.notes || "",
+        });
+      });
+    });
+
+    if (rows.length === 0) {
+      toast.warning("No hay citas para exportar en la selección actual.");
+      return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Parte Diario");
+
+    const keys = Object.keys(rows[0] || {});
+    worksheet["!cols"] = keys.map((k) => ({
+      wch: Math.max(k.length + 4, 14),
+    }));
+
+    const clinicSlug = activeClinic?.name ? activeClinic.name.replace(/\s+/g, "_") : "Clinica";
+    const dateFormatted = currentDate.toISOString().split("T")[0];
+    XLSX.writeFile(workbook, `Parte_Consultas_${clinicSlug}_${dateFormatted}.xlsx`);
+    toast.success("Excel (.xlsx) del parte diario descargado correctamente.");
+  };
   
   // State
   const [draggedApp, setDraggedApp] = useState<Appointment | null>(null);
@@ -748,6 +842,11 @@ export default function AgendaPage() {
   const [formPatLandline, setFormPatLandline] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; userId: string } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [conflictModalData, setConflictModalData] = useState<{
+    isOpen: boolean;
+    message: string;
+    onProceed: () => Promise<void>;
+  } | null>(null);
 
   // Time Block Modals & Form State
   const [timeBlocks, setTimeBlocks] = useState<any[]>([]);
@@ -1951,17 +2050,40 @@ export default function AgendaPage() {
     const timeFormatted = startD.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
     const longDateFormatted = startD.toLocaleDateString("es-ES", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     
+    const staffFullName = app.user ? `${app.user.name} ${app.user.lastName || ""}`.trim() : "";
+    const clientFullName = `${app.client?.firstName || ""} ${app.client?.lastName || ""}`.trim();
+    const clinicName = app.clinic?.name || activeClinic?.name || "Clifav";
+
     const vars: Record<string, string> = {
+      // Direct standard and friendly aliases
+      "{{Nombre}}": app.client?.firstName || "",
+      "{{nombre}}": app.client?.firstName || "",
+      "{{Apellidos}}": app.client?.lastName || "",
+      "{{apellidos}}": app.client?.lastName || "",
+      "{{Paciente}}": clientFullName,
+      "{{paciente}}": clientFullName,
+      "{{Fecha}}": dateFormatted,
+      "{{fecha}}": dateFormatted,
+      "{{Hora}}": timeFormatted,
+      "{{hora}}": timeFormatted,
+      "{{Servicio}}": app.service?.name || "",
+      "{{servicio}}": app.service?.name || "",
+      "{{Profesional}}": staffFullName,
+      "{{profesional}}": staffFullName,
+      "{{Clinica}}": clinicName,
+      "{{clinica}}": clinicName,
+
+      // Detailed DocFav variables
       "{{Cliente:Nombre}}": app.client?.firstName || "",
       "{{Cliente:Apellidos}}": app.client?.lastName || "",
       "{{Cliente:Dirección_Cliente}}": app.client?.address || "",
-      "{{Nombre_Consulta}}": app.clinic?.name || activeClinic?.name || "",
+      "{{Nombre_Consulta}}": clinicName,
       "{{Dirección_Consulta}}": app.clinic?.address || activeClinic?.address || "",
       "{{Fecha_Hora_Cita}}": `${dateFormatted} a las ${timeFormatted}`,
       "{{Fecha_larga}}": longDateFormatted,
       "{{Hora_Cita}}": timeFormatted,
       "{{Nombre_Servicio}}": app.service?.name || "",
-      "{{Empleado_Nombre_Completo}}": app.user ? `${app.user.name} ${app.user.lastName || ""}`.trim() : "",
+      "{{Empleado_Nombre_Completo}}": staffFullName,
       "{{Empleado_Nombre}}": app.user?.name || "",
       "{{Empleado_Apellidos}}": app.user?.lastName || "",
       "{{Empleado_Correo}}": app.user?.email || "",
@@ -2004,11 +2126,13 @@ export default function AgendaPage() {
     if (matchingReminder) {
       message = getFormattedReminderMessage(matchingReminder.message, app);
     } else {
-      // Mensaje genérico por defecto
+      // Mensaje genérico por defecto enriquecido con profesional y clínica
       const startD = new Date(app.start);
       const timeFormatted = startD.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       const dateFormatted = startD.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
-      message = `Hola ${app.client.firstName}, te recordamos tu cita para ${app.service.name} el día ${dateFormatted} a las ${timeFormatted}. ¡Te esperamos!`;
+      const profStr = app.user ? ` con ${app.user.name}` : "";
+      const clinicStr = app.clinic?.name || activeClinic?.name || "Clifav";
+      message = `Hola ${app.client.firstName}, te recordamos tu cita para ${app.service.name}${profStr} en ${clinicStr} el día ${dateFormatted} a las ${timeFormatted}. ¡Te esperamos!`;
     }
 
     const isAppMode = activeClinic?.defaultWhatsappMode === "App";
@@ -2378,7 +2502,7 @@ export default function AgendaPage() {
         endDateTime = new Date(startDateTime.getTime() + duration * 60000);
       }
 
-      const payload = {
+      const payload: any = {
         clientId: clientIdToUse,
         userId: formUserId,
         serviceId: formServiceId,
@@ -2431,7 +2555,36 @@ export default function AgendaPage() {
         }
         return createdApp;
       } else {
-        toast.error("Error al reservar la cita");
+        const errorData = await res.json().catch(() => ({}));
+        if (res.status === 409 && errorData.error === "CONFLICT") {
+          setConflictModalData({
+            isOpen: true,
+            message: errorData.message || "Conflicto de agenda detectado.",
+            onProceed: async () => {
+              setConflictModalData(null);
+              payload.allowConflict = true;
+              const forceRes = await fetch("/api/appointments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              if (forceRes.ok) {
+                const createdApp = await forceRes.json();
+                setShowCreateModal(false);
+                fetchAppointments();
+                triggerAutoSync();
+                toast.success("Cita guardada con sobrecita / solapamiento.");
+                if (andCheckout) {
+                  window.location.href = `/dashboard/sales?clientId=${createdApp.clientId}&serviceId=${createdApp.serviceId}&appointmentId=${createdApp.id}`;
+                }
+              } else {
+                toast.error("Error al forzar la sobrecita.");
+              }
+            }
+          });
+          return null;
+        }
+        toast.error(errorData.message || "Error al reservar la cita");
         return null;
       }
     } catch (err) {
@@ -2488,7 +2641,7 @@ export default function AgendaPage() {
 
     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
 
-    const payload = {
+    const payload: any = {
       id: selectedAppointment.id,
       userId: formUserId,
       serviceId: formServiceId,
@@ -2527,6 +2680,37 @@ export default function AgendaPage() {
       if (shouldRedirectToCaja) {
         window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${formServiceId}&appointmentId=${selectedAppointment.id}`;
       }
+    } else {
+      const errorData = await res.json().catch(() => ({}));
+      if (res.status === 409 && errorData.error === "CONFLICT") {
+        setConflictModalData({
+          isOpen: true,
+          message: errorData.message || "Conflicto de agenda detectado.",
+          onProceed: async () => {
+            setConflictModalData(null);
+            payload.allowConflict = true;
+            const forceRes = await fetch("/api/appointments", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (forceRes.ok) {
+              setShowEditModal(false);
+              setIsEditingApp(false);
+              fetchAppointments();
+              triggerAutoSync();
+              toast.success("Cita actualizada con sobrecita / solapamiento.");
+              if (shouldRedirectToCaja) {
+                window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${formServiceId}&appointmentId=${selectedAppointment.id}`;
+              }
+            } else {
+              toast.error("Error al forzar la sobrecita.");
+            }
+          }
+        });
+        return;
+      }
+      toast.error(errorData.message || "Error al actualizar la cita.");
     }
   };
 
@@ -2539,6 +2723,8 @@ export default function AgendaPage() {
     }
 
     if (confirm("¿Estás seguro de que deseas cancelar y eliminar esta cita?")) {
+      const deletedSlotService = selectedAppointment.serviceId;
+      const deletedSlotUser = selectedAppointment.userId;
       const userNameQuery = currentUser ? encodeURIComponent(currentUser.name) : "Sistema";
       const userIdQuery = currentUser?.id || "";
       const res = await fetch(`/api/appointments/${selectedAppointment.id}?userName=${userNameQuery}&userId=${userIdQuery}`, {
@@ -2549,6 +2735,21 @@ export default function AgendaPage() {
         setShowEditModal(false);
         fetchAppointments();
         triggerAutoSync();
+        toast.success("Cita cancelada correctamente.");
+
+        // Check if there are waitlist entries waiting for this service or user
+        const matchingWaitlist = waitlist.filter((w) =>
+          (!w.serviceId || w.serviceId === deletedSlotService) &&
+          (!w.userId || w.userId === deletedSlotUser)
+        );
+
+        if (matchingWaitlist.length > 0) {
+          toast.info(
+            `Hueco liberado: Hay ${matchingWaitlist.length} paciente(s) en lista de espera para este servicio. Abre la "Lista de espera" para asignar el turno.`,
+            "Lista de Espera",
+            8000
+          );
+        }
       }
     }
   };
@@ -3427,6 +3628,27 @@ export default function AgendaPage() {
                               );
                             })}
                             <span>{app.client.firstName} {app.client.lastName}</span>
+                            {(app.client.allergies || app.client.medicalHistory) && (
+                              <span 
+                                title={`ALERTA MÉDICA: ${[app.client.allergies ? `Alergias: ${app.client.allergies}` : null, app.client.medicalHistory ? `Antecedentes: ${app.client.medicalHistory}` : null].filter(Boolean).join(" · ")}`}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: "#fee2e2",
+                                  color: "#dc2626",
+                                  borderRadius: "4px",
+                                  padding: "0 3px",
+                                  fontSize: "10px",
+                                  fontWeight: "bold",
+                                  lineHeight: "14px",
+                                  marginLeft: "3px",
+                                  cursor: "help"
+                                }}
+                              >
+                                ⚠️
+                              </span>
+                            )}
                           </div>
                           <span className={`${styles.statusDot} ${styles[app.status.toLowerCase()]}`} style={{ flexShrink: 0, marginLeft: "6px" }}></span>
                           {savingAppIds.includes(app.id) && (
@@ -3507,6 +3729,31 @@ export default function AgendaPage() {
                                 </div>
                                 <div className={styles.tooltipNotesContent}>
                                   {app.notes}
+                                </div>
+                              </div>
+                            </>
+                          )}
+
+                          {(app.client.allergies || app.client.medicalHistory || app.client.medication) && (
+                            <>
+                              <div className={styles.tooltipDivider} />
+                              <div style={{
+                                padding: "6px 8px",
+                                background: "#fef2f2",
+                                border: "1px solid #ef4444",
+                                borderRadius: "6px",
+                                color: "#991b1b",
+                                fontSize: "11px",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "6px"
+                              }}>
+                                <span style={{ fontSize: "14px", lineHeight: 1 }}>⚠️</span>
+                                <div style={{ flex: 1 }}>
+                                  <strong style={{ display: "block", color: "#b91c1c", fontSize: "10px", textTransform: "uppercase" }}>Alerta Médica:</strong>
+                                  {app.client.allergies && <div><strong>Alergias:</strong> {app.client.allergies}</div>}
+                                  {app.client.medicalHistory && <div><strong>Antecedentes:</strong> {app.client.medicalHistory}</div>}
+                                  {app.client.medication && <div><strong>Medicación:</strong> {app.client.medication}</div>}
                                 </div>
                               </div>
                             </>
@@ -3903,6 +4150,27 @@ export default function AgendaPage() {
                                       );
                                     })}
                                     <span>{app.client.firstName} {app.client.lastName}</span>
+                                    {(app.client.allergies || app.client.medicalHistory) && (
+                                      <span 
+                                        title={`ALERTA MÉDICA: ${[app.client.allergies ? `Alergias: ${app.client.allergies}` : null, app.client.medicalHistory ? `Antecedentes: ${app.client.medicalHistory}` : null].filter(Boolean).join(" · ")}`}
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          background: "#fee2e2",
+                                          color: "#dc2626",
+                                          borderRadius: "4px",
+                                          padding: "0 3px",
+                                          fontSize: "10px",
+                                          fontWeight: "bold",
+                                          lineHeight: "14px",
+                                          marginLeft: "3px",
+                                          cursor: "help"
+                                        }}
+                                      >
+                                        ⚠️
+                                      </span>
+                                    )}
                                     {savingAppIds.includes(app.id) && (
                                       <svg className={styles.spinningIconMini} viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "4px", opacity: 0.8 }}>
                                         <line x1="12" y1="2" x2="12" y2="6"></line>
@@ -3982,6 +4250,31 @@ export default function AgendaPage() {
                                         </div>
                                         <div className={styles.tooltipNotesContent}>
                                           {app.notes}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {(app.client.allergies || app.client.medicalHistory || app.client.medication) && (
+                                    <>
+                                      <div className={styles.tooltipDivider} />
+                                      <div style={{
+                                        padding: "6px 8px",
+                                        background: "#fef2f2",
+                                        border: "1px solid #ef4444",
+                                        borderRadius: "6px",
+                                        color: "#991b1b",
+                                        fontSize: "11px",
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        gap: "6px"
+                                      }}>
+                                        <span style={{ fontSize: "14px", lineHeight: 1 }}>⚠️</span>
+                                        <div style={{ flex: 1 }}>
+                                          <strong style={{ display: "block", color: "#b91c1c", fontSize: "10px", textTransform: "uppercase" }}>Alerta Médica:</strong>
+                                          {app.client.allergies && <div><strong>Alergias:</strong> {app.client.allergies}</div>}
+                                          {app.client.medicalHistory && <div><strong>Antecedentes:</strong> {app.client.medicalHistory}</div>}
+                                          {app.client.medication && <div><strong>Medicación:</strong> {app.client.medication}</div>}
                                         </div>
                                       </div>
                                     </>
@@ -4350,7 +4643,15 @@ export default function AgendaPage() {
                   onClick={() => setShowStaffDropdown(!showStaffDropdown)}
                 >
                   <Icons.Users size={16} />
-                  <span>Agenda</span>
+                  <span>
+                    {checkedStaffIds.length === 0
+                      ? "Agenda (Ninguno)"
+                      : checkedStaffIds.length === staffList.length
+                      ? "Agenda (Todos)"
+                      : checkedStaffIds.length === 1
+                      ? staffList.find((s) => s.id === checkedStaffIds[0])?.name || "1 Profesional"
+                      : `Agenda (${checkedStaffIds.length})`}
+                  </span>
                   <Icons.ChevronDown size={14} />
                 </button>
 
@@ -4422,6 +4723,16 @@ export default function AgendaPage() {
                               >
                                 {isChecked && <Icons.Check size={10} style={{ color: "white" }} />}
                               </div>
+                              <div
+                                style={{
+                                  width: "14px",
+                                  height: "14px",
+                                  borderRadius: "50%",
+                                  backgroundColor: staff.color || "#3b82f6",
+                                  flexShrink: 0,
+                                  boxShadow: "0 0 0 1.5px rgba(0,0,0,0.1)",
+                                }}
+                              />
                               <div className={styles.dropdownItemInfo}>
                                 <span className={styles.dropdownItemName}>{staff.name} {staff.lastName || ""}</span>
                                 <span className={styles.dropdownItemRole}>{staff.role}</span>
@@ -4696,6 +5007,22 @@ export default function AgendaPage() {
                           <polyline points="12 6 12 12 16 14" />
                         </svg>
                         <span>Lista de espera</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.popoverItem}
+                        onClick={() => {
+                          setShowSettingsPopover(false);
+                          handleExportAgendaExcel();
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        <span>Exportar consultas (.xlsx)</span>
                       </button>
 
                       <button
@@ -5318,6 +5645,36 @@ export default function AgendaPage() {
                             <span className={styles.contactDetails} style={{ fontSize: "12px" }}>
                               {selectedClient.phone || "Sin teléfono"} | {selectedClient.email || "Sin email"}
                             </span>
+                            {(selectedClient.allergies || selectedClient.medicalHistory || selectedClient.medication) && (
+                              <div style={{
+                                width: "100%",
+                                marginTop: "8px",
+                                marginBottom: "6px",
+                                padding: "8px 10px",
+                                background: "#fef2f2",
+                                border: "1.5px solid #ef4444",
+                                borderRadius: "6px",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "8px",
+                                color: "#991b1b",
+                                fontSize: "12px",
+                              }}>
+                                <span style={{ fontSize: "16px", lineHeight: 1, marginTop: "2px" }}>⚠️</span>
+                                <div style={{ flex: 1 }}>
+                                  <strong style={{ color: "#b91c1c", textTransform: "uppercase", fontSize: "11px", display: "block" }}>Alerta de Seguridad Clínica:</strong>
+                                  {selectedClient.allergies && (
+                                    <div style={{ marginTop: "2px" }}><strong>Alergias:</strong> {selectedClient.allergies}</div>
+                                  )}
+                                  {selectedClient.medicalHistory && (
+                                    <div style={{ marginTop: "2px" }}><strong>Antecedentes:</strong> {selectedClient.medicalHistory}</div>
+                                  )}
+                                  {selectedClient.medication && (
+                                    <div style={{ marginTop: "2px" }}><strong>Medicación:</strong> {selectedClient.medication}</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                             <div>
                               <button
                                 type="button"
@@ -6499,6 +6856,43 @@ export default function AgendaPage() {
                               </span>
                             </div>
                           </div>
+
+                          {(selectedAppointment.client?.allergies || (selectedAppointment.client as any)?.medicalHistory || (selectedAppointment.client as any)?.medication) && (
+                            <div style={{
+                              width: "100%",
+                              margin: "10px 0",
+                              padding: "10px 14px",
+                              background: "#fef2f2",
+                              border: "2px solid #ef4444",
+                              borderRadius: "8px",
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: "10px",
+                              color: "#991b1b",
+                            }}>
+                              <span style={{ fontSize: "22px", lineHeight: 1, marginTop: "2px" }}>⚠️</span>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", color: "#b91c1c" }}>
+                                  ALERTA DE SEGURIDAD CLÍNICA DEL PACIENTE:
+                                </div>
+                                {selectedAppointment.client?.allergies && selectedAppointment.client.allergies.trim() !== "" && (
+                                  <div style={{ fontSize: "13px", fontWeight: 600, color: "#7f1d1d", marginTop: "2px" }}>
+                                    <strong>Alergias:</strong> {selectedAppointment.client.allergies}
+                                  </div>
+                                )}
+                                {(selectedAppointment.client as any)?.medicalHistory && (selectedAppointment.client as any).medicalHistory.trim() !== "" && (
+                                  <div style={{ fontSize: "12px", fontWeight: 500, color: "#991b1b", marginTop: "2px" }}>
+                                    <strong>Antecedentes:</strong> {(selectedAppointment.client as any).medicalHistory}
+                                  </div>
+                                )}
+                                {(selectedAppointment.client as any)?.medication && (selectedAppointment.client as any).medication.trim() !== "" && (
+                                  <div style={{ fontSize: "12px", fontWeight: 500, color: "#991b1b", marginTop: "2px" }}>
+                                    <strong>Medicación actual:</strong> {(selectedAppointment.client as any).medication}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           {!isEditingApp && (
                             <>
@@ -8189,11 +8583,13 @@ export default function AgendaPage() {
                       <button
                         type="button"
                         className={styles.cajaBtn}
+                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                         onClick={() => {
                           window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${selectedAppointment.serviceId}&appointmentId=${selectedAppointment.id}`;
                         }}
                       >
-                        Caja
+                        <Icons.CreditCard size={16} />
+                        Cobrar Cita (TPV)
                       </button>
                     </>
                   )}
@@ -8209,7 +8605,12 @@ export default function AgendaPage() {
         <div className={styles.modalOverlay} onClick={() => setShowOptionModal(false)}>
           <div className={`${styles.optionModalContent} glass fade-in`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>Seleccionar Acción</h2>
+              <div>
+                <h2>Seleccionar Acción</h2>
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "3px" }}>
+                  {formatSpanishDate(formDate)} a las <strong>{formTime}</strong> · {staffList.find(s => s.id === formUserId)?.name || "Profesional"}
+                </div>
+              </div>
               <button onClick={() => setShowOptionModal(false)} className={styles.closeBtn}>
                 <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
               </button>
@@ -8248,6 +8649,58 @@ export default function AgendaPage() {
                   <strong>Nueva reserva de tiempo</strong>
                   <span>Bloquear horas en la agenda</span>
                 </div>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* CONFLICT / OVERBOOKING MODAL */}
+      {conflictModalData?.isOpen && typeof window !== "undefined" && createPortal(
+        <div className={styles.modalOverlay} onClick={() => setConflictModalData(null)}>
+          <div className={`${styles.conflictModalCard} glass fade-in`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.conflictModalHeader}>
+              <div className={styles.conflictIconBadge}>
+                <Icons.Warning size={22} style={{ color: "#d97706" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 className={styles.conflictModalTitle}>Conflicto de Horario (Sobrecita)</h2>
+                <span className={styles.conflictModalSubtitle}>Detección de solapamiento de agenda</span>
+              </div>
+              <button onClick={() => setConflictModalData(null)} className={styles.closeBtn}>
+                <Icons.Plus size={20} style={{ transform: "rotate(45deg)" }} />
+              </button>
+            </div>
+
+            <div className={styles.conflictModalBody}>
+              <div className={styles.conflictAlertBox}>
+                <p style={{ margin: 0, fontWeight: 600 }}>{conflictModalData.message}</p>
+              </div>
+              <p className={styles.conflictNoticeText}>
+                El profesional seleccionado ya dispone de una cita agendada en este intervalo de tiempo. Si autoriza la sobrecita, la consulta se registrará en paralelo respetando la configuración clínica.
+              </p>
+            </div>
+
+            <div className={styles.conflictModalFooter}>
+              <button
+                type="button"
+                className={styles.conflictCancelBtn}
+                onClick={() => setConflictModalData(null)}
+              >
+                Cancelar y Ajustar Horario
+              </button>
+              <button
+                type="button"
+                className={styles.conflictProceedBtn}
+                onClick={async () => {
+                  if (conflictModalData.onProceed) {
+                    await conflictModalData.onProceed();
+                  }
+                }}
+              >
+                <Icons.Warning size={15} style={{ marginRight: "6px" }} />
+                Autorizar Sobrecita
               </button>
             </div>
           </div>
@@ -8979,6 +9432,17 @@ export default function AgendaPage() {
                     onClick={() => setShowOpcionesSidebar(false)}
                   >
                     Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.submenuCancelBtn}
+                    style={{ background: "#f0fdf4", color: "#166534", borderColor: "#86efac", fontWeight: 600 }}
+                    onClick={() => {
+                      handleExportAgendaExcel();
+                      setShowOpcionesSidebar(false);
+                    }}
+                  >
+                    Descargar Excel (.xlsx)
                   </button>
                   <button
                     type="button"

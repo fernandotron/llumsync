@@ -9,27 +9,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Falta el token de Google" }, { status: 400 });
     }
 
-    // Decode the Google ID Token JWT
-    const payloadBase64 = token.split(".")[1];
-    if (!payloadBase64) {
-      return NextResponse.json({ error: "Token de Google inválido" }, { status: 400 });
+    // Cryptographically verify the Google ID Token with Google's public tokeninfo endpoint
+    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`);
+    if (!verifyRes.ok) {
+      return NextResponse.json({ error: "Token de Google inválido o caducado" }, { status: 401 });
     }
 
-    const payloadJson = Buffer.from(payloadBase64, "base64").toString("utf-8");
-    const payload = JSON.parse(payloadJson);
+    const payload = await verifyRes.json();
 
     // Verify audience matches our Client ID
     const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "619688463085-9abm5uk9e44188qk8co8sn44cqhtf7aa.apps.googleusercontent.com";
     if (payload.aud !== GOOGLE_CLIENT_ID) {
-      return NextResponse.json({ error: "Error de verificación de cliente Google" }, { status: 400 });
+      return NextResponse.json({ error: "Error de verificación de cliente Google" }, { status: 401 });
     }
 
-    const email = payload.email?.toLowerCase().trim();
+    // Verify email is present and verified by Google
+    const isEmailVerified = payload.email_verified === "true" || payload.email_verified === true;
+    if (!payload.email || !isEmailVerified) {
+      return NextResponse.json({ error: "El correo electrónico no está verificado por Google" }, { status: 401 });
+    }
+
+    const email = payload.email.toLowerCase().trim();
     const name = payload.name;
-
-    if (!email) {
-      return NextResponse.json({ error: "El token de Google no contiene correo electrónico" }, { status: 400 });
-    }
 
     // Check if user already exists
     let user = await prisma.user.findFirst({
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       user: {
         id: user.id,
         name: user.name,
@@ -68,6 +69,17 @@ export async function POST(request: Request) {
         permissionsJson: user.permissionsJson,
       },
     });
+
+    // Set secure HTTP-only session cookie for the authenticated user
+    response.cookies.set("session_user_id", user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    return response;
   } catch (error) {
     console.error("Google authentication error:", error);
     return NextResponse.json({ error: "Error en el servidor al autenticar con Google" }, { status: 500 });

@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { encrypt, decrypt } from "./crypto";
+import { encrypt, decrypt, isEncrypted } from "./crypto";
 
 const fieldsToEncrypt = [
   "dniNif",
@@ -22,8 +22,10 @@ function encryptClientFields(data: any) {
   if (!data) return data;
   const result = { ...data };
   for (const field of fieldsToEncrypt) {
-    if (field in result && typeof result[field] === "string") {
-      result[field] = encrypt(result[field]);
+    if (field in result && typeof result[field] === "string" && result[field].trim() !== "") {
+      if (!isEncrypted(result[field])) {
+        result[field] = encrypt(result[field]);
+      }
     }
   }
   return result;

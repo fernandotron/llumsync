@@ -3,12 +3,13 @@ import { prisma } from "@/lib/db";
 import { getCountryConfig } from "@/lib/countries";
 import { authenticateApiRequest } from "@/lib/authGuard";
 import { encrypt, decrypt } from "@/lib/crypto";
+import { logEhrAccess } from "@/lib/auditLogger";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const clinicId = searchParams.get("clinicId");
-    const search = searchParams.get("search") || "";
+    const search = (searchParams.get("search") || "").trim();
 
     if (!clinicId) {
       return NextResponse.json({ error: "Falta clinicId" }, { status: 400 });
@@ -17,17 +18,11 @@ export async function GET(request: Request) {
     const auth = await authenticateApiRequest(clinicId);
     if ("errorResponse" in auth) return auth.errorResponse;
 
+    // Fetch clients for clinic (Prisma extension automatically decrypts sensitive fields)
     const clients = await prisma.client.findMany({
       where: {
         clinicId: clinicId,
         deletedAt: null, // Exclude soft-deleted clients
-        OR: [
-          { firstName: { contains: search } },
-          { lastName: { contains: search } },
-          { email: { contains: search } },
-          { phone: { contains: search } },
-          { dniNif: { contains: search } },
-        ],
       },
       orderBy: { lastName: "asc" },
       include: {
@@ -38,18 +33,43 @@ export async function GET(request: Request) {
           select: { start: true },
           orderBy: { start: "desc" },
           take: 1
+        },
+        _count: {
+          select: {
+            documents: true,
+            files: true,
+          }
         }
       }
     });
 
-    // Decrypt sensitive fields for response
-    const decryptedClients = clients.map((c: any) => ({
-      ...c,
-      iban: c.iban ? decrypt(c.iban) : c.iban,
-      dniNif: c.dniNif ? decrypt(c.dniNif) : c.dniNif,
-    }));
+    let results = clients;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const cleanSearch = searchLower.replace(/[^a-z0-9]/g, "");
 
-    return NextResponse.json(decryptedClients);
+      results = clients.filter((c: any) => {
+        const fullName = `${c.firstName || ""} ${c.lastName || ""}`.toLowerCase();
+        const email = (c.email || "").toLowerCase();
+        const phone = (c.phone || "").toLowerCase();
+        const dni = (c.dniNif || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const clientNum = String(c.clientNumber || "");
+        const tags = (c.tags || "").toLowerCase();
+        const tutor = `${c.tutorName || ""} ${c.tutorLastName || ""}`.toLowerCase();
+
+        return (
+          fullName.includes(searchLower) ||
+          email.includes(searchLower) ||
+          phone.includes(searchLower) ||
+          clientNum.includes(searchLower) ||
+          tags.includes(searchLower) ||
+          tutor.includes(searchLower) ||
+          (cleanSearch.length > 0 && dni.includes(cleanSearch))
+        );
+      });
+    }
+
+    return NextResponse.json(results);
   } catch (error) {
     console.error("Error fetching clients:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
@@ -152,7 +172,7 @@ export async function POST(request: Request) {
           lastName,
           phone,
           email,
-          dniNif: dniNif ? encrypt(dniNif) : null,
+          dniNif: dniNif || null,
           birthDate: (() => {
             if (!birthDate) return null;
             if (typeof birthDate === "string" && birthDate.includes("/")) {
@@ -172,7 +192,7 @@ export async function POST(request: Request) {
           country: resolvedCountry,
           province,
           landline,
-          iban: iban ? encrypt(iban) : null,
+          iban: iban || null,
           bic,
           tags,
           clinicId,
@@ -201,11 +221,17 @@ export async function POST(request: Request) {
       });
     });
 
-    return NextResponse.json({
-      ...client,
-      iban: client.iban ? decrypt(client.iban) : client.iban,
-      dniNif: client.dniNif ? decrypt(client.dniNif) : client.dniNif,
+    // Record EHR creation audit log
+    await logEhrAccess({
+      clientId: client.id,
+      userId: auth?.user?.id || null,
+      userName: auth?.user?.name || null,
+      action: "UPDATE",
+      details: "Apertura de historia clínica / Alta de paciente",
+      clinicId,
     });
+
+    return NextResponse.json(client);
   } catch (error) {
     console.error("Error creating client:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });

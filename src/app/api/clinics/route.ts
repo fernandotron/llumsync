@@ -1,13 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCountryConfig } from "@/lib/countries";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { name, address, phone, email, country, userId } = body;
+    const auth = await authenticateApiRequest();
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
+    }
 
-    if (!name || !address || !userId) {
+    const body = await request.json();
+    const {
+      name,
+      address,
+      phone,
+      email,
+      country,
+      userId,
+      razonSocial,
+      cifNif,
+      scheduleOpening,
+      scheduleClosing,
+      appointmentInterval,
+      cancellationNoticeHours,
+    } = body;
+
+    const targetUserId = userId || auth.user.id;
+
+    if (!name || !address || !targetUserId) {
       return NextResponse.json(
         { error: "Faltan datos obligatorios (nombre, dirección o usuario)" },
         { status: 400 }
@@ -36,15 +57,21 @@ export async function POST(request: Request) {
     // 2. Connect the clinic to the requesting user
     const clinic = await prisma.clinic.create({
       data: {
-        name,
-        address,
+        name: name.trim(),
+        address: address.trim(),
         phone: phone || null,
         email: email || null,
         country: cConfig.code,
+        razonSocial: razonSocial || null,
+        cifNif: cifNif || null,
+        scheduleOpening: scheduleOpening || "08:00",
+        scheduleClosing: scheduleClosing || "20:00",
+        appointmentInterval: parseInt(appointmentInterval) || 15,
+        cancellationNoticeHours: parseInt(cancellationNoticeHours) || 24,
         whatsappApiUrl: configuredClinic?.whatsappApiUrl || null,
         whatsappApiToken: configuredClinic?.whatsappApiToken || null,
         users: {
-          connect: { id: userId },
+          connect: { id: targetUserId },
         },
       },
     });

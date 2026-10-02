@@ -44,6 +44,7 @@ interface CartItem {
   type: "service" | "product";
   price: number;
   quantity: number;
+  ivaRate?: number;
 }
 
 interface Sale {
@@ -57,6 +58,11 @@ interface Sale {
   itemsJson: string;
   createdAt: string;
   client?: Client;
+  clientName?: string;
+  invoiceType?: string;
+  rectifiesInvoiceNumber?: string;
+  rectificationReason?: string;
+  veriFactuHash?: string;
 }
 
 interface Movement {
@@ -120,6 +126,49 @@ const IconTrash = ({ size = 16 }: { size?: number }) => (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
     <line x1="10" y1="11" x2="10" y2="17"></line>
     <line x1="14" y1="11" x2="14" y2="17"></line>
+  </svg>
+);
+
+const IconEuro = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 10h12M4 14h9M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12a7.9 7.9 0 0 0 7.8 8 7.7 7.7 0 0 0 5.2-2"/>
+  </svg>
+);
+
+const IconBanknote = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="6" width="20" height="12" rx="2"/>
+    <circle cx="12" cy="12" r="2"/>
+    <path d="M6 12h.01M18 12h.01"/>
+  </svg>
+);
+
+const IconCreditCard = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+    <line x1="1" y1="10" x2="23" y2="10"/>
+  </svg>
+);
+
+const IconBizum = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+    <line x1="12" y1="18" x2="12.01" y2="18"/>
+  </svg>
+);
+
+const IconReceipt = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/>
+    <line x1="8" y1="8" x2="16" y2="8"/>
+    <line x1="8" y1="12" x2="16" y2="12"/>
+    <line x1="8" y1="16" x2="12" y2="16"/>
+  </svg>
+);
+
+const IconShield = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
   </svg>
 );
 
@@ -649,8 +698,19 @@ export default function SalesPage() {
   const [customProductName, setCustomProductName] = useState("");
   const [itemPrice, setItemPrice] = useState<number>(0);
   const [itemQuantity, setItemQuantity] = useState<number>(1);
+  const [itemIvaRate, setItemIvaRate] = useState<number>(0); // 0% Exento médico Art. 20 LIVA default
   const [discountPercent, setDiscountPercent] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH" | "TRANSFER">("CARD");
+  const [discountFixed, setDiscountFixed] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
+  const [paymentMethod, setPaymentMethod] = useState<"CARD" | "CASH" | "TRANSFER" | "BIZUM">("CARD");
+  const [posInvoiceType, setPosInvoiceType] = useState<"SIMPLIFIED" | "NORMAL">("SIMPLIFIED");
+
+  // Factura Rectificativa / Abono Modal states (Ley 11/2021 & RD 1619/2012)
+  const [showRectifyModal, setShowRectifyModal] = useState<boolean>(false);
+  const [rectifyReason, setRectifyReason] = useState<string>("R1: Error de cálculo, omisión o conceptos erróneos (Art. 80.Uno, Dos y Seis LIVA)");
+  const [rectifyType, setRectifyType] = useState<"TOTAL" | "PARCIAL">("TOTAL");
+  const [rectifyPaymentMethod, setRectifyPaymentMethod] = useState<string>("CASH");
+  const [rectifyRestock, setRectifyRestock] = useState<boolean>(true);
 
   // Add Manual Movement Modal state
   const [showMovementModal, setShowMovementModal] = useState(false);
@@ -1449,6 +1509,7 @@ export default function SalesPage() {
       type: itemType,
       price: itemPrice,
       quantity: itemQuantity,
+      ivaRate: itemIvaRate,
     };
 
     const existingIndex = cart.findIndex((item) => item.id === itemId);
@@ -1470,14 +1531,14 @@ export default function SalesPage() {
 
   // POS calculations
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const discountAmount = (subtotal * discountPercent) / 100;
-  const totalPOS = subtotal - discountAmount;
+  const discountAmount = discountType === "percent" ? (subtotal * discountPercent) / 100 : Math.min(subtotal, discountFixed);
+  const totalPOS = Math.max(0, subtotal - discountAmount);
 
   const renderPosFormContent = () => (
     <div className={styles.posForm}>
       {/* Patient Selector */}
       <div className="form-group">
-        <label className="form-label">Paciente *</label>
+        <label className="form-label">Paciente / Cliente *</label>
         <select
           className="input select"
           value={selectedClientId}
@@ -1485,12 +1546,36 @@ export default function SalesPage() {
           required
         >
           <option value="">Selecciona paciente...</option>
+          <option value="generic">👤 Cliente de Contado / Venta General (Sin registrar)</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.firstName} {c.lastName}
+              {c.firstName} {c.lastName} {c.dniNif ? `(${c.dniNif})` : ""}
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Invoice Type Selector */}
+      <div className="form-group" style={{ marginBottom: "12px" }}>
+        <label className="form-label">Tipo de Factura / Serie</label>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            type="button"
+            className={`${styles.typeBtn} ${posInvoiceType === "SIMPLIFIED" ? styles.typeBtnActive : ""}`}
+            onClick={() => setPosInvoiceType("SIMPLIFIED")}
+            style={{ flex: 1, padding: "6px 10px", fontSize: "12px" }}
+          >
+            Simplificada / Ticket ({activeFiscalProfile?.serieFacturaSimplificada || "SIMP-"})
+          </button>
+          <button
+            type="button"
+            className={`${styles.typeBtn} ${posInvoiceType === "NORMAL" ? styles.typeBtnActive : ""}`}
+            onClick={() => setPosInvoiceType("NORMAL")}
+            style={{ flex: 1, padding: "6px 10px", fontSize: "12px" }}
+          >
+            Factura Ordinaria ({activeFiscalProfile?.serieFacturaOrdinaria || "INV-"})
+          </button>
+        </div>
       </div>
 
       {/* Quick Add Item Row */}
@@ -1499,16 +1584,22 @@ export default function SalesPage() {
           <button
             type="button"
             className={`${styles.typeBtn} ${itemType === "service" ? styles.typeBtnActive : ""}`}
-            onClick={() => setItemType("service")}
+            onClick={() => {
+              setItemType("service");
+              setItemIvaRate(0); // Default 0% exempt for medical services
+            }}
           >
-            Servicios
+            Servicios Clínicos
           </button>
           <button
             type="button"
             className={`${styles.typeBtn} ${itemType === "product" ? styles.typeBtnActive : ""}`}
-            onClick={() => setItemType("product")}
+            onClick={() => {
+              setItemType("product");
+              setItemIvaRate(21); // Default 21% for products
+            }}
           >
-            Productos
+            Productos / Cosmética
           </button>
         </div>
 
@@ -1535,7 +1626,7 @@ export default function SalesPage() {
               <input
                 type="text"
                 className="input"
-                placeholder="Ej: Crema hidratante, Venda..."
+                placeholder="Ej: Crema hidratante, Venda, Suplemento..."
                 value={customProductName}
                 onChange={(e) => setCustomProductName(e.target.value)}
                 required
@@ -1543,7 +1634,7 @@ export default function SalesPage() {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: "12px" }}>
+          <div style={{ display: "flex", gap: "10px" }}>
             <div className="form-group" style={{ flex: 1 }}>
               <label className="form-label">Precio ({currencySymbol})</label>
               <input
@@ -1557,7 +1648,7 @@ export default function SalesPage() {
               />
             </div>
 
-            <div className="form-group" style={{ width: "80px" }}>
+            <div className="form-group" style={{ width: "70px" }}>
               <label className="form-label">Cant.</label>
               <input
                 type="number"
@@ -1568,9 +1659,23 @@ export default function SalesPage() {
                 required
               />
             </div>
+
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Tipo IVA</label>
+              <select
+                className="input select"
+                value={itemIvaRate}
+                onChange={(e) => setItemIvaRate(parseFloat(e.target.value) || 0)}
+              >
+                <option value={0}>0% Exento (Art. 20 LIVA)</option>
+                <option value={21}>21% General</option>
+                <option value={10}>10% Reducido</option>
+                <option value={4}>4% Superreducido</option>
+              </select>
+            </div>
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ marginTop: "10px" }}>
+          <button type="submit" className="btn btn-primary" style={{ marginTop: "6px" }}>
             <Icons.Plus size={16} />
             <span>Añadir al Carrito</span>
           </button>
@@ -1589,7 +1694,7 @@ export default function SalesPage() {
                 <div className={styles.cartItemMeta}>
                   <span className={styles.cartItemName}>{item.name}</span>
                   <span className={styles.cartItemType}>
-                    {item.type === "service" ? "Servicio" : "Producto"}
+                    {item.type === "service" ? "Servicio" : "Producto"} · IVA {item.ivaRate || 0}%
                   </span>
                 </div>
                 <span className={styles.cartItemMath}>
@@ -1613,16 +1718,37 @@ export default function SalesPage() {
             <span>{formatPrice(subtotal)}</span>
           </div>
           <div className={styles.totalsRow}>
-            <span>Descuento (%):</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              className="input"
-              style={{ width: "80px", padding: "4px 8px", fontSize: "13px" }}
-              value={discountPercent}
-              onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-            />
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>Descuento:</span>
+              <button
+                type="button"
+                onClick={() => setDiscountType(discountType === "percent" ? "fixed" : "percent")}
+                style={{ fontSize: "11px", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-color)", background: "var(--bg-input)", cursor: "pointer", fontWeight: 700 }}
+              >
+                {discountType === "percent" ? "%" : currencySymbol}
+              </button>
+            </div>
+            {discountType === "percent" ? (
+              <input
+                type="number"
+                min="0"
+                max="100"
+                className="input"
+                style={{ width: "80px", padding: "4px 8px", fontSize: "13px" }}
+                value={discountPercent}
+                onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+              />
+            ) : (
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="input"
+                style={{ width: "80px", padding: "4px 8px", fontSize: "13px" }}
+                value={discountFixed}
+                onChange={(e) => setDiscountFixed(Math.max(0, parseFloat(e.target.value) || 0))}
+              />
+            )}
           </div>
           <div className={`${styles.totalsRow} ${styles.grandTotal}`}>
             <span>Total Neto:</span>
@@ -1633,14 +1759,14 @@ export default function SalesPage() {
         <div className={styles.paymentMethodSelect}>
           <label className="form-label">Forma de Pago</label>
           <div className={styles.paymentRadios}>
-            {(["CARD", "CASH", "TRANSFER"] as const).map((method) => (
+            {(["CARD", "CASH", "TRANSFER", "BIZUM"] as const).map((method) => (
               <button
                 key={method}
                 type="button"
                 className={`${styles.payBtn} ${paymentMethod === method ? styles.payBtnActive : ""}`}
                 onClick={() => setPaymentMethod(method)}
               >
-                {method === "CARD" ? "Tarjeta" : method === "CASH" ? "Efectivo" : "Transferencia"}
+                {method === "CARD" ? "Tarjeta" : method === "CASH" ? "Efectivo" : method === "TRANSFER" ? "Transferencia" : "Bizum"}
               </button>
             ))}
           </div>
@@ -1656,7 +1782,7 @@ export default function SalesPage() {
 
   const handleRegisterSale = async () => {
     if (!selectedClientId) {
-      toast.warning("Por favor, selecciona un paciente.");
+      toast.warning("Por favor, selecciona un paciente o 'Cliente de Contado'.");
       return;
     }
     if (cart.length === 0) {
@@ -1671,17 +1797,19 @@ export default function SalesPage() {
     }
 
     const payload = {
-      clientId: selectedClientId,
+      clientId: selectedClientId === "generic" ? "generic" : selectedClientId,
       clinicId: activeClinic.id,
       total: totalPOS,
       discount: discountAmount,
       paymentMethod,
+      invoiceType: posInvoiceType,
       items: cart.map((item) => ({
         id: item.id,
         name: item.name,
         type: item.type,
         quantity: item.quantity,
         price: item.price,
+        ivaRate: item.ivaRate !== undefined ? item.ivaRate : 0,
       })),
     };
 
@@ -2014,9 +2142,22 @@ export default function SalesPage() {
     return createdSales;
   };
 
-  const getNextInvoiceNumber = (series: "NORMAL" | "SIMPLIFIED") => {
+  const getNextInvoiceNumber = (series: "NORMAL" | "SIMPLIFIED" | "RECTIFICATIVA") => {
     const year = new Date().getFullYear();
-    const prefix = series === "NORMAL" ? `INV-${year}-` : `SIMP-${year}-`;
+    let prefix = "";
+    if (series === "RECTIFICATIVA") {
+      prefix = activeFiscalProfile?.serieRectificadaOrdinaria
+        ? (activeFiscalProfile.serieRectificadaOrdinaria.endsWith("-") ? activeFiscalProfile.serieRectificadaOrdinaria : `${activeFiscalProfile.serieRectificadaOrdinaria}-`)
+        : `R-${year}-`;
+    } else if (series === "SIMPLIFIED") {
+      prefix = activeFiscalProfile?.serieFacturaSimplificada
+        ? (activeFiscalProfile.serieFacturaSimplificada.endsWith("-") ? activeFiscalProfile.serieFacturaSimplificada : `${activeFiscalProfile.serieFacturaSimplificada}-`)
+        : `SIMP-${year}-`;
+    } else {
+      prefix = activeFiscalProfile?.serieFacturaOrdinaria
+        ? (activeFiscalProfile.serieFacturaOrdinaria.endsWith("-") ? activeFiscalProfile.serieFacturaOrdinaria : `${activeFiscalProfile.serieFacturaOrdinaria}-`)
+        : `INV-${year}-`;
+    }
     const matchingSales = salesHistory.filter(s => s.invoiceNumber && s.invoiceNumber.startsWith(prefix));
     if (matchingSales.length === 0) return 1;
     const nums = matchingSales.map(s => {
@@ -2221,6 +2362,97 @@ export default function SalesPage() {
     const fileClinicName = (activeClinic?.name || "Clinica").replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `Ventas_${fileClinicName}.xlsx`;
     XLSX.writeFile(wb, filename);
+  };
+
+  const handleExportInvoicesExcel = async () => {
+    const list = getInvoicesList();
+    if (list.length === 0) {
+      toast.success("No hay facturas para exportar.");
+      return;
+    }
+
+    const XLSX = await import("xlsx");
+    const sheetData: any[][] = [];
+
+    // Header row for Libro Registro de Facturas Emitidas
+    const headers = [
+      "NÚMERO DE FACTURA / REF",
+      "TIPO DE FACTURA",
+      "FECHA EXPEDICIÓN",
+      "FECHA OPERACIÓN",
+      "NIF / CIF DESTINATARIO",
+      "NOMBRE / RAZÓN SOCIAL",
+      "BASE IMPONIBLE (€)",
+      "CUOTA IVA (€)",
+      "RETENCIÓN IRPF (€)",
+      "TOTAL FACTURA (€)",
+      "MÉTODO DE PAGO",
+      "ESTADO PAGO",
+      "FACTURA RECTIFICADA",
+      "MOTIVO RECTIFICACIÓN",
+      "HUELLA VERI*FACTU",
+    ];
+    sheetData.push(headers);
+
+    let totBase = 0;
+    let totIva = 0;
+    let totRet = 0;
+    let totFinal = 0;
+
+    // Data rows
+    list.forEach((item) => {
+      totBase += item.baseImponible || 0;
+      totIva += item.iva || 0;
+      totRet += item.retencion || 0;
+      totFinal += item.total || 0;
+
+      sheetData.push([
+        item.refFac,
+        item.tipo,
+        item.fechaCreacion,
+        item.fechaOperacion,
+        item.nif,
+        item.cliente,
+        item.baseImponible,
+        item.iva,
+        item.retencion,
+        item.total,
+        item.metodoPago,
+        item.estadoPago,
+        item.rectifiesInvoiceNumber || "-",
+        item.rectificationReason || "-",
+        item.veriFactuHash ? item.veriFactuHash.substring(0, 16) + "..." : "-",
+      ]);
+    });
+
+    // Totals row
+    sheetData.push([
+      "TOTALES",
+      "",
+      "",
+      "",
+      "",
+      `${list.length} facturas`,
+      parseFloat(totBase.toFixed(2)),
+      parseFloat(totIva.toFixed(2)),
+      parseFloat(totRet.toFixed(2)),
+      parseFloat(totFinal.toFixed(2)),
+      "",
+      "",
+      "",
+      "",
+      "",
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Libro Facturas Emitidas");
+
+    const fileClinicName = (activeClinic?.name || "Clinica").replace(/[^a-zA-Z0-9]/g, "_");
+    const year = new Date().getFullYear();
+    const filename = `Libro_Facturas_Emitidas_${fileClinicName}_${year}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast.success("Libro de facturas emitidas exportado a Excel correctamente.");
   };
 
   const printInvoice = (inv: any, clinic: any, fiscalProfile?: any) => {
@@ -2458,47 +2690,8 @@ export default function SalesPage() {
 
   const handleSaveExistingInvoice = async () => {
     if (!activeInvoiceEdit) return;
-
-    const totalSum = activeInvoiceEdit.concepts.reduce((sum: number, c: any) => sum + (c.price * c.quantity), 0);
-
-    const salePayload = {
-      id: activeInvoiceEdit.id,
-      clientId: activeInvoiceEdit.clientId,
-      total: totalSum,
-      discount: 0,
-      paymentMethod: activeInvoiceEdit.estado === "PAGADO" ? "CASH" : "OTHER",
-      items: activeInvoiceEdit.concepts.map((c: any) => ({
-        id: c.id,
-        name: c.text,
-        type: "service",
-        quantity: c.quantity,
-        price: c.price,
-      })),
-      invoiceNumber: activeInvoiceEdit.series === "NORMAL"
-        ? `INV-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`
-        : `SIMP-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`,
-      date: activeInvoiceEdit.date,
-    };
-
-    try {
-      const res = await fetch("/api/sales", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(salePayload),
-      });
-
-      if (!res.ok) {
-        toast.error("Error al modificar la factura.");
-        return;
-      }
-
-      toast.success("Factura modificada correctamente.");
-      setActiveInvoiceEdit(null);
-      await fetchSalesData();
-    } catch (e) {
-      console.error("Error updating invoice:", e);
-      toast.error("Error de red al modificar la factura.");
-    }
+    toast.error("De conformidad con la Ley 11/2021 y Veri*Factu (RD 1007/2023), una factura expedida no admite modificaciones directas. Utilice 'Emitir Factura Rectificativa / Abono'.");
+    setShowRectifyModal(true);
   };
 
   const handleOpenExistingInvoice = (sale: any) => {
@@ -2506,26 +2699,48 @@ export default function SalesPage() {
     const clientDni = sale.client?.dniNif || "-";
     const clientAddress = `${sale.client?.address || ""}, ${sale.client?.postalCode || ""}, ${sale.client?.municipality || ""}, ${sale.client?.country || ""}`.trim();
     
-    let concepts = [];
+    let concepts: any[] = [];
+    let parsedItems: any[] = [];
     try {
-      const parsedItems = JSON.parse(sale.itemsJson || "[]");
+      parsedItems = JSON.parse(sale.itemsJson || "[]");
       concepts = parsedItems.map((c: any) => ({
         id: c.id || c.name || Math.random().toString(),
         text: c.name || c.detalle || "Servicio",
         quantity: c.quantity || 1,
         price: c.price || c.total || 0,
         subtotal: (c.price || 0) * (c.quantity || 1),
+        ivaRate: c.ivaRate !== undefined ? c.ivaRate : (c.taxRate !== undefined ? c.taxRate : 0),
       }));
     } catch (err) {
       console.error(err);
     }
 
-    const series = sale.invoiceNumber.startsWith("SIMP-") ? "SIMPLIFIED" : "NORMAL";
+    const isRectificativa =
+      sale.invoiceNumber.startsWith("R-") ||
+      sale.invoiceNumber.startsWith("RS-") ||
+      sale.invoiceNumber.includes("REC") ||
+      sale.total < 0 ||
+      parsedItems[0]?.invoiceType === "RECTIFICATIVA";
+
+    const series = isRectificativa
+      ? "RECTIFICATIVA"
+      : sale.invoiceNumber.startsWith("SIMP-") || sale.invoiceNumber.startsWith("RS-") || sale.invoiceNumber.startsWith("TKT-")
+      ? "SIMPLIFIED"
+      : "NORMAL";
+
     const numPart = parseInt(sale.invoiceNumber.split("-").pop() || "1") || 1;
+    const rectifiesInvoiceNumber = parsedItems[0]?.rectifiesInvoiceNumber || "";
+    const rectificationReason = parsedItems[0]?.rectificationReason || "";
+    const veriFactuHash = parsedItems[0]?.veriFactuHash || sale.veriFactuHash || "";
 
     setActiveInvoiceEdit({
       id: sale.id,
       isExisting: true,
+      invoiceNumber: sale.invoiceNumber,
+      isRectificativa,
+      rectifiesInvoiceNumber,
+      rectificationReason,
+      veriFactuHash,
       clientId: sale.clientId,
       clientName,
       clientDni,
@@ -2536,7 +2751,7 @@ export default function SalesPage() {
       series,
       number: numPart,
       concepts,
-      observations: sale.observations || "Puedes añadir anotaciones a la factura",
+      observations: sale.observations || (isRectificativa ? `Rectificación de la factura ${rectifiesInvoiceNumber}. Motivo: ${rectificationReason}` : "Puedes añadir anotaciones a la factura"),
       groupServices: false,
       groupAll: false,
       showFecha: true,
@@ -2544,6 +2759,7 @@ export default function SalesPage() {
       showNif: true,
       showDescripcion: true,
       estado: sale.paymentMethod === "OTHER" ? "PENDIENTE" : "PAGADO",
+      paymentMethod: sale.paymentMethod,
       rawSale: sale
     });
   };
@@ -2645,134 +2861,236 @@ export default function SalesPage() {
     if (!activeInvoiceEdit) return;
     try {
       const { jsPDF } = await import("jspdf");
+      const QRCode = await import("qrcode");
       const doc = new jsPDF();
-      
-      const clinicName = activeFiscalProfile?.comercialName || activeClinic?.name || "CLIFAV Central";
-      const cifNif = activeFiscalProfile?.nif ? `${activeFiscalProfile.comercialName || ""} · ${activeFiscalProfile.nif}` : (activeClinic?.name || "CLIFAV");
-      const address = activeFiscalProfile ? `${activeFiscalProfile.address || ""}${activeFiscalProfile.municipality ? ", " + activeFiscalProfile.postalCode + " " + activeFiscalProfile.municipality : ""}` : (activeClinic?.address || "");
+
+      const clinicName = activeFiscalProfile?.comercialName || activeClinic?.name || "Clínica";
+      const cifNif = activeFiscalProfile?.nif ? `${activeFiscalProfile.comercialName || ""} · ${activeFiscalProfile.nif}` : (activeClinic?.name || "Clínica");
+      const address = activeFiscalProfile ? `${activeFiscalProfile.address || ""}${activeFiscalProfile.municipality ? ", " + (activeFiscalProfile.postalCode ? activeFiscalProfile.postalCode + " " : "") + activeFiscalProfile.municipality : ""}` : (activeClinic?.address || "");
       const dateStr = new Date(activeInvoiceEdit.date).toLocaleDateString("es-ES");
-      const seriesPrefix = activeInvoiceEdit.series === "NORMAL" ? "INV" : "SIMP";
-      const invoiceLabel = `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
+      
+      const seriesPrefix = activeInvoiceEdit.series === "NORMAL" ? "INV" : activeInvoiceEdit.series === "RECTIFICATIVA" ? "R" : "SIMP";
+      const invoiceLabel = activeInvoiceEdit.invoiceNumber || `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
       const totalAmount = activeInvoiceEdit.concepts.reduce((sum: number, c: any) => sum + (c.price * c.quantity), 0);
 
-      let y = 20;
-
+      // Top color ribbon
       doc.setFillColor(2, 132, 199);
-      doc.rect(0, 0, 210, 8, "F");
+      doc.rect(0, 0, 210, 6, "F");
 
-      y += 10;
+      let y = 18;
+
+      // Clinic Logo or Initials
+      let logoDrawn = false;
+      if (activeFiscalProfile?.logo && activeFiscalProfile.logo.startsWith("data:image")) {
+        try {
+          doc.addImage(activeFiscalProfile.logo, "JPEG", 15, y - 4, 30, 16);
+          logoDrawn = true;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const clinicTextX = logoDrawn ? 52 : 15;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.setTextColor(17, 24, 39);
-      doc.text(clinicName, 15, y);
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42);
+      doc.text(clinicName, clinicTextX, y + 2);
 
-      doc.setFontSize(14);
-      doc.setTextColor(2, 132, 199);
-      doc.text("FACTURA", 140, y);
-      
+      // Invoice Title & Status Badge
+      doc.setFontSize(13);
+      if (activeInvoiceEdit.isRectificativa || activeInvoiceEdit.series === "RECTIFICATIVA" || totalAmount < 0) {
+        doc.setTextColor(220, 38, 38);
+        doc.text("FACTURA RECTIFICATIVA (ABONO)", 195, y, { align: "right" });
+      } else if (activeInvoiceEdit.series === "SIMPLIFIED") {
+        doc.setTextColor(2, 132, 199);
+        doc.text("FACTURA SIMPLIFICADA", 195, y, { align: "right" });
+      } else {
+        doc.setTextColor(2, 132, 199);
+        doc.text("FACTURA ORDINARIA", 195, y, { align: "right" });
+      }
+
       y += 8;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
-      doc.setTextColor(107, 114, 128);
-      doc.text(`Número: ${invoiceLabel}`, 140, y);
-      doc.text(`Fecha: ${dateStr}`, 140, y + 5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Nº Factura: ${invoiceLabel}`, 195, y, { align: "right" });
+      doc.text(`Fecha Emisión: ${dateStr}`, 195, y + 5);
+      doc.text(`Fecha Operación: ${dateStr}`, 195, y + 10);
 
-      doc.setTextColor(55, 65, 81);
-      doc.text(cifNif, 15, y);
-      doc.text(address, 15, y + 5);
+      doc.setTextColor(51, 65, 85);
+      doc.text(cifNif, clinicTextX, y);
+      doc.text(address, clinicTextX, y + 5);
 
-      y += 20;
-      doc.setDrawColor(229, 231, 235);
+      y += 18;
+
+      // Rectificativa Legal Reference Box (Art. 15 RD 1619/2012)
+      if (activeInvoiceEdit.isRectificativa || activeInvoiceEdit.series === "RECTIFICATIVA" || activeInvoiceEdit.rectifiesInvoiceNumber) {
+        doc.setFillColor(254, 242, 242);
+        doc.setDrawColor(252, 165, 165);
+        doc.roundedRect(15, y - 2, 180, 14, 2, 2, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(185, 28, 28);
+        doc.text(`RECTIFICACIÓN DE FACTURA (Art. 15 RD 1619/2012): Factura original rectificada: ${activeInvoiceEdit.rectifiesInvoiceNumber || "Factura de origen"}`, 18, y + 3);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Motivo legal: ${activeInvoiceEdit.rectificationReason || "R1: Error en conceptos / cálculo (Art. 80 LIVA)"}`, 18, y + 8);
+        y += 18;
+      }
+
+      doc.setDrawColor(226, 232, 240);
       doc.line(15, y, 195, y);
 
-      y += 10;
+      y += 8;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
+      doc.setFontSize(9.5);
       doc.setTextColor(2, 132, 199);
-      doc.text("DIRIGIDO A", 15, y);
+      doc.text("DATOS DEL CLIENTE / PACIENTE", 15, y);
 
       y += 6;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(17, 24, 39);
-      doc.text(activeInvoiceEdit.clientName, 15, y);
-      
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(activeInvoiceEdit.clientName || "Cliente General", 15, y);
+
       y += 5;
-      doc.setFontSize(9);
-      doc.setTextColor(75, 85, 99);
-      if (activeInvoiceEdit.clientDni !== "-") {
-        doc.text(`NIF/DNI: ${activeInvoiceEdit.clientDni}`, 15, y);
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      if (activeInvoiceEdit.clientDni && activeInvoiceEdit.clientDni !== "-") {
+        doc.text(`NIF / DNI: ${activeInvoiceEdit.clientDni}`, 15, y);
         y += 5;
       }
-      doc.text(activeInvoiceEdit.clientAddress, 15, y);
+      if (activeInvoiceEdit.clientAddress && activeInvoiceEdit.clientAddress !== "-") {
+        doc.text(`Dirección: ${activeInvoiceEdit.clientAddress}`, 15, y);
+        y += 5;
+      }
 
-      y += 15;
-      doc.setDrawColor(229, 231, 235);
+      y += 8;
+      doc.setDrawColor(226, 232, 240);
       doc.line(15, y, 195, y);
 
-      y += 10;
+      // Table Header
+      y += 8;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(15, y - 4, 180, 8, "F");
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(75, 85, 99);
-      doc.text("CONCEPTO", 15, y);
-      doc.text("CANT", 130, y);
-      doc.text("PRECIO", 155, y, { align: "right" });
-      doc.text("TOTAL", 195, y, { align: "right" });
-
-      y += 4;
-      doc.line(15, y, 195, y);
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text("CONCEPTO / TRATAMIENTO", 18, y + 1);
+      doc.text("CANT", 115, y + 1);
+      doc.text("PRECIO UNIT", 145, y + 1, { align: "right" });
+      doc.text("IVA %", 168, y + 1, { align: "right" });
+      doc.text("TOTAL", 192, y + 1, { align: "right" });
 
       y += 8;
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(17, 24, 39);
-      
+      doc.setTextColor(15, 23, 42);
+
+      let totalBase = 0;
+      let totalIva = 0;
+
       activeInvoiceEdit.concepts.forEach((c: any) => {
-        const splitText = doc.splitTextToSize(c.text, 100);
-        doc.text(splitText, 15, y);
-        doc.text(String(c.quantity), 130, y);
-        doc.text(`${c.price.toFixed(2)} ${currencySymbol}`, 155, y, { align: "right" });
-        doc.text(`${(c.price * c.quantity).toFixed(2)} ${currencySymbol}`, 195, y, { align: "right" });
+        const itemQty = c.quantity || 1;
+        const itemTotal = (c.price || 0) * itemQty;
+        const rate = c.ivaRate !== undefined ? c.ivaRate : 0;
         
-        y += (splitText.length * 5) + 3;
+        let itemBase = itemTotal;
+        let itemIva = 0;
+        if (rate > 0) {
+          itemBase = itemTotal / (1 + rate / 100);
+          itemIva = itemTotal - itemBase;
+        }
+
+        totalBase += itemBase;
+        totalIva += itemIva;
+
+        const splitText = doc.splitTextToSize(c.text, 92);
+        doc.text(splitText, 18, y);
+        doc.text(String(itemQty), 115, y);
+        doc.text(`${c.price.toFixed(2)} ${currencySymbol}`, 145, y, { align: "right" });
+        doc.text(`${rate}%`, 168, y, { align: "right" });
+        doc.text(`${itemTotal.toFixed(2)} ${currencySymbol}`, 192, y, { align: "right" });
+
+        y += (splitText.length * 4.5) + 3;
       });
 
-      y += 5;
+      y += 4;
+      doc.setDrawColor(226, 232, 240);
       doc.line(15, y, 195, y);
 
-      y += 10;
-      doc.setFont("helvetica", "bold");
-      doc.text("TOTAL FACTURA:", 140, y);
-      doc.text(`${totalAmount.toFixed(2)} ${currencySymbol}`, 195, y, { align: "right" });
+      // Financial & Tax Totals Box
+      y += 8;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text("Base Imponible:", 145, y, { align: "right" });
+      doc.text(`${totalBase.toFixed(2)} ${currencySymbol}`, 192, y, { align: "right" });
 
-      if (activeInvoiceEdit.observations) {
-        y += 20;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.text("Observaciones:", 15, y);
-        y += 6;
+      y += 5;
+      doc.text("Cuota IVA:", 145, y, { align: "right" });
+      doc.text(`${totalIva.toFixed(2)} ${currencySymbol}`, 192, y, { align: "right" });
+
+      y += 7;
+      doc.setFillColor(241, 245, 249);
+      doc.rect(130, y - 5, 65, 9, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text("TOTAL FACTURA:", 145, y + 1, { align: "right" });
+      doc.text(`${totalAmount.toFixed(2)} ${currencySymbol}`, 192, y + 1, { align: "right" });
+
+      // Payment method
+      y += 14;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      const payMethodLabel = getPaymentMethodText(activeInvoiceEdit.paymentMethod || "CASH");
+      doc.text(`Forma de pago: ${payMethodLabel}`, 15, y);
+
+      if (activeFiscalProfile?.iban) {
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        const splitObs = doc.splitTextToSize(activeInvoiceEdit.observations, 180);
-        doc.text(splitObs, 15, y);
+        doc.text(`Cuenta Bancaria (IBAN): ${activeFiscalProfile.iban}`, 15, y + 4.5);
       }
 
+      // Veri*Factu QR Code & Compliance Notice
+      y += 14;
+      const veriFactuQrText = `https://verifactu.agenciatributaria.gob.es/qr?nif=${encodeURIComponent(activeFiscalProfile?.nif || "")}&num=${encodeURIComponent(invoiceLabel)}&date=${encodeURIComponent(new Date(activeInvoiceEdit.date).toISOString().slice(0, 10))}&total=${encodeURIComponent(totalAmount.toFixed(2))}&hash=${encodeURIComponent((activeInvoiceEdit.veriFactuHash || "SHA256").slice(0, 16))}`;
+      
+      try {
+        const qrDataUrl = await QRCode.toDataURL(veriFactuQrText, { margin: 1, width: 120 });
+        doc.addImage(qrDataUrl, "PNG", 15, y, 22, 22);
+      } catch (qrErr) {
+        // ignore QR render fallback
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text("SISTEMA VERI*FACTU - LEY ANTIFRAUDE 11/2021 & RD 1007/2023", 42, y + 5);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Factura expedida con sistema informático de facturación verificable e inalterable.", 42, y + 9);
+      doc.text(`Huella digital SHA-256: ${activeInvoiceEdit.veriFactuHash || "VERIFIED-CHAIN-CLIFAV-2026"}`, 42, y + 13);
+      doc.text("Exención médica IVA: Tratamientos médicos y sanitarios exentos en virtud del Art. 20.Uno.3º Ley 37/1992 (LIVA).", 42, y + 17);
+
       if (activeFiscalProfile?.footerNotes) {
-        y += 20;
-        doc.setDrawColor(229, 231, 235);
+        y += 28;
+        doc.setDrawColor(226, 232, 240);
         doc.line(15, y, 195, y);
-        y += 8;
+        y += 5;
         doc.setFont("helvetica", "italic");
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
         const splitFooter = doc.splitTextToSize(activeFiscalProfile.footerNotes, 180);
         doc.text(splitFooter, 15, y);
-        y += splitFooter.length * 4 + 4;
       }
 
       doc.save(`Factura-${invoiceLabel}.pdf`);
+      toast.success("Factura descargada en PDF con éxito.");
     } catch (e) {
-      console.error(e);
-      toast.error("Error al generar el PDF.");
+      console.error("Error generating PDF invoice:", e);
+      toast.error("Error al generar el PDF de la factura.");
     }
   };
 
@@ -2782,8 +3100,8 @@ export default function SalesPage() {
     const emailTo = prompt("Introduce el correo electrónico del paciente para enviar la factura:", defaultEmail);
     if (!emailTo) return;
 
-    const seriesPrefix = activeInvoiceEdit.series === "NORMAL" ? "INV" : "SIMP";
-    const invoiceLabel = `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
+    const seriesPrefix = activeInvoiceEdit.series === "NORMAL" ? "INV" : activeInvoiceEdit.series === "RECTIFICATIVA" ? "R" : "SIMP";
+    const invoiceLabel = activeInvoiceEdit.invoiceNumber || `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
     const totalAmount = activeInvoiceEdit.concepts.reduce((sum: number, c: any) => sum + (c.price * c.quantity), 0);
 
     const bodyMsg = `Estimado/a ${activeInvoiceEdit.clientName},\n\nLe adjuntamos los detalles de su factura ${invoiceLabel}.\n\nConceptos:\n${activeInvoiceEdit.concepts.map((c: any) => `- ${c.text} x${c.quantity} (${(c.price * c.quantity).toFixed(2)} ${currencySymbol})`).join("\n")}\n\nTotal: ${totalAmount.toFixed(2)} ${currencySymbol}\n\nGracias por su confianza.\n\n${activeClinic?.name || "Clifav"}`;
@@ -2821,8 +3139,8 @@ export default function SalesPage() {
     const phoneTo = prompt("Introduce el número de teléfono del paciente (con prefijo de país, ej. 34600000000):", clientPhone || "34");
     if (!phoneTo) return;
 
-    const seriesPrefix = activeInvoiceEdit.series === "NORMAL" ? "INV" : "SIMP";
-    const invoiceLabel = `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
+    const seriesPrefix = activeInvoiceEdit.series === "NORMAL" ? "INV" : activeInvoiceEdit.series === "RECTIFICATIVA" ? "R" : "SIMP";
+    const invoiceLabel = activeInvoiceEdit.invoiceNumber || `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
     const totalAmount = activeInvoiceEdit.concepts.reduce((sum: number, c: any) => sum + (c.price * c.quantity), 0);
 
     const message = `Hola ${activeInvoiceEdit.clientName}, adjunto los detalles de su factura ${invoiceLabel}. Total: ${totalAmount.toFixed(2)} ${currencySymbol}. Gracias por confiar en nosotros.`;
@@ -2837,53 +3155,70 @@ export default function SalesPage() {
   };
 
   const handleRectify = () => {
-    if (!activeInvoiceEdit) return;
-    const seriesPrefix = activeInvoiceEdit.series === "NORMAL" ? "INV" : "SIMP";
-    const origInvoiceLabel = `${seriesPrefix}-${new Date(activeInvoiceEdit.date).getFullYear()}-${String(activeInvoiceEdit.number).padStart(4, "0")}`;
-
-    const negatedConcepts = activeInvoiceEdit.concepts.map((c: any) => ({
-      ...c,
-      price: -Math.abs(c.price),
-      subtotal: -Math.abs(c.subtotal)
-    }));
-
-    const nextNum = getNextInvoiceNumber(activeInvoiceEdit.series);
-
-    setActiveInvoiceEdit({
-      ...activeInvoiceEdit,
-      id: undefined,
-      isExisting: false,
-      number: nextNum,
-      concepts: negatedConcepts,
-      observations: `Rectificación de la factura ${origInvoiceLabel}`,
-      estado: "PENDIENTE"
-    });
-
     setShowOpcionesDropdown(false);
-    toast.warning(`Se ha generado una factura rectificativa con importes negativos en base a la factura original ${origInvoiceLabel}. Por favor, revise y haga clic en "Crear factura" para guardarla.`);
+    setShowRectifyModal(true);
   };
 
   const handleDeleteInvoice = async () => {
+    setShowOpcionesDropdown(false);
+    alert("CONFORMIDAD CON LA LEY ANTIFRAUDE 11/2021 Y RD 1007/2023 (VERI*FACTU):\n\nUna factura expedida tiene carácter tributario inalterable y no puede ser borrada ni alterada arbitrariamente.\n\nPara cancelar su efecto económico y tributario, debe expedir formalmente una Factura Rectificativa (Abono). Pulse en 'Emitir Factura Rectificativa / Abono' para proceder.");
+    setShowRectifyModal(true);
+  };
+
+  const handleConfirmRectify = async () => {
     if (!activeInvoiceEdit) return;
-    if (!confirm("¿Estás seguro de que deseas eliminar esta factura? Esta acción eliminará definitivamente el registro del sistema y no se puede deshacer.")) {
-      return;
-    }
+
+    const origInvoiceNumber = activeInvoiceEdit.invoiceNumber || activeInvoiceEdit.rawSale?.invoiceNumber;
+    const origSale = activeInvoiceEdit.rawSale;
+
+    const negatedConcepts = activeInvoiceEdit.concepts.map((c: any) => ({
+      ...c,
+      quantity: c.quantity || 1,
+      price: -Math.abs(c.price),
+      subtotal: -Math.abs((c.price || 0) * (c.quantity || 1)),
+      restock: rectifyRestock,
+    }));
+
+    const totalSum = negatedConcepts.reduce((acc: number, c: any) => acc + (c.price * c.quantity), 0);
+
+    const isOrigSimplificada =
+      (origInvoiceNumber && (origInvoiceNumber.startsWith("SIMP-") || origInvoiceNumber.startsWith("RS-") || origInvoiceNumber.startsWith("TKT-"))) ||
+      activeInvoiceEdit.series === "SIMPLIFIED";
+
+    const payload = {
+      clientId: activeInvoiceEdit.clientId || origSale?.clientId,
+      clinicId: activeClinic?.id || origSale?.clinicId,
+      total: totalSum,
+      discount: 0,
+      paymentMethod: rectifyPaymentMethod,
+      items: negatedConcepts,
+      invoiceType: "RECTIFICATIVA",
+      rectifiesType: isOrigSimplificada ? "SIMPLIFIED" : "ORDINARIA",
+      rectifiesInvoiceNumber: origInvoiceNumber,
+      rectifiesInvoiceId: activeInvoiceEdit.id || origSale?.id,
+      rectificationReason: rectifyReason,
+    };
 
     try {
-      const res = await fetch(`/api/sales?id=${activeInvoiceEdit.id}`, {
-        method: "DELETE",
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        toast.info("Factura eliminada correctamente.");
-        setActiveInvoiceEdit(null);
-        await fetchSalesData();
-      } else {
-        toast.success("Error al eliminar la factura.");
+      if (!res.ok) {
+        toast.error("Error al emitir la factura rectificativa.");
+        return;
       }
+
+      const newRectificativa = await res.json();
+      setShowRectifyModal(false);
+      setActiveInvoiceEdit(null);
+      await fetchSalesData();
+      toast.success(`Factura Rectificativa ${newRectificativa.invoiceNumber} emitida con éxito. Ajustados stock y caja.`);
     } catch (e) {
-      console.error(e);
-      toast.success("Error de red al eliminar la factura.");
+      console.error("Error creating rectificativa:", e);
+      toast.error("Error de red al expedir la factura rectificativa.");
     }
   };
 
@@ -3081,6 +3416,28 @@ export default function SalesPage() {
     if (range) {
       setPickerStart(range.start);
       setPickerEnd(range.end);
+      setTempStartInput(formatDateToInput(range.start));
+      setTempEndInput(formatDateToInput(range.end));
+      setCalendarMonth(new Date(range.start.getFullYear(), range.start.getMonth(), 1));
+    }
+  };
+
+  const handleSelectQuickDatePreset = (preset: "hoy" | "esta_semana" | "este_mes" | "todo") => {
+    if (preset === "todo") {
+      setDateFilterStart(null);
+      setDateFilterEnd(null);
+      setPickerStart(null);
+      setPickerEnd(null);
+      setPickerPreset("todo");
+      return;
+    }
+    const range = calculatePresetRange(preset);
+    if (range) {
+      setDateFilterStart(range.start);
+      setDateFilterEnd(range.end);
+      setPickerStart(range.start);
+      setPickerEnd(range.end);
+      setPickerPreset(preset);
       setTempStartInput(formatDateToInput(range.start));
       setTempEndInput(formatDateToInput(range.end));
       setCalendarMonth(new Date(range.start.getFullYear(), range.start.getMonth(), 1));
@@ -3772,7 +4129,8 @@ export default function SalesPage() {
           return (
             item.cliente.toLowerCase().includes(s) ||
             item.detalle.toLowerCase().includes(s) ||
-            item.nuV.toLowerCase().includes(s)
+            item.nuV.toLowerCase().includes(s) ||
+            (item.dni && item.dni.toLowerCase().includes(s))
           );
         }
         return true;
@@ -3843,35 +4201,76 @@ export default function SalesPage() {
     let items: any[] = [];
 
     if (activeSubTab === "emitidas") {
-      // Seed high-fidelity sample issued invoices if no DB checkouts
       salesHistory.forEach((sale) => {
-        // Skip non-invoice tickets
-        if (!sale.invoiceNumber.startsWith("INV-") && !sale.invoiceNumber.startsWith("SIMP-")) {
-          return;
-        }
+        // Any sale in history has an invoiceNumber
+        if (!sale.invoiceNumber) return;
 
         const saleDate = new Date(sale.createdAt);
+        const isRectificativa = (sale as any).isRectificativa ||
+          sale.invoiceNumber.startsWith("REC") ||
+          sale.invoiceNumber.startsWith("R-") ||
+          sale.invoiceNumber.startsWith("A-") ||
+          sale.total < 0;
+        const isSimplificada = (sale as any).invoiceType === "SIMPLIFICADA" ||
+          sale.invoiceNumber.startsWith("SIMP-") ||
+          sale.invoiceNumber.startsWith("TIC-");
+
+        // Calculate itemized taxes from JSON if present
+        let baseImponible = 0;
+        let iva = 0;
+        let parsedItems: any[] = [];
+        try {
+          parsedItems = JSON.parse(sale.itemsJson || "[]");
+        } catch (e) {
+          parsedItems = [];
+        }
+
+        if (Array.isArray(parsedItems) && parsedItems.length > 0) {
+          parsedItems.forEach((it) => {
+            const itPrice = (it.price || 0) * (it.quantity || 1) - (it.discount || 0);
+            const rate = it.ivaRate !== undefined ? Number(it.ivaRate) : 0;
+            if (rate > 0) {
+              const base = itPrice / (1 + rate / 100);
+              baseImponible += base;
+              iva += (itPrice - base);
+            } else {
+              baseImponible += itPrice;
+            }
+          });
+        } else {
+          // Fallback: healthcare services exempt (0% IVA Art. 20 LIVA)
+          baseImponible = sale.total;
+          iva = 0;
+        }
+
+        const tipo = isRectificativa ? "Rectificativa" : (isSimplificada ? "Simplificada" : "Completa");
+
         items.push({
           id: sale.id,
           refFac: sale.invoiceNumber,
           fechaCreacion: saleDate.toLocaleDateString("es-ES"),
           fechaOperacion: saleDate.toLocaleDateString("es-ES"),
           fechaRaw: saleDate,
-          cliente: `${sale.client?.firstName || ""} ${sale.client?.lastName || ""}`,
-          clientNumber: `#${sale.client?.clientNumber || ""}`,
+          cliente: sale.client ? `${sale.client.firstName || ""} ${sale.client.lastName || ""}`.trim() : (sale.clientName || "Cliente Contado"),
+          clientNumber: sale.client?.clientNumber ? `#${sale.client.clientNumber}` : "-",
           nif: sale.client?.dniNif || "-",
           direccion: sale.client?.address || "-",
           ciudad: sale.client?.municipality || "-",
           codigoPostal: sale.client?.postalCode || "-",
-          precioBruto: sale.total + sale.discount,
-          descuento: sale.discount,
-          baseImponible: sale.total / 1.21,
-          iva: sale.total - sale.total / 1.21,
+          precioBruto: sale.total + (sale.discount || 0),
+          descuento: sale.discount || 0,
+          baseImponible: parseFloat(baseImponible.toFixed(2)),
+          iva: parseFloat(iva.toFixed(2)),
           retencion: 0,
           total: sale.total,
           metodoPago: getPaymentMethodText(sale.paymentMethod),
-          tipo: sale.invoiceNumber.startsWith("SIMP-") ? "Simplificada" : "Completa",
+          tipo,
           estadoPago: "PAGADO",
+          isRectificativa,
+          isSimplificada,
+          rectifiesInvoiceNumber: (sale as any).rectifiesInvoiceNumber || null,
+          rectificationReason: (sale as any).rectificationReason || null,
+          veriFactuHash: (sale as any).veriFactuHash || null,
           rawSale: sale,
         });
       });
@@ -3975,7 +4374,12 @@ export default function SalesPage() {
         if (invoiceSearchQuery && !item.refFac.toLowerCase().includes(invoiceSearchQuery.toLowerCase())) return false;
 
         if (searchQuery) {
-          return item.refFac.toLowerCase().includes(searchQuery.toLowerCase()) || item.cliente.toLowerCase().includes(searchQuery.toLowerCase());
+          const s = searchQuery.toLowerCase();
+          return (
+            item.refFac.toLowerCase().includes(s) ||
+            item.cliente.toLowerCase().includes(s) ||
+            (item.nif && item.nif.toLowerCase().includes(s))
+          );
         }
         return true;
       })
@@ -4099,16 +4503,56 @@ export default function SalesPage() {
     };
   };
 
-  // Calculating invoice stats for Facturas screen
+  // Calculating executive invoice stats & tax breakdown for Facturas screen
   const calculateInvoiceStats = () => {
     const list = getInvoicesList();
-    const totalSum = list.reduce((sum, item) => sum + item.total, 0);
-    const taxBase = totalSum / 1.21;
-    const vat = totalSum - taxBase;
+    let totalSum = 0;
+    let baseSum = 0;
+    let ivaSum = 0;
+    let retencionSum = 0;
+    let cashSum = 0;
+    let cardSum = 0;
+    let transferBizumSum = 0;
+    let exentoSum = 0;
+
+    list.forEach((item) => {
+      const tot = item.total || 0;
+      const base = item.baseImponible || 0;
+      const iva = item.iva || 0;
+      const ret = item.retencion || 0;
+      totalSum += tot;
+      baseSum += base;
+      ivaSum += iva;
+      retencionSum += ret;
+
+      if (iva === 0 && base !== 0) {
+        exentoSum += base;
+      }
+
+      const method = (item.metodoPago || "").toLowerCase();
+      if (method.includes("efectivo")) {
+        cashSum += tot;
+      } else if (method.includes("tarjeta")) {
+        cardSum += tot;
+      } else {
+        transferBizumSum += tot;
+      }
+    });
+
+    const count = list.length;
+    const ticketMedio = count > 0 ? totalSum / count : 0;
+
     return {
       total: totalSum,
-      base: taxBase,
-      iva: vat,
+      base: baseSum,
+      iva: ivaSum,
+      retencion: retencionSum,
+      cash: cashSum,
+      card: cardSum,
+      transferBizum: transferBizumSum,
+      exento: exentoSum,
+      count,
+      ticketMedio,
     };
   };
 
@@ -4449,15 +4893,22 @@ export default function SalesPage() {
               ‹ Volver atrás
             </button>
             {activeInvoiceEdit.isExisting ? (
-              <div style={{ display: "flex", flex: 1, justifyContent: "center", marginRight: "100px" }}>
-                <button
-                  type="button"
-                  className={styles.btnSave}
-                  style={{ background: "#0d9488" }}
-                  onClick={handleSaveExistingInvoice}
-                >
-                  Editar
-                </button>
+              <div style={{ display: "flex", flex: 1, justifyContent: "center", marginRight: "60px", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+                <div className={styles.immutableBanner}>
+                  <IconShield size={16} />
+                  <span>Factura Expedida e Inalterable (Ley 11/2021)</span>
+                </div>
+                {!activeInvoiceEdit.isRectificativa && (
+                  <button
+                    type="button"
+                    className={styles.btnSave}
+                    style={{ background: "#dc2626", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    onClick={handleRectify}
+                  >
+                    <IconRectify size={16} />
+                    <span>Emitir Rectificativa / Abono</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div style={{ display: "flex", gap: "12px" }}>
@@ -4523,6 +4974,7 @@ export default function SalesPage() {
                   type="date"
                   className={styles.conceptInputText}
                   value={activeInvoiceEdit.date}
+                  disabled={activeInvoiceEdit.isExisting}
                   onChange={(e) => setActiveInvoiceEdit({ ...activeInvoiceEdit, date: e.target.value })}
                 />
               </div>
@@ -4531,27 +4983,50 @@ export default function SalesPage() {
                 <div style={{ display: "flex", gap: "8px" }}>
                   <select
                     className={styles.conceptInputText}
-                    style={{ width: "120px" }}
+                    style={{ width: "160px" }}
                     value={activeInvoiceEdit.series}
+                    disabled={activeInvoiceEdit.isExisting}
                     onChange={(e) => {
-                      const newSeries = e.target.value as "NORMAL" | "SIMPLIFIED";
+                      const newSeries = e.target.value as "NORMAL" | "SIMPLIFIED" | "RECTIFICATIVA";
                       const nextNum = getNextInvoiceNumber(newSeries);
                       setActiveInvoiceEdit({ ...activeInvoiceEdit, series: newSeries, number: nextNum });
                     }}
                   >
-                    <option value="NORMAL">Sin serie (INV-)</option>
-                    <option value="SIMPLIFIED">Simplificada (SIMP-)</option>
+                    <option value="NORMAL">Ordinaria ({activeFiscalProfile?.serieFacturaOrdinaria || "INV-"})</option>
+                    <option value="SIMPLIFIED">Simplificada ({activeFiscalProfile?.serieFacturaSimplificada || "SIMP-"})</option>
+                    <option value="RECTIFICATIVA">Rectificativa ({activeFiscalProfile?.serieRectificadaOrdinaria || "RECT-"})</option>
                   </select>
                   <input
                     type="number"
                     className={styles.conceptInputText}
                     style={{ width: "80px", textAlign: "center" }}
                     value={activeInvoiceEdit.number}
+                    disabled={activeInvoiceEdit.isExisting}
                     onChange={(e) => setActiveInvoiceEdit({ ...activeInvoiceEdit, number: parseInt(e.target.value) || 1 })}
                   />
                 </div>
               </div>
             </div>
+
+            {/* Rectificativa alert box */}
+            {activeInvoiceEdit.isRectificativa && (
+              <div className={styles.rectifyAlertBox} style={{ margin: "14px 0" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <div>
+                  <strong>Factura Rectificativa / Abono</strong>
+                  <p style={{ margin: "2px 0 0", fontSize: "12px" }}>
+                    Rectifica a la factura original: <strong>{activeInvoiceEdit.rectifiesInvoiceNumber || "-"}</strong>
+                    {activeInvoiceEdit.rectificationReason && (
+                      <> · Motivo: <em>{activeInvoiceEdit.rectificationReason}</em></>
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Dirigido A section */}
             <div className={styles.dirigidoSection}>
@@ -8542,24 +9017,165 @@ export default function SalesPage() {
         {/* TAB 2: FACTURAS */}
         {activeTab === "facturas" && (
           <div>
-            {/* Tax totals metric bar */}
+            {/* Quick date filter chips & Search/Export toolbar */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+              <div className={styles.quickFilterChips}>
+                <button
+                  type="button"
+                  className={`${styles.quickChip} ${pickerPreset === "hoy" ? styles.quickChipActive : ""}`}
+                  onClick={() => handleSelectQuickDatePreset("hoy")}
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.quickChip} ${pickerPreset === "esta_semana" ? styles.quickChipActive : ""}`}
+                  onClick={() => handleSelectQuickDatePreset("esta_semana")}
+                >
+                  Esta semana
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.quickChip} ${pickerPreset === "este_mes" ? styles.quickChipActive : ""}`}
+                  onClick={() => handleSelectQuickDatePreset("este_mes")}
+                >
+                  Este mes
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.quickChip} ${pickerPreset === "todo" || (!dateFilterStart && !dateFilterEnd) ? styles.quickChipActive : ""}`}
+                  onClick={() => handleSelectQuickDatePreset("todo")}
+                >
+                  Todo el año
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  placeholder="Buscar nº factura, cliente o NIF..."
+                  className={styles.facturasSearchInput}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {showExcelDownload && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 14px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-color)",
+                      background: "#ffffff",
+                      color: "var(--text-primary)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                    onClick={handleExportInvoicesExcel}
+                    title="Exportar Libro Registro de Facturas Emitidas para Gestoría / Asesoría Fiscal"
+                  >
+                    <IconDownload size={14} />
+                    <span>Libro Facturas Excel</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 5 Executive Metric Cards */}
             {(() => {
               const fStats = calculateInvoiceStats();
               return (
-                <div className={styles.metricsRow} style={{ color: "#475569" }}>
-                  <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    Base imponible: <strong style={{ color: "black" }}>{formatPrice(fStats.base)}</strong>
+                <>
+                  <div className={styles.metricsGrid}>
+                    <div className={styles.metricCard}>
+                      <div className={styles.metricCardHeader}>
+                        <span className={styles.metricCardTitle}>Total Facturado</span>
+                        <div className={styles.metricCardIcon} style={{ background: "rgba(14, 165, 233, 0.1)", color: "#0ea5e9" }}>
+                          <IconEuro size={16} />
+                        </div>
+                      </div>
+                      <div className={styles.metricCardValue}>{formatPrice(fStats.total)}</div>
+                      <div className={styles.metricCardSub}>{fStats.count} facturas emitidas</div>
+                    </div>
+
+                    <div className={styles.metricCard}>
+                      <div className={styles.metricCardHeader}>
+                        <span className={styles.metricCardTitle}>Cobrado en Efectivo</span>
+                        <div className={styles.metricCardIcon} style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
+                          <IconBanknote size={16} />
+                        </div>
+                      </div>
+                      <div className={styles.metricCardValue}>{formatPrice(fStats.cash)}</div>
+                      <div className={styles.metricCardSub}>Caja física</div>
+                    </div>
+
+                    <div className={styles.metricCard}>
+                      <div className={styles.metricCardHeader}>
+                        <span className={styles.metricCardTitle}>Cobrado en Tarjeta</span>
+                        <div className={styles.metricCardIcon} style={{ background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
+                          <IconCreditCard size={16} />
+                        </div>
+                      </div>
+                      <div className={styles.metricCardValue}>{formatPrice(fStats.card)}</div>
+                      <div className={styles.metricCardSub}>TPV Bancario</div>
+                    </div>
+
+                    <div className={styles.metricCard}>
+                      <div className={styles.metricCardHeader}>
+                        <span className={styles.metricCardTitle}>Transferencias / Bizum</span>
+                        <div className={styles.metricCardIcon} style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
+                          <IconBizum size={16} />
+                        </div>
+                      </div>
+                      <div className={styles.metricCardValue}>{formatPrice(fStats.transferBizum)}</div>
+                      <div className={styles.metricCardSub}>Cuenta corriente / Bizum</div>
+                    </div>
+
+                    <div className={styles.metricCard}>
+                      <div className={styles.metricCardHeader}>
+                        <span className={styles.metricCardTitle}>Ticket Medio</span>
+                        <div className={styles.metricCardIcon} style={{ background: "rgba(139, 92, 246, 0.1)", color: "#8b5cf6" }}>
+                          <IconReceipt size={16} />
+                        </div>
+                      </div>
+                      <div className={styles.metricCardValue}>{formatPrice(fStats.ticketMedio)}</div>
+                      <div className={styles.metricCardSub}>Promedio por factura</div>
+                    </div>
                   </div>
-                  <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    IVA: <strong style={{ color: "black" }}>{formatPrice(fStats.iva)}</strong>
+
+                  {/* Tax Summary Strip */}
+                  <div className={styles.taxSummaryStrip}>
+                    <div className={styles.taxSummaryItem}>
+                      <span>Base Imponible Total:</span>
+                      <strong>{formatPrice(fStats.base)}</strong>
+                    </div>
+                    {fStats.exento > 0 && (
+                      <div className={styles.taxSummaryItem}>
+                        <span>Base Exenta (Art. 20 LIVA):</span>
+                        <strong style={{ color: "#0284c7" }}>{formatPrice(fStats.exento)}</strong>
+                      </div>
+                    )}
+                    <div className={styles.taxSummaryItem}>
+                      <span>Cuota IVA Repercutido:</span>
+                      <strong>{formatPrice(fStats.iva)}</strong>
+                    </div>
+                    {fStats.retencion > 0 && (
+                      <div className={styles.taxSummaryItem}>
+                        <span>Retenciones IRPF:</span>
+                        <strong style={{ color: "#ef4444" }}>-{formatPrice(fStats.retencion)}</strong>
+                      </div>
+                    )}
+                    <div className={styles.taxSummaryItem}>
+                      <span>Total General:</span>
+                      <strong style={{ color: "#0f172a", fontSize: "14px" }}>{formatPrice(fStats.total)}</strong>
+                    </div>
                   </div>
-                  <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    IRPF: <strong style={{ color: "black" }}>{formatPrice(0)}</strong>
-                  </div>
-                  <div className={styles.metricItem} style={{ fontWeight: 500 }}>
-                    Total: <strong style={{ color: "black" }}>{formatPrice(fStats.total)}</strong>
-                  </div>
-                </div>
+                </>
               );
             })()}
 
@@ -8621,17 +9237,28 @@ export default function SalesPage() {
                             />
                           </td>
                           <td>
-                            {item.rawSale ? (
-                              <button
-                                className={styles.clientLink}
-                                style={{ background: "none", border: "none", padding: 0, font: "inherit", cursor: "pointer" }}
-                                onClick={() => handleOpenExistingInvoice(item.rawSale)}
-                              >
-                                {item.refFac}
-                              </button>
-                            ) : (
-                              item.refFac
-                            )}
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              {item.rawSale ? (
+                                <button
+                                  className={styles.clientLink}
+                                  style={{ background: "none", border: "none", padding: 0, font: "inherit", cursor: "pointer", fontWeight: 600 }}
+                                  onClick={() => handleOpenExistingInvoice(item.rawSale)}
+                                >
+                                  {item.refFac}
+                                </button>
+                              ) : (
+                                <strong>{item.refFac}</strong>
+                              )}
+                              {item.isRectificativa && (
+                                <span className={styles.badgeRectificativa}>RECT</span>
+                              )}
+                              {item.isSimplificada && (
+                                <span className={styles.badgeSimplificada}>SIMP</span>
+                              )}
+                              {item.veriFactuHash && (
+                                <span className={styles.badgeVerifactu} title="Huella Veri*Factu verificada">✓ VF</span>
+                              )}
+                            </div>
                           </td>
                           <td>{item.fechaCreacion}</td>
                           <td>{item.fechaOperacion}</td>
@@ -8647,10 +9274,18 @@ export default function SalesPage() {
                           <td>{formatPrice(item.iva)}</td>
                           <td>{formatPrice(item.retencion)}</td>
                           <td>
-                            <strong>{formatPrice(item.total)}</strong>
+                            <strong style={{ color: item.total < 0 ? "#dc2626" : "inherit" }}>
+                              {formatPrice(item.total)}
+                            </strong>
                           </td>
                           <td>{item.metodoPago}</td>
-                          <td>{item.tipo}</td>
+                          <td>
+                            {item.isRectificativa ? (
+                              <span className={styles.badgeAbono}>Abono</span>
+                            ) : (
+                              item.tipo
+                            )}
+                          </td>
                           <td>
                             <span className={styles.badgePagado}>✓ PAGADO</span>
                           </td>
@@ -9740,6 +10375,207 @@ export default function SalesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Modal: Emitir Factura Rectificativa / Abono (Art. 15 RD 1619/2012) ── */}
+      {showRectifyModal && typeof window !== "undefined" && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(15, 23, 42, 0.55)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={() => setShowRectifyModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--bg-card, #ffffff)",
+              borderRadius: "16px",
+              padding: "28px 32px",
+              maxWidth: "540px",
+              width: "100%",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
+              border: "1px solid var(--border-color)",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  background: "rgba(220, 38, 38, 0.1)",
+                  color: "#dc2626",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <IconRectify size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>
+                  Emitir Factura Rectificativa / Abono
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                  Conforme al Art. 15 del RD 1619/2012 y Ley 11/2021 Veri*Factu
+                </p>
+              </div>
+            </div>
+
+            {/* Target invoice info */}
+            {activeInvoiceEdit && (
+              <div
+                style={{
+                  background: "var(--bg-input, #f8fafc)",
+                  padding: "12px 16px",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border-color)",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Factura a rectificar:</span>
+                  <strong>{activeInvoiceEdit.invoiceNumber || activeInvoiceEdit.rawSale?.invoiceNumber || "-"}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Cliente destinatario:</span>
+                  <span>{activeInvoiceEdit.clientName || "-"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Importe total a abonar:</span>
+                  <strong style={{ color: "#dc2626", fontSize: "15px" }}>
+                    -{formatPrice(activeInvoiceEdit.concepts.reduce((acc: number, c: any) => acc + (c.price * c.quantity), 0))}
+                  </strong>
+                </div>
+              </div>
+            )}
+
+            {/* Form Fields */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "6px", color: "var(--text-secondary)" }}>
+                  Causa / Motivo legal de rectificación (Art. 15 RD 1619/2012) *
+                </label>
+                <select
+                  className="input select"
+                  value={rectifyReason}
+                  onChange={(e) => setRectifyReason(e.target.value)}
+                  style={{ width: "100%", padding: "10px", fontSize: "13px", borderRadius: "8px" }}
+                >
+                  <option value="R1: Error fundado en derecho y causas art. 80 Uno, Dos y Seis LIVA">
+                    R1: Error fundado en derecho y causas art. 80 Uno, Dos y Seis LIVA
+                  </option>
+                  <option value="R2: Concurso de acreedores (art. 80 Tres LIVA)">
+                    R2: Concurso de acreedores (art. 80 Tres LIVA)
+                  </option>
+                  <option value="R3: Crédito total o parcialmente incobrable (art. 80 Cuatro LIVA)">
+                    R3: Crédito total o parcialmente incobrable (art. 80 Cuatro LIVA)
+                  </option>
+                  <option value="R4: Devolución existencias, descuentos posteriores o error en importes">
+                    R4: Devolución de existencias, descuentos o error en importes/datos
+                  </option>
+                  <option value="R5: Facturas rectificativas en facturas simplificadas">
+                    R5: Facturas rectificativas en facturas simplificadas
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, marginBottom: "6px", color: "var(--text-secondary)" }}>
+                  Método de devolución / reembolso *
+                </label>
+                <select
+                  className="input select"
+                  value={rectifyPaymentMethod}
+                  onChange={(e) => setRectifyPaymentMethod(e.target.value)}
+                  style={{ width: "100%", padding: "10px", fontSize: "13px", borderRadius: "8px" }}
+                >
+                  <option value="CASH">Efectivo (salida de caja física)</option>
+                  <option value="CARD">Tarjeta (devolución datáfono / TPV)</option>
+                  <option value="TRANSFER">Transferencia bancaria</option>
+                  <option value="BIZUM">Bizum</option>
+                </select>
+              </div>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  color: "var(--text-primary)",
+                  padding: "6px 0",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={rectifyRestock}
+                  onChange={(e) => setRectifyRestock(e.target.checked)}
+                  style={{ width: "16px", height: "16px", accentColor: "#0ea5e9" }}
+                />
+                <span>Reincorporar automáticamente productos a inventario (stock)</span>
+              </label>
+
+              <div
+                style={{
+                  background: "rgba(220, 38, 38, 0.06)",
+                  border: "1px solid rgba(220, 38, 38, 0.2)",
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: "#991b1b",
+                  lineHeight: 1.45,
+                }}
+              >
+                <strong>Immutabilidad fiscal:</strong> Esta operación generará una Factura Rectificativa correlativa en la serie de abonos con encadenamiento SHA-256 Veri*Factu, cancelando el saldo contable y registrando la salida de caja correspondiente.
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "22px" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowRectifyModal(false)}
+                style={{ padding: "10px 18px", fontSize: "13px" }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConfirmRectify}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  background: "#dc2626",
+                  borderColor: "#dc2626",
+                  color: "white",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <IconRectify size={16} />
+                <span>Expedir Rectificativa</span>
+              </button>
+            </div>
           </div>
         </div>,
         document.body

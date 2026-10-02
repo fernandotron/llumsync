@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { cookies } from "next/headers";
 import { checkRateLimit } from "@/lib/rateLimit";
 import sharp from "sharp";
@@ -9,6 +10,10 @@ export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get("session_user_id")?.value;
+
+    if (!userId) {
+      return NextResponse.json({ error: "No autorizado. Inicie sesión para subir archivos." }, { status: 401 });
+    }
 
     const rateLimitKey = userId || 
                          request.headers.get("x-forwarded-for")?.split(",")[0].trim() || 
@@ -44,7 +49,9 @@ export async function POST(request: Request) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    const uniqueFilename = `upload-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+    // Use cryptographically secure random UUID to prevent enumeration attacks
+    const sanitizedName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const uniqueFilename = `upload-${crypto.randomUUID()}-${sanitizedName}`;
     const filePath = path.join(uploadDir, uniqueFilename);
     const fileUrl = `/api/uploads/${uniqueFilename}`;
 

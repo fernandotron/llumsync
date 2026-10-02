@@ -22,12 +22,12 @@ export async function GET(
     });
 
     if (!template) {
-      return NextResponse.json({ error: "Plantilla no encontrada" }, { status: 404 });
+      return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
     }
 
     return NextResponse.json(template);
   } catch (error) {
-    console.error("Error fetching template:", error);
+    console.error("Error fetching document:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }
@@ -61,7 +61,7 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error("Error updating template:", error);
+    console.error("Error updating document:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }
@@ -87,7 +87,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting template:", error);
+    console.error("Error deleting document:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }

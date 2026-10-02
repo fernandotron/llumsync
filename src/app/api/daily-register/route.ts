@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getTimezoneForClinic } from "@/lib/countries";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 export async function GET(request: Request) {
   try {
@@ -11,6 +12,9 @@ export async function GET(request: Request) {
     if (!clinicId) {
       return NextResponse.json({ error: "Falta clinicId" }, { status: 400 });
     }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const clinic = await prisma.clinic.findUnique({
       where: { id: clinicId },
@@ -247,6 +251,18 @@ export async function POST(request: Request) {
     if (!appointmentId) {
       return NextResponse.json({ error: "Falta appointmentId" }, { status: 400 });
     }
+
+    const appt = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: { clinicId: true },
+    });
+
+    if (!appt) {
+      return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 });
+    }
+
+    const auth = await authenticateApiRequest(appt.clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const updated = await prisma.appointment.update({
       where: { id: appointmentId },

@@ -14,7 +14,7 @@ export async function GET() {
     });
     return NextResponse.json(templates);
   } catch (error) {
-    console.error("Error fetching document templates:", error);
+    console.error("Error fetching documents:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(template);
   } catch (error) {
-    console.error("Error creating template:", error);
+    console.error("Error creating document template:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
   }
 }

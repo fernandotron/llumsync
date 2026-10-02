@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -61,15 +61,40 @@ interface Client {
   receivesReminders: boolean;
   occupation?: string;
   maritalStatus?: string;
+  isMember?: boolean;
+  memberNumber?: string;
+  membershipDate?: string;
+  membershipTier?: string;
+  membershipStatus?: string;
+  membershipPoints?: number;
 
   appointments: Appointment[];
   sales: Sale[];
   documents: SignedDocument[];
   vouchers: ClientVoucher[];
   files: ClientFile[];
+  debts?: ClientDebt[];
+  budgets?: any[];
   allowedUsers?: { id: string }[];
-  clinic: { name: string; address: string; logo?: string; defaultWhatsappMode?: string };
+  clinic: { name: string; address: string; logo?: string; defaultWhatsappMode?: string; cifNif?: string; razonSocial?: string; phone?: string; email?: string };
   photos: any[];
+}
+
+interface ClientDebt {
+  id: string;
+  clinicId: string;
+  clientId: string;
+  amount: number;
+  remainingAmount?: number | null;
+  concept: string;
+  date: string;
+  status: "PENDING" | "PAID";
+  saleId?: string | null;
+  sale?: Sale;
+  notes?: string | null;
+  paymentMethod?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
 }
 
 interface ClientVoucher {
@@ -180,8 +205,8 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Design active tabs: "general" | "documents" | "forms" | "medical" | "permissions" | "billing"
-  const [activeTab, setActiveTab] = useState<"general" | "documents" | "forms" | "medical" | "permissions" | "billing" | "budgets" | "photos" | "timeline" | "whiteboard">("general");
+  // Design active tabs: "general" | "medical_history" | "documents" | "forms" | "medical" | "permissions" | "billing" | "budgets" | "photos" | "timeline" | "whiteboard"
+  const [activeTab, setActiveTab] = useState<"general" | "medical_history" | "documents" | "forms" | "medical" | "permissions" | "billing" | "budgets" | "photos" | "timeline" | "whiteboard">("general");
 
   // Redirect forbidden tabs back to general
   useEffect(() => {
@@ -194,7 +219,7 @@ export default function ClientDetailPage() {
     if (activeTab === "forms" && !showFormsTab) {
       setActiveTab("general");
     }
-    if (activeTab === "medical" && !showMedicalTab) {
+    if ((activeTab === "medical" || activeTab === "medical_history") && !showMedicalTab) {
       setActiveTab("general");
     }
     if (activeTab === "permissions") {
@@ -623,7 +648,20 @@ export default function ClientDetailPage() {
 
 
   // Associated Vouchers, files and billing sub-tabs
-  const [billingSubTab, setBillingSubTab] = useState<"citas" | "productos" | "bonos" | "suscripciones" | "presupuestos">("citas");
+  const [billingSubTab, setBillingSubTab] = useState<"citas" | "productos" | "bonos" | "suscripciones" | "presupuestos" | "deudas">("citas");
+  
+  // Debt Management States
+  const [showPayDebtModal, setShowPayDebtModal] = useState(false);
+  const [selectedDebtToPay, setSelectedDebtToPay] = useState<ClientDebt | null>(null);
+  const [debtPaymentMethod, setDebtPaymentMethod] = useState<"CASH" | "CARD" | "TRANSFER">("CASH");
+  const [debtCreateMovement, setDebtCreateMovement] = useState(true);
+  const [payingDebt, setPayingDebt] = useState(false);
+
+  const [showCreateDebtModal, setShowCreateDebtModal] = useState(false);
+  const [newDebtAmount, setNewDebtAmount] = useState("");
+  const [newDebtConcept, setNewDebtConcept] = useState("");
+  const [newDebtNotes, setNewDebtNotes] = useState("");
+  const [creatingDebt, setCreatingDebt] = useState(false);
   const [citasTimeFilter, setCitasTimeFilter] = useState<"pasado" | "futuro">("pasado");
   const [citasStatusMenuOpen, setCitasStatusMenuOpen] = useState<string | null>(null);
   const [clinicVouchers, setClinicVouchers] = useState<any[]>([]);
@@ -3219,6 +3257,92 @@ export default function ClientDetailPage() {
     }
   };
 
+  const isClientMinor = useMemo(() => {
+    if (!client?.birthDate) return false;
+    const birthDate = new Date(client.birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age < 18;
+  }, [client?.birthDate]);
+
+  const pendingDebts = useMemo(() => {
+    return (client?.debts || []).filter((d: ClientDebt) => d.status === "PENDING");
+  }, [client?.debts]);
+
+  const totalPendingDebt = useMemo(() => {
+    return pendingDebts.reduce((acc: number, d: ClientDebt) => acc + (d.remainingAmount !== undefined && d.remainingAmount !== null ? d.remainingAmount : d.amount), 0);
+  }, [pendingDebts]);
+
+  const handlePayDebt = async () => {
+    if (!selectedDebtToPay) return;
+    setPayingDebt(true);
+    try {
+      const res = await fetch("/api/cash-register/debts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          debtId: selectedDebtToPay.id,
+          paymentMethod: debtPaymentMethod,
+          createMovement: debtCreateMovement,
+        }),
+      });
+      if (res.ok) {
+        setShowPayDebtModal(false);
+        setSelectedDebtToPay(null);
+        fetchClientDetails();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Error al saldar la deuda");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al procesar el cobro de la deuda");
+    } finally {
+      setPayingDebt(false);
+    }
+  };
+
+  const handleCreateDebt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeClinic?.id || !id || !newDebtConcept || !newDebtAmount) {
+      alert("Por favor rellene los campos requeridos");
+      return;
+    }
+    setCreatingDebt(true);
+    try {
+      const res = await fetch("/api/cash-register/debts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clinicId: activeClinic.id,
+          clientId: id,
+          amount: parseFloat(newDebtAmount),
+          concept: newDebtConcept,
+          notes: newDebtNotes,
+        }),
+      });
+      if (res.ok) {
+        setShowCreateDebtModal(false);
+        setNewDebtAmount("");
+        setNewDebtConcept("");
+        setNewDebtNotes("");
+        fetchClientDetails();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Error al registrar la deuda");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al crear la deuda");
+    } finally {
+      setCreatingDebt(false);
+    }
+  };
+
   // Variable replacement helper for templates
   const resolveTemplateVariables = (rawContent: string) => {
     if (!client) return rawContent;
@@ -3229,14 +3353,70 @@ export default function ClientDetailPage() {
     const now = new Date();
     const nextApp = sortedApps.find(a => new Date(a.start) >= now) || sortedApps[sortedApps.length - 1];
 
-    // Fetch unpaid sales to calculate debt
-    const unpaidSales = client.sales ? client.sales.filter((s: any) => s.status !== "PAID") : [];
-    const debt = unpaidSales.reduce((acc: number, s: any) => acc + s.total, 0);
+    // Calculate real pending debt from client debts
+    const pendingDebtsList = client.debts ? client.debts.filter((d: any) => d.status === "PENDING") : [];
+    const debt = pendingDebtsList.reduce((acc: number, d: any) => acc + (d.remainingAmount !== undefined && d.remainingAmount !== null ? d.remainingAmount : d.amount), 0);
+
+    // Calculate patient age
+    let patientAge = "";
+    if (client.birthDate) {
+      const bDate = new Date(client.birthDate);
+      const nowD = new Date();
+      let a = nowD.getFullYear() - bDate.getFullYear();
+      const m = nowD.getMonth() - bDate.getMonth();
+      if (m < 0 || (m === 0 && nowD.getDate() < bDate.getDate())) a--;
+      patientAge = a >= 0 ? `${a} años` : "";
+    }
 
     let resolved = rawContent;
 
-    // 1. Reemplazar variables clásicas
+    // 1. Reemplazar variables clásicas y formato DocFav 2026
     const replacements: Record<string, string> = {
+      // Paciente / Cliente
+      "{{Nombre}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.firstName}</span>`,
+      "{{Apellidos}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.lastName}</span>`,
+      "{{DNI}}": `<span class="var-badge" style="border:1px solid #db2777; color:#db2777; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.dniNif || "[Falta DNI]"}</span>`,
+      "{{NIF}}": `<span class="var-badge" style="border:1px solid #db2777; color:#db2777; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.dniNif || "[Falta DNI]"}</span>`,
+      "{{Email}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.email || "No registrado"}</span>`,
+      "{{Telefono}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.phone || "No registrado"}</span>`,
+      "{{Direccion}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.address || "No registrada"}</span>`,
+      "{{Dirección}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.address || "No registrada"}</span>`,
+      "{{Municipio}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.municipality || "Madrid"}</span>`,
+      "{{Codigo_Postal}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.postalCode || ""}</span>`,
+      "{{Numero_Paciente}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clientNumber}</span>`,
+      "{{Fecha_Nacimiento}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.birthDate ? new Date(client.birthDate).toLocaleDateString("es-ES") : "[Falta F. Nac.]"}</span>`,
+      "{{Alergias}}": `<span class="var-badge" style="background:#ef4444; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.allergies || "Ninguna"}</span>`,
+
+      // Tutor Legal (Ley 41/2002)
+      "{{Nombre_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorName || "[Sin tutor]"}</span>`,
+      "{{Apellidos_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorLastName || ""}</span>`,
+      "{{Nombre_Completo_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${((client.tutorName || "") + " " + (client.tutorLastName || "")).trim() || "[Sin tutor]"}</span>`,
+      "{{NIF_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorDniNif || ""}</span>`,
+      "{{DNI_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorDniNif || ""}</span>`,
+      "{{Telefono_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorPhone || ""}</span>`,
+      "{{Email_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorEmail || ""}</span>`,
+      "{{Direccion_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorAddress || ""}</span>`,
+      "{{Municipio_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorMunicipality || ""}</span>`,
+      "{{Codigo_Postal_Tutor}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorPostalCode || ""}</span>`,
+
+      // Centro Sanitario & Facultativo
+      "{{Nombre_Clinica}}": `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.name}</span>`,
+      "{{Direccion_Clinica}}": `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.address}</span>`,
+      "{{NIF_Clinica}}": `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.cifNif || "B-88776655"}</span>`,
+      "{{CIF_Clinica}}": `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.cifNif || "B-88776655"}</span>`,
+      "{{Telefono_Clinica}}": `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.phone || ""}</span>`,
+      "{{Email_Clinica}}": `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.email || ""}</span>`,
+      "{{Profesional_Tratante}}": `<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${nextApp?.user ? nextApp.user.firstName + " " + (nextApp.user.lastName || "") : (currentUser?.name || "Profesional Sanitario")}</span>`,
+      "{{Fecha_Documento}}": `<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${today}</span>`,
+      "{{Fecha_Hora_Documento}}": `<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${new Date().toLocaleString("es-ES")}</span>`,
+
+      // Firmas
+      "{{Firma_Paciente}}": `<span class="var-badge var-signature" data-type="ordinary" style="background:#eab308; color:black; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_ordinaria]</span>`,
+      "{{Firma_Medico}}": `<span class="var-badge var-signature" data-type="doctor_ordinary" style="background:#3b82f6; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_medico]</span>`,
+      "{{Firma_Tutor}}": `<span class="var-badge var-signature" data-type="tutor_ordinary" style="background:#0284c7; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_tutor]</span>`,
+      "{{Firma_Certificada}}": `<span class="var-badge var-signature" data-type="certified" style="background:#ca8a04; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_certificada]</span>`,
+      "{{Firma_Digital}}": `<span class="var-badge var-signature" data-type="digital" style="background:#06b6d4; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_digital]</span>`,
+
       "{{client.firstName}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.firstName}</span>`,
       "{{client.lastName}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.lastName}</span>`,
       "{{client.dniNif}}": `<span class="var-badge" style="border:1px solid #db2777; color:#db2777; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.dniNif || "[Falta DNI]"}</span>`,
@@ -3277,6 +3457,16 @@ export default function ClientDetailPage() {
       "{{Empleado_Teléfono}}": `<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${nextApp?.user?.phone || ""}</span>`,
       
       "{{Deuda}}": `<span class="var-badge" style="background:#f43f5e; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${debt.toFixed(2)} €</span>`,
+      
+      // DocFav 2026 additional variables
+      "{{Edad}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${patientAge || "No registrada"}</span>`,
+      "{{Numero_paciente}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clientNumber}</span>`,
+      "{{Calle}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.address || "No registrada"}</span>`,
+      "{{Calle_Tutor}}": `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorAddress || "No registrada"}</span>`,
+      "{{Nombre_Negocio}}": `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.name}</span>`,
+      "{{Medicacion}}": `<span class="var-badge" style="background:#ea580c; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.medication || "Ninguna"}</span>`,
+      "{{Antecedentes}}": `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.medicalHistory || "Ninguno"}</span>`,
+      "{{Tratamientos_Previos}}": `<span class="var-badge" style="background:#9333ea; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.aestheticTreatments || "Ninguno"}</span>`,
     };
 
     Object.entries(replacements).forEach(([variable, value]) => {
@@ -3317,6 +3507,41 @@ export default function ClientDetailPage() {
     
     resolved = resolved.replaceAll("[Deuda]", debt.toFixed(2) + " €");
 
+    // DocFav 2026 bracket variables
+    resolved = resolved.replaceAll("[Edad]", patientAge || "No registrada");
+    resolved = resolved.replaceAll("[Numero_paciente]", String(client.clientNumber || ""));
+    resolved = resolved.replaceAll("[Calle]", client.address || "No registrada");
+    resolved = resolved.replaceAll("[Calle_Tutor]", client.tutorAddress || "No registrada");
+    resolved = resolved.replaceAll("[Nombre_Negocio]", client.clinic.name);
+    resolved = resolved.replaceAll("[Medicacion]", client.medication || "Ninguna");
+    resolved = resolved.replaceAll("[Antecedentes]", client.medicalHistory || "Ninguno");
+    resolved = resolved.replaceAll("[Tratamientos_Previos]", client.aestheticTreatments || "Ninguno");
+
+    // Variables de Representante Legal / Tutor (Ley 41/2002 para menores y dependientes)
+    resolved = resolved.replaceAll("[Nombre_Tutor]", client.tutorName || "");
+    resolved = resolved.replaceAll("[Apellidos_Tutor]", client.tutorLastName || "");
+    resolved = resolved.replaceAll("[Nombre_Completo_Tutor]", ((client.tutorName || "") + (client.tutorLastName ? " " + client.tutorLastName : "")).trim() || "[Sin tutor]");
+    resolved = resolved.replaceAll("[DNI_Tutor]", client.tutorDniNif || "");
+    resolved = resolved.replaceAll("[NIF_Tutor]", client.tutorDniNif || "");
+    resolved = resolved.replaceAll("[Telefono_Tutor]", client.tutorPhone || "");
+    resolved = resolved.replaceAll("[Email_Tutor]", client.tutorEmail || "");
+    resolved = resolved.replaceAll("[Direccion_Tutor]", client.tutorAddress || "");
+    resolved = resolved.replaceAll("[Codigo_Postal_Tutor]", client.tutorPostalCode || "");
+    resolved = resolved.replaceAll("[Municipio_Tutor]", client.tutorMunicipality || "");
+
+    // Variables de Clínica y Sanitarias adicionales
+    resolved = resolved.replaceAll("[NIF_clinica]", client.clinic.cifNif || "B-88776655");
+    resolved = resolved.replaceAll("[CIF_clinica]", client.clinic.cifNif || "B-88776655");
+    resolved = resolved.replaceAll("[Telefono_clinica]", client.clinic.phone || "");
+    resolved = resolved.replaceAll("[Email_clinica]", client.clinic.email || "");
+    resolved = resolved.replaceAll("[Municipio_cliente]", client.municipality || "Madrid");
+    resolved = resolved.replaceAll("[Codigo_Postal_cliente]", client.postalCode || "");
+    resolved = resolved.replaceAll("[Email_Cliente]", client.email || "No registrado");
+    resolved = resolved.replaceAll("[Telefono_Cliente]", client.phone || "No registrado");
+    resolved = resolved.replaceAll("[Fecha_Hora_Documento]", new Date().toLocaleString("es-ES"));
+    resolved = resolved.replaceAll("[Profesional_tratante]", nextApp?.user ? nextApp.user.firstName + " " + (nextApp.user.lastName || "") : (currentUser?.name || "Profesional Sanitario"));
+    resolved = resolved.replaceAll("[Empleado_nombre_completo]", nextApp?.user ? nextApp.user.firstName + " " + (nextApp.user.lastName || "") : (currentUser?.name || "Profesional Sanitario"));
+
     return resolved;
   };
 
@@ -3348,13 +3573,13 @@ export default function ClientDetailPage() {
     // Extract all signature fields from the content
     const fields: Array<{id: string; type: "ordinary" | "doctor_ordinary" | "certified"}> = [];
     
-    // Find ordinary patient signature badges
-    const ordinaryMatches = content.match(/data-type=["']?ordinary["']?(?!_)/gi) || [];
+    // Find ordinary patient and tutor signature badges
+    const ordinaryMatches = content.match(/data-type=["']?(ordinary|tutor_ordinary)["']?(?!_)/gi) || [];
     ordinaryMatches.forEach((_, idx) => {
       fields.push({ id: `ordinary_${idx}`, type: "ordinary" });
     });
-    // Also detect text-based [Firma Paciente] or [Campo_firma_ordinaria]
-    if (ordinaryMatches.length === 0 && (/\[Campo_firma_ordinaria\]/i.test(content) || /\[Firma Paciente\]/i.test(content))) {
+    // Also detect text-based [Firma Paciente], [Campo_firma_ordinaria] or [Campo_firma_tutor]
+    if (ordinaryMatches.length === 0 && (/\[Campo_firma_ordinaria\]/i.test(content) || /\[Firma Paciente\]/i.test(content) || /\[Campo_firma_tutor\]/i.test(content) || /\[Firma Tutor\]/i.test(content))) {
       fields.push({ id: "ordinary_0", type: "ordinary" });
     }
 
@@ -3363,8 +3588,8 @@ export default function ClientDetailPage() {
     doctorMatches.forEach((_, idx) => {
       fields.push({ id: `doctor_ordinary_${idx}`, type: "doctor_ordinary" });
     });
-    // Also detect text-based [Firma Médico]
-    if (doctorMatches.length === 0 && /\[Firma M[eé]dico\]/i.test(content)) {
+    // Also detect text-based [Firma Médico] or [Campo_firma_medico]
+    if (doctorMatches.length === 0 && (/\[Firma M[eé]dico\]/i.test(content) || /\[Campo_firma_medico\]/i.test(content))) {
       fields.push({ id: "doctor_ordinary_0", type: "doctor_ordinary" });
     }
 
@@ -3415,30 +3640,74 @@ export default function ClientDetailPage() {
     const unpaidSales = client.sales ? client.sales.filter((s: any) => s.status !== "PAID") : [];
     const debt = unpaidSales.reduce((acc: number, s: any) => acc + s.total, 0);
 
-    if (variable === "{{client.firstName}}" || variable === "{{Cliente:Nombre}}") {
+    if (variable === "{{Nombre}}" || variable === "{{client.firstName}}" || variable === "{{Cliente:Nombre}}") {
       html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.firstName}</span>`;
-    } else if (variable === "{{client.lastName}}" || variable === "{{Cliente:Apellidos}}") {
+    } else if (variable === "{{Apellidos}}" || variable === "{{client.lastName}}" || variable === "{{Cliente:Apellidos}}") {
       html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.lastName}</span>`;
-    } else if (variable === "{{Cliente:Dirección_Cliente}}") {
-      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.address || "No registrada"}</span>`;
-    } else if (variable === "{{client.dniNif}}" || variable === "{{Empleado_DNI}}") {
+    } else if (variable === "{{DNI}}" || variable === "{{NIF}}" || variable === "{{client.dniNif}}" || variable === "{{Empleado_DNI}}") {
       html = `<span class="var-badge" style="border:1px solid #db2777; color:#db2777; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.dniNif || "[Falta DNI]"}</span>`;
-    } else if (variable === "{{document.date}}") {
-      html = `<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${today}</span>`;
-    } else if (variable === "{{signature.client}}") {
-      html = '<span class="var-badge var-signature" data-type="ordinary" style="background:#eab308; color:black; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Paciente]</span>';
-    } else if (variable === "{{signature.doctor}}") {
-      html = '<span class="var-badge var-signature" data-type="doctor_ordinary" style="background:#3b82f6; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Médico]</span>';
-    } else if (variable === "{{signature.certified}}") {
-      html = '<span class="var-badge var-signature" data-type="certified" style="background:#ca8a04; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">🔏 [Firma Certificada]</span>';
-    } else if (variable === "{{signature.digital}}") {
-      html = '<span class="var-badge var-signature" data-type="digital" style="background:#06b6d4; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_digital]</span>';
-    } else if (variable === "{{clinic.name}}" || variable === "{{Nombre_Consulta}}") {
+    } else if (variable === "{{Email}}" || variable === "{{client.email}}") {
+      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.email || "No registrado"}</span>`;
+    } else if (variable === "{{Telefono}}" || variable === "{{client.phone}}") {
+      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.phone || "No registrado"}</span>`;
+    } else if (variable === "{{Direccion}}" || variable === "{{Dirección}}" || variable === "{{Cliente:Dirección_Cliente}}") {
+      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.address || "No registrada"}</span>`;
+    } else if (variable === "{{Municipio}}" || variable === "{{client.municipality}}") {
+      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.municipality || "Madrid"}</span>`;
+    } else if (variable === "{{Codigo_Postal}}" || variable === "{{client.postalCode}}") {
+      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.postalCode || ""}</span>`;
+    } else if (variable === "{{Numero_Paciente}}") {
+      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clientNumber}</span>`;
+    } else if (variable === "{{Fecha_Nacimiento}}" || variable === "{{client.birthDate}}") {
+      html = `<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.birthDate ? new Date(client.birthDate).toLocaleDateString("es-ES") : "[Falta F. Nac.]"}</span>`;
+    } else if (variable === "{{Alergias}}" || variable === "{{client.allergies}}") {
+      html = `<span class="var-badge" style="background:#ef4444; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.allergies || "Ninguna"}</span>`;
+    } else if (variable === "{{Nombre_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorName || "[Sin tutor]"}</span>`;
+    } else if (variable === "{{Apellidos_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorLastName || ""}</span>`;
+    } else if (variable === "{{Nombre_Completo_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${((client.tutorName || "") + " " + (client.tutorLastName || "")).trim() || "[Sin tutor]"}</span>`;
+    } else if (variable === "{{NIF_Tutor}}" || variable === "{{DNI_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorDniNif || ""}</span>`;
+    } else if (variable === "{{Telefono_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorPhone || ""}</span>`;
+    } else if (variable === "{{Email_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorEmail || ""}</span>`;
+    } else if (variable === "{{Direccion_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorAddress || ""}</span>`;
+    } else if (variable === "{{Municipio_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorMunicipality || ""}</span>`;
+    } else if (variable === "{{Codigo_Postal_Tutor}}") {
+      html = `<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.tutorPostalCode || ""}</span>`;
+    } else if (variable === "{{Nombre_Clinica}}" || variable === "{{clinic.name}}" || variable === "{{Nombre_Consulta}}") {
       html = `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.name}</span>`;
-    } else if (variable === "{{Dirección_Consulta}}") {
+    } else if (variable === "{{Direccion_Clinica}}" || variable === "{{Dirección_Consulta}}") {
       html = `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.address}</span>`;
+    } else if (variable === "{{NIF_Clinica}}" || variable === "{{CIF_Clinica}}") {
+      html = `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.cifNif || "B-88776655"}</span>`;
+    } else if (variable === "{{Telefono_Clinica}}") {
+      html = `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.phone || ""}</span>`;
+    } else if (variable === "{{Email_Clinica}}") {
+      html = `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.email || ""}</span>`;
     } else if (variable === "{{clinic.municipality}}") {
       html = `<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${client.clinic.address.split(",").slice(-1)[0]?.trim() || "Madrid"}</span>`;
+    } else if (variable === "{{Profesional_Tratante}}") {
+      html = `<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${nextApp?.user ? nextApp.user.firstName + " " + (nextApp.user.lastName || "") : (currentUser?.name || "Profesional Sanitario")}</span>`;
+    } else if (variable === "{{Fecha_Documento}}" || variable === "{{document.date}}") {
+      html = `<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${today}</span>`;
+    } else if (variable === "{{Fecha_Hora_Documento}}") {
+      html = `<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${new Date().toLocaleString("es-ES")}</span>`;
+    } else if (variable === "{{Firma_Paciente}}" || variable === "{{signature.client}}") {
+      html = '<span class="var-badge var-signature" data-type="ordinary" style="background:#eab308; color:black; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Paciente]</span>';
+    } else if (variable === "{{Firma_Medico}}" || variable === "{{signature.doctor}}") {
+      html = '<span class="var-badge var-signature" data-type="doctor_ordinary" style="background:#3b82f6; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Médico]</span>';
+    } else if (variable === "{{Firma_Tutor}}") {
+      html = '<span class="var-badge var-signature" data-type="tutor_ordinary" style="background:#0284c7; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Tutor]</span>';
+    } else if (variable === "{{Firma_Certificada}}" || variable === "{{signature.certified}}") {
+      html = '<span class="var-badge var-signature" data-type="certified" style="background:#ca8a04; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">🔏 [Firma Certificada]</span>';
+    } else if (variable === "{{Firma_Digital}}" || variable === "{{signature.digital}}") {
+      html = '<span class="var-badge var-signature" data-type="digital" style="background:#06b6d4; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_digital]</span>';
     } else if (variable === "{{Fecha_Hora_Cita}}") {
       html = `<span class="var-badge" style="background:#6366f1; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">${nextApp ? new Date(nextApp.start).toLocaleString("es-ES") : today + " --:--"}</span>`;
     } else if (variable === "{{Fecha_larga}}") {
@@ -3855,16 +4124,125 @@ export default function ClientDetailPage() {
           <div className={styles.profileHeaderInfo}>
             <h1 className={styles.clientName}>{client.firstName} {client.lastName}</h1>
             <span className={styles.clientNumberBadge}>{t("clientCol")} #{client.clientNumber}</span>
+            {client.isMember && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  padding: "6px 10px",
+                  borderRadius: "10px",
+                  background: "linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.06))",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "6px",
+                  width: "100%",
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: "11px", fontWeight: 800, color: "#d97706", display: "block" }}>
+                    ⭐ {client.membershipTier || "ESTÁNDAR"} (#{client.memberNumber || "M00001"})
+                  </span>
+                  <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+                    🎁 {client.membershipPoints || 0} pts
+                  </span>
+                </div>
+                {client.phone && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{
+                      padding: "3px 8px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#16a34a",
+                      borderColor: "#86efac",
+                      background: "rgba(34, 197, 94, 0.08)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                    onClick={() => {
+                      const cleanPhone = (client.phone || "").replace(/[^\d+]/g, "").replace(/^\+/, "");
+                      const msg = `✨ *¡Hola, ${client.firstName}!* ✨\n\nTe compartimos los datos de tu *Tarjeta Digital del Club de Fidelización* en *${client.clinic?.name || activeClinic?.name || "Clifav"}*:\n\n` +
+                        `🏷️ *Nº de Socio:* ${client.memberNumber || "Socio"}\n` +
+                        `⭐ *Categoría:* ${client.membershipTier || "ESTÁNDAR"}\n` +
+                        `🎁 *Puntos Acumulados:* ${client.membershipPoints || 0} pts\n` +
+                        `🩺 *Estado:* ACTIVO\n\n` +
+                        `¡Muchas gracias por confiar en nosotros! 🌟`;
+                      window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`, "_blank");
+                    }}
+                    title="Enviar tarjeta de socio por WhatsApp"
+                  >
+                    📲 Carnet
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Warnings */}
-          {(client.allergies || client.medication) && (
+          {/* Warnings & Clinical/Financial Alerts */}
+          {(client.allergies || client.medication || client.medicalHistory || totalPendingDebt > 0 || isClientMinor) && (
             <div className={styles.warningPills}>
+              {isClientMinor && (
+                <div 
+                  className={styles.minorPill}
+                  onClick={() => {
+                    setActiveTab("general");
+                    setTimeout(() => {
+                      const tutorSection = document.getElementById("tutor-section");
+                      if (tutorSection) tutorSection.scrollIntoView({ behavior: "smooth" });
+                    }, 100);
+                  }}
+                  title="Paciente menor de edad según Ley 41/2002. Clic para ver tutor legal."
+                  style={{ cursor: "pointer" }}
+                >
+                  👶 Menor de Edad (&lt;18)
+                </div>
+              )}
+              {totalPendingDebt > 0 && (
+                <div 
+                  className={styles.debtAlertPill}
+                  onClick={() => {
+                    setActiveTab("billing");
+                    setBillingSubTab("deudas");
+                  }}
+                  title="Paciente con deuda pendiente. Clic para gestionar cobro."
+                  style={{ cursor: "pointer" }}
+                >
+                  <span>⚠️ Deuda: {totalPendingDebt.toFixed(2)} €</span>
+                  <span className={styles.debtAlertAction}>Cobrar</span>
+                </div>
+              )}
               {client.allergies && (
-                <span className={styles.allergyPill}>⚠️ Alergias</span>
+                <span 
+                  className={styles.allergyPill}
+                  onClick={() => setActiveTab("medical_history")}
+                  title={`Alergias: ${client.allergies}. Clic para ver historial.`}
+                  style={{ cursor: "pointer" }}
+                >
+                  ⚠️ Alergias: {client.allergies.length > 20 ? client.allergies.slice(0, 18) + "..." : client.allergies}
+                </span>
               )}
               {client.medication && (
-                <span className={styles.medicationPill}>💊 Medicación</span>
+                <span 
+                  className={styles.medicationPill}
+                  onClick={() => setActiveTab("medical_history")}
+                  title={`Medicación: ${client.medication}. Clic para ver historial.`}
+                  style={{ cursor: "pointer" }}
+                >
+                  💊 Medicación: {client.medication.length > 20 ? client.medication.slice(0, 18) + "..." : client.medication}
+                </span>
+              )}
+              {client.medicalHistory && (
+                <span 
+                  className={styles.historyPill}
+                  onClick={() => setActiveTab("medical_history")}
+                  title={`Antecedentes: ${client.medicalHistory}. Clic para ver historial.`}
+                  style={{ cursor: "pointer" }}
+                >
+                  🩺 Antecedentes
+                </span>
               )}
             </div>
           )}
@@ -3928,21 +4306,35 @@ export default function ClientDetailPage() {
                 {(client.appointments || []).filter((a: any) => !a.deletedAt).length}
               </span>
             </div>
-            <div className={styles.kpiTile}>
-              <span className={styles.kpiLabel}>Última</span>
-              <span className={styles.kpiValueSmall}>
-                {(() => {
-                  const past = (client.appointments || []).filter((a: any) => !a.deletedAt && new Date(a.start) <= new Date()).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
-                  if (!past.length) return "—";
-                  const diff = Math.floor((Date.now() - new Date(past[0].start).getTime()) / (1000 * 60 * 60 * 24));
-                  if (diff === 0) return "Hoy";
-                  if (diff === 1) return "Ayer";
-                  if (diff < 7) return `Hace ${diff}d`;
-                  if (diff < 30) return `Hace ${Math.floor(diff/7)}sem`;
-                  return `Hace ${Math.floor(diff/30)}m`;
-                })()}
-              </span>
-            </div>
+            {totalPendingDebt > 0 ? (
+              <div 
+                className={styles.kpiTile}
+                style={{ background: "rgba(239, 68, 68, 0.08)", borderColor: "rgba(239, 68, 68, 0.3)", cursor: "pointer" }}
+                onClick={() => { setActiveTab("billing"); setBillingSubTab("deudas"); }}
+                title="Deuda pendiente. Clic para cobrar."
+              >
+                <span className={styles.kpiLabel} style={{ color: "#dc2626", fontWeight: 700 }}>Deuda</span>
+                <span className={styles.kpiValue} style={{ color: "#dc2626", fontSize: "14px", fontWeight: 800 }}>
+                  {totalPendingDebt.toFixed(0)} €
+                </span>
+              </div>
+            ) : (
+              <div className={styles.kpiTile}>
+                <span className={styles.kpiLabel}>Última</span>
+                <span className={styles.kpiValueSmall}>
+                  {(() => {
+                    const past = (client.appointments || []).filter((a: any) => !a.deletedAt && new Date(a.start) <= new Date()).sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
+                    if (!past.length) return "—";
+                    const diff = Math.floor((Date.now() - new Date(past[0].start).getTime()) / (1000 * 60 * 60 * 24));
+                    if (diff === 0) return "Hoy";
+                    if (diff === 1) return "Ayer";
+                    if (diff < 7) return `Hace ${diff}d`;
+                    if (diff < 30) return `Hace ${Math.floor(diff/7)}sem`;
+                    return `Hace ${Math.floor(diff/30)}m`;
+                  })()}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Próxima cita mini-widget / Agendar Cita */}
@@ -4116,20 +4508,12 @@ export default function ClientDetailPage() {
           >
             {t("tabPersonalData")}
           </button>
-          {showDocumentsTab && (
+          {showMedicalTab && (
             <button 
-              className={`${styles.tabBtn} ${activeTab === "documents" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("documents")}
+              className={`${styles.tabBtn} ${activeTab === "medical_history" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveTab("medical_history")}
             >
-              {t("tabDocuments")}
-            </button>
-          )}
-          {showFormsTab && (
-            <button 
-              className={`${styles.tabBtn} ${activeTab === "forms" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("forms")}
-            >
-              {t("tabForms")}
+              🩺 Historial y Alertas
             </button>
           )}
           {showMedicalTab && (
@@ -4137,15 +4521,37 @@ export default function ClientDetailPage() {
               className={`${styles.tabBtn} ${activeTab === "medical" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("medical")}
             >
-              {t("tabFollowUps")}
+              📋 {t("tabFollowUps")}
             </button>
           )}
-          {currentUser?.role === "ADMIN" && (
+          {showFormsTab && (
             <button 
-              className={`${styles.tabBtn} ${activeTab === "permissions" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("permissions")}
+              className={`${styles.tabBtn} ${activeTab === "forms" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveTab("forms")}
             >
-              {t("tabPermissions")}
+              📝 {t("tabForms")}
+            </button>
+          )}
+          {showDocumentsTab && (
+            <button 
+              className={`${styles.tabBtn} ${activeTab === "documents" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveTab("documents")}
+            >
+              📜 {t("tabDocuments")}
+            </button>
+          )}
+          <button 
+            className={`${styles.tabBtn} ${activeTab === "photos" ? styles.tabBtnActive : ""}`}
+            onClick={() => setActiveTab("photos")}
+          >
+            📸 {t("Antes y Después")}
+          </button>
+          {showBudgetsTab && (
+            <button 
+              className={`${styles.tabBtn} ${activeTab === "budgets" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveTab("budgets")}
+            >
+              💼 Presupuestos
             </button>
           )}
           {showBillingTab && (
@@ -4153,15 +4559,9 @@ export default function ClientDetailPage() {
               className={`${styles.tabBtn} ${activeTab === "billing" ? styles.tabBtnActive : ""}`}
               onClick={() => setActiveTab("billing")}
             >
-              {t("tabArticlesClient")}
+              💳 {t("tabArticlesClient")}
             </button>
           )}
-          <button 
-            className={`${styles.tabBtn} ${activeTab === "photos" ? styles.tabBtnActive : ""}`}
-            onClick={() => setActiveTab("photos")}
-          >
-            {t("Antes y Después")}
-          </button>
           <button 
             className={`${styles.tabBtn} ${activeTab === "timeline" ? styles.tabBtnActive : ""}`}
             onClick={() => setActiveTab("timeline")}
@@ -4174,6 +4574,14 @@ export default function ClientDetailPage() {
           >
             ✏️ Pizarra Clínica
           </button>
+          {currentUser?.role === "ADMIN" && (
+            <button 
+              className={`${styles.tabBtn} ${activeTab === "permissions" ? styles.tabBtnActive : ""}`}
+              onClick={() => setActiveTab("permissions")}
+            >
+              🔒 {t("tabPermissions")}
+            </button>
+          )}
         </div>
 
 
@@ -4193,6 +4601,18 @@ export default function ClientDetailPage() {
                   </button>
                 )}
               </div>
+
+              {isClientMinor && (
+                <div className={styles.minorNoticeBox}>
+                  <span className={styles.minorNoticeIcon}>👶</span>
+                  <div>
+                    <strong>Paciente Menor de Edad (&lt; 18 años) — Régimen Ley 41/2002 de Autonomía del Paciente</strong>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                      La representación legal y la firma de consentimientos informados corresponden al padre, madre o tutor legal acreditado en la ficha.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className={styles.personalFieldsList}>
                 {/* Field Row: Nombre */}
@@ -4626,27 +5046,624 @@ export default function ClientDetailPage() {
 
               {/* Tutor legal scroll target */}
               <div id="tutor-section" style={{ marginTop: "32px", borderTop: "1px solid var(--border-color)", paddingTop: "20px" }}>
-                <h3 style={{ fontSize: "14px", fontWeight: "700", textTransform: "uppercase", marginBottom: "16px" }}>{t("timezone") === "Time Zone" ? "Legal Guardian / Representative" : t("timezone") === "Zona horària" ? "Tutor Legal / Representant" : t("timezone") === "Ordu-eremua" ? "Tutor Legal / Ordezkaria" : "Tutor Legal / Representante"}</h3>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                  <h3 style={{ fontSize: "14px", fontWeight: "700", textTransform: "uppercase", margin: 0 }}>
+                    {t("timezone") === "Time Zone" ? "Legal Guardian / Representative" : t("timezone") === "Zona horària" ? "Tutor Legal / Representant" : t("timezone") === "Ordu-eremua" ? "Tutor Legal / Ordezkaria" : "Tutor Legal / Representante"}
+                  </h3>
+                  {isClientMinor && (
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#7c3aed", background: "rgba(139, 92, 246, 0.1)", padding: "2px 8px", borderRadius: "12px", border: "1px solid rgba(139, 92, 246, 0.3)" }}>
+                      Obligatorio (Menor de edad)
+                    </span>
+                  )}
+                </div>
+
                 <div className={styles.personalFieldsList}>
+                  {/* Tutor Name */}
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t("timezone") === "Time Zone" ? "Guardian Name" : t("timezone") === "Zona horària" ? "Nom del Tutor" : t("timezone") === "Ordu-eremua" ? "Tutorearen Izena" : "Nombre Tutor"}</span>
-                    <span className={styles.fieldValue}>
-                      {showPersonalData ? `${client.tutorName || "-"} ${client.tutorLastName || ""}` : "******"}
-                    </span>
+                    <span className={styles.fieldLabel}>Nombre Tutor</span>
+                    {editingField === "tutorName" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="text"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorName")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorName || "-") : "******"}</span>
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorName", client.tutorName || "")}
+                            title="Editar nombre del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Tutor Last Name */}
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t("timezone") === "Time Zone" ? "Guardian Phone" : t("timezone") === "Zona horària" ? "Telèfon del Tutor" : t("timezone") === "Ordu-eremua" ? "Tutorearen Telefonoa" : "Teléfono Tutor"}</span>
-                    <span className={styles.fieldValue}>
-                      {showPersonalData ? (client.tutorPhone || "-") : "******"}
-                    </span>
+                    <span className={styles.fieldLabel}>Apellidos Tutor</span>
+                    {editingField === "tutorLastName" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="text"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorLastName")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorLastName || "-") : "******"}</span>
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorLastName", client.tutorLastName || "")}
+                            title="Editar apellidos del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Tutor DNI/NIF */}
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t("timezone") === "Time Zone" ? "Guardian Email" : t("timezone") === "Zona horària" ? "Email del Tutor" : t("timezone") === "Ordu-eremua" ? "Tutorearen Emaila" : "Email Tutor"}</span>
-                    <span className={styles.fieldValue}>
-                      {showPersonalData ? (client.tutorEmail || "-") : "******"}
-                    </span>
+                    <span className={styles.fieldLabel}>DNI/NIF Tutor</span>
+                    {editingField === "tutorDniNif" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="text"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorDniNif")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorDniNif || "-") : "******"}</span>
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorDniNif", client.tutorDniNif || "")}
+                            title="Editar DNI del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tutor Phone with WhatsApp */}
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>Teléfono Tutor</span>
+                    {editingField === "tutorPhone" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="text"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorPhone")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorPhone || "-") : "******"}</span>
+                        {showPersonalData && client.tutorPhone && (
+                          <a
+                            href={`https://web.whatsapp.com/send?phone=${client.tutorPhone.replace(/\+/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.whatsAppIconLink}
+                            title="Enviar WhatsApp al tutor"
+                          >
+                            <WhatsAppIcon size={16} />
+                          </a>
+                        )}
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorPhone", client.tutorPhone || "")}
+                            title="Editar teléfono del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tutor Email */}
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>Email Tutor</span>
+                    {editingField === "tutorEmail" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="email"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorEmail")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorEmail || "-") : "******"}</span>
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorEmail", client.tutorEmail || "")}
+                            title="Editar email del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tutor Address */}
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>Dirección Tutor</span>
+                    {editingField === "tutorAddress" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="text"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorAddress")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorAddress || "-") : "******"}</span>
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorAddress", client.tutorAddress || "")}
+                            title="Editar dirección del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tutor Municipality */}
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>Población / Municipio Tutor</span>
+                    {editingField === "tutorMunicipality" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="text"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorMunicipality")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorMunicipality || "-") : "******"}</span>
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorMunicipality", client.tutorMunicipality || "")}
+                            title="Editar municipio del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tutor Postal Code */}
+                  <div className={styles.fieldRow}>
+                    <span className={styles.fieldLabel}>C.P. Tutor</span>
+                    {editingField === "tutorPostalCode" ? (
+                      <div className={styles.inlineEditForm}>
+                        <input
+                          type="text"
+                          className={styles.inlineEditInput}
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          autoFocus
+                        />
+                        <div className={styles.inlineEditActions}>
+                          <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("tutorPostalCode")} title={t("save")}>
+                            <Icons.Check size={14} />
+                          </button>
+                          <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                            <Icons.Close size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={styles.fieldValueContainer}>
+                        <span className={styles.fieldValue}>{showPersonalData ? (client.tutorPostalCode || "-") : "******"}</span>
+                        {showPersonalData && (
+                          <button
+                            className={styles.inlineEditTriggerBtn}
+                            onClick={() => startInlineEdit("tutorPostalCode", client.tutorPostalCode || "")}
+                            title="Editar código postal del tutor"
+                          >
+                            <Icons.Edit size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Historial Médico y Alertas Clínicas */}
+          {activeTab === "medical_history" && (
+            <div className={styles.clinicalHistoryContainer}>
+              {/* Header card with quick actions */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "14px", padding: "16px 20px" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+                    🩺 Historial Clínico, Antecedentes y Alertas
+                  </h3>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "4px 0 0 0" }}>
+                    Registro centralizado de antecedentes, alertas farmacológicas, cirugías previas y tratamientos de {client.firstName} {client.lastName}.
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={handleExportClinicalHistoryPdf}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(13, 148, 136, 0.3)",
+                      background: "rgba(13, 148, 136, 0.08)",
+                      color: "var(--primary)",
+                      fontWeight: 600,
+                      fontSize: "12.5px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    <Icons.FileText size={14} />
+                    <span>PDF Ficha</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("medical")}
+                    className="btn btn-primary"
+                    style={{ padding: "8px 16px", fontSize: "12.5px", display: "flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <span>📋 Ver Evolutivos</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD 1: Alergias y Reacciones Adversas */}
+              <div className={styles.clinicalHistoryCard} style={{ borderLeft: "4px solid #ef4444" }}>
+                <div className={styles.clinicalCardHeader}>
+                  <div className={styles.clinicalCardTitle}>
+                    <span style={{ fontSize: "18px" }}>⚠️</span>
+                    <div>
+                      <div>Alergias y Reacciones Adversas (RAM)</div>
+                      <div className={styles.clinicalCardSubtitle}>Fármacos, anestésicos, látex, metales, etc.</div>
+                    </div>
+                  </div>
+                  {editingField !== "allergies" && (
+                    <button
+                      className={styles.inlineEditTriggerBtn}
+                      onClick={() => startInlineEdit("allergies", client.allergies || "")}
+                      title="Editar alergias"
+                    >
+                      <Icons.Edit size={14} />
+                    </button>
+                  )}
+                </div>
+                {editingField === "allergies" ? (
+                  <div className={styles.inlineEditForm} style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                    <textarea
+                      className={styles.inlineEditInput}
+                      value={inlineEditValue}
+                      onChange={(e) => setInlineEditValue(e.target.value)}
+                      rows={3}
+                      placeholder="Ej: Alergia a Penicilina, sulfamidas, intolerancia al látex..."
+                      autoFocus
+                    />
+                    <div className={styles.inlineEditActions} style={{ justifyContent: "flex-end" }}>
+                      <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("allergies")} title={t("save")}>
+                        <Icons.Check size={14} /> Guardar
+                      </button>
+                      <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                        <Icons.Close size={14} /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.clinicalCardContent}>
+                    {client.allergies ? (
+                      <span style={{ color: "#dc2626", fontWeight: 600 }}>{client.allergies}</span>
+                    ) : (
+                      <span className={styles.clinicalEmptyState}>
+                        <Icons.Check size={14} style={{ color: "#10b981" }} /> Sin alergias medicamentosas conocidas (NKDA).
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 2: Medicación Activa / Crónica */}
+              <div className={styles.clinicalHistoryCard} style={{ borderLeft: "4px solid #f97316" }}>
+                <div className={styles.clinicalCardHeader}>
+                  <div className={styles.clinicalCardTitle}>
+                    <span style={{ fontSize: "18px" }}>💊</span>
+                    <div>
+                      <div>Medicación Habitual y Tratamientos Activos</div>
+                      <div className={styles.clinicalCardSubtitle}>Anticoagulantes, antihipertensivos, retinoides, etc.</div>
+                    </div>
+                  </div>
+                  {editingField !== "medication" && (
+                    <button
+                      className={styles.inlineEditTriggerBtn}
+                      onClick={() => startInlineEdit("medication", client.medication || "")}
+                      title="Editar medicación"
+                    >
+                      <Icons.Edit size={14} />
+                    </button>
+                  )}
+                </div>
+                {editingField === "medication" ? (
+                  <div className={styles.inlineEditForm} style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                    <textarea
+                      className={styles.inlineEditInput}
+                      value={inlineEditValue}
+                      onChange={(e) => setInlineEditValue(e.target.value)}
+                      rows={3}
+                      placeholder="Ej: Sintrom 4mg, Enalapril 10mg, Isotretinoína oral..."
+                      autoFocus
+                    />
+                    <div className={styles.inlineEditActions} style={{ justifyContent: "flex-end" }}>
+                      <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("medication")} title={t("save")}>
+                        <Icons.Check size={14} /> Guardar
+                      </button>
+                      <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                        <Icons.Close size={14} /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.clinicalCardContent}>
+                    {client.medication ? (
+                      <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{client.medication}</span>
+                    ) : (
+                      <span className={styles.clinicalEmptyState}>No toma medicación activa registrada.</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 3: Antecedentes Patológicos, Médicos y Quirúrgicos */}
+              <div className={styles.clinicalHistoryCard} style={{ borderLeft: "4px solid #0284c7" }}>
+                <div className={styles.clinicalCardHeader}>
+                  <div className={styles.clinicalCardTitle}>
+                    <span style={{ fontSize: "18px" }}>🩺</span>
+                    <div>
+                      <div>Antecedentes Patológicos, Médicos y Quirúrgicos</div>
+                      <div className={styles.clinicalCardSubtitle}>Enfermedades crónicas, intervenciones quirúrgicas, antecedentes familiares</div>
+                    </div>
+                  </div>
+                  {editingField !== "medicalHistory" && (
+                    <button
+                      className={styles.inlineEditTriggerBtn}
+                      onClick={() => startInlineEdit("medicalHistory", client.medicalHistory || "")}
+                      title="Editar antecedentes"
+                    >
+                      <Icons.Edit size={14} />
+                    </button>
+                  )}
+                </div>
+                {editingField === "medicalHistory" ? (
+                  <div className={styles.inlineEditForm} style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                    <textarea
+                      className={styles.inlineEditInput}
+                      value={inlineEditValue}
+                      onChange={(e) => setInlineEditValue(e.target.value)}
+                      rows={4}
+                      placeholder="Ej: Hipertensión arterial, diabetes tipo 2, apendicectomía (2018), implantes de mama..."
+                      autoFocus
+                    />
+                    <div className={styles.inlineEditActions} style={{ justifyContent: "flex-end" }}>
+                      <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("medicalHistory")} title={t("save")}>
+                        <Icons.Check size={14} /> Guardar
+                      </button>
+                      <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                        <Icons.Close size={14} /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.clinicalCardContent}>
+                    {client.medicalHistory ? (
+                      <span>{client.medicalHistory}</span>
+                    ) : (
+                      <span className={styles.clinicalEmptyState}>Sin antecedentes patológicos relevantes registrados.</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 4: Tratamientos Estéticos Previos */}
+              <div className={styles.clinicalHistoryCard} style={{ borderLeft: "4px solid #9333ea" }}>
+                <div className={styles.clinicalCardHeader}>
+                  <div className={styles.clinicalCardTitle}>
+                    <span style={{ fontSize: "18px" }}>✨</span>
+                    <div>
+                      <div>Tratamientos Estéticos y Dermatológicos Previos</div>
+                      <div className={styles.clinicalCardSubtitle}>Toxina botulínica, ácido hialurónico, hilos, peelings o láser recibidos anteriormente</div>
+                    </div>
+                  </div>
+                  {editingField !== "aestheticTreatments" && (
+                    <button
+                      className={styles.inlineEditTriggerBtn}
+                      onClick={() => startInlineEdit("aestheticTreatments", client.aestheticTreatments || "")}
+                      title="Editar tratamientos estéticos"
+                    >
+                      <Icons.Edit size={14} />
+                    </button>
+                  )}
+                </div>
+                {editingField === "aestheticTreatments" ? (
+                  <div className={styles.inlineEditForm} style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                    <textarea
+                      className={styles.inlineEditInput}
+                      value={inlineEditValue}
+                      onChange={(e) => setInlineEditValue(e.target.value)}
+                      rows={3}
+                      placeholder="Ej: Toxina botulínica en tercio superior (hace 6 meses), relleno de labios con ác. hialurónico..."
+                      autoFocus
+                    />
+                    <div className={styles.inlineEditActions} style={{ justifyContent: "flex-end" }}>
+                      <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("aestheticTreatments")} title={t("save")}>
+                        <Icons.Check size={14} /> Guardar
+                      </button>
+                      <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                        <Icons.Close size={14} /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.clinicalCardContent}>
+                    {client.aestheticTreatments ? (
+                      <span>{client.aestheticTreatments}</span>
+                    ) : (
+                      <span className={styles.clinicalEmptyState}>Ningún tratamiento estético previo reportado.</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* CARD 5: Otras Observaciones Clínicas */}
+              <div className={styles.clinicalHistoryCard} style={{ borderLeft: "4px solid #64748b" }}>
+                <div className={styles.clinicalCardHeader}>
+                  <div className={styles.clinicalCardTitle}>
+                    <span style={{ fontSize: "18px" }}>📝</span>
+                    <div>
+                      <div>Notas y Observaciones Clínicas Generales</div>
+                      <div className={styles.clinicalCardSubtitle}>Estilo de vida, hábitos tóxicos (tabaco/alcohol), recordatorios clínicos</div>
+                    </div>
+                  </div>
+                  {editingField !== "otherNotes" && (
+                    <button
+                      className={styles.inlineEditTriggerBtn}
+                      onClick={() => startInlineEdit("otherNotes", client.otherNotes || "")}
+                      title="Editar notas clínicas"
+                    >
+                      <Icons.Edit size={14} />
+                    </button>
+                  )}
+                </div>
+                {editingField === "otherNotes" ? (
+                  <div className={styles.inlineEditForm} style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                    <textarea
+                      className={styles.inlineEditInput}
+                      value={inlineEditValue}
+                      onChange={(e) => setInlineEditValue(e.target.value)}
+                      rows={3}
+                      placeholder="Notas adicionales sobre el paciente..."
+                      autoFocus
+                    />
+                    <div className={styles.inlineEditActions} style={{ justifyContent: "flex-end" }}>
+                      <button className={styles.inlineSaveBtn} onClick={() => saveInlineEdit("otherNotes")} title={t("save")}>
+                        <Icons.Check size={14} /> Guardar
+                      </button>
+                      <button className={styles.inlineCancelBtn} onClick={cancelInlineEdit} title={t("cancel")}>
+                        <Icons.Close size={14} /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.clinicalCardContent}>
+                    {client.otherNotes ? (
+                      <span>{client.otherNotes}</span>
+                    ) : (
+                      <span className={styles.clinicalEmptyState}>Sin notas adicionales.</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -5348,7 +6365,18 @@ export default function ClientDetailPage() {
                                       <button type="button" onClick={() => { handleInsertDocVariable("{{Cliente:Dirección_Cliente}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Dirección Paciente</button>
                                       <button type="button" onClick={() => { handleInsertDocVariable("{{client.dniNif}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>NIF Paciente</button>
                                       <button type="button" onClick={() => { handleInsertDocVariable("{{client.birthDate}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>F. Nacimiento</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Numero_paciente}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Nº Paciente</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Edad}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Edad</button>
                                       <button type="button" onClick={() => { handleInsertDocVariable("{{client.allergies}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Alergias</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Medicacion}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Medicación</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Antecedentes}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Antecedentes</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Tratamientos_Previos}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Tratamientos Previos</button>
+
+                                      <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", background: "var(--bg-input)", letterSpacing: "0.5px" }}>TUTOR LEGAL (Ley 41/2002)</div>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Nombre_Completo_Tutor}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Nombre Tutor Completo</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{DNI_Tutor}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>DNI Tutor</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Calle_Tutor}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Dirección Tutor</button>
+                                      <button type="button" onClick={() => { handleInsertDocVariable("{{Deuda}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Deuda Pendiente</button>
 
                                       <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-muted)", background: "var(--bg-input)", letterSpacing: "0.5px" }}>CLÍNICA / CONSULTA</div>
                                       <button type="button" onClick={() => { handleInsertDocVariable("{{clinic.name}}"); setShowDocVariablesDropdown(false); }} style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", color: "var(--text-primary)" }}>Nombre Clínica</button>
@@ -7406,14 +8434,20 @@ export default function ClientDetailPage() {
               {/* Horizontal sub-tabs and add article button (Image 4) */}
               <div className={styles.subTabsHeaderRow}>
                 <div className={styles.billingSubTabsList}>
-                  {(["citas", "productos", "bonos", "suscripciones", "presupuestos"] as const).map((tab) => (
+                  {(["citas", "productos", "bonos", "suscripciones", "presupuestos", "deudas"] as const).map((tab) => (
                     <button
                       key={tab}
                       type="button"
                       className={`${styles.billingSubTabBtn} ${billingSubTab === tab ? styles.billingSubTabActive : ""}`}
                       onClick={() => setBillingSubTab(tab)}
                     >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {tab === "deudas" ? (
+                        <span>
+                          Deudas {pendingDebts.length > 0 && <span style={{ background: "#dc2626", color: "#fff", padding: "1px 6px", borderRadius: "10px", fontSize: "10px", fontWeight: 700, marginLeft: "4px" }}>{pendingDebts.length}</span>}
+                        </span>
+                      ) : (
+                        tab.charAt(0).toUpperCase() + tab.slice(1)
+                      )}
                     </button>
                   ))}
                 </div>
@@ -8279,6 +9313,112 @@ export default function ClientDetailPage() {
                                       🗑️ Borrar
                                     </button>
                                   </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {billingSubTab === "deudas" && (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                      <div>
+                        <h4 className={styles.sectionSubtitle} style={{ color: "#dc2626", fontWeight: 700, fontSize: "15px", margin: 0 }}>
+                          Control de Deudas e Impagos
+                        </h4>
+                        <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          Total pendiente de cobro: <strong style={{ color: totalPendingDebt > 0 ? "#dc2626" : "#10b981", fontSize: "14px" }}>{totalPendingDebt.toFixed(2)} €</strong>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => setShowCreateDebtModal(true)}
+                        style={{ padding: "8px 18px", fontSize: "13px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      >
+                        <Icons.Plus size={16} />
+                        <span>Registrar Deuda</span>
+                      </button>
+                    </div>
+
+                    {(!client?.debts || client.debts.length === 0) ? (
+                      <div className={styles.emptyState} style={{ padding: "40px 20px", color: "var(--text-muted)", fontSize: "14px", textAlign: "center" }}>
+                        <span style={{ fontSize: "24px", display: "block", marginBottom: "8px" }}>✅</span>
+                        El paciente no tiene deudas ni importes pendientes de cobro registrados.
+                      </div>
+                    ) : (
+                      <div className="table-container">
+                        <table className={styles.debtTable}>
+                          <thead>
+                            <tr>
+                              <th>Fecha</th>
+                              <th>Concepto / Cargo</th>
+                              <th>Importe</th>
+                              <th>Saldo Pendiente</th>
+                              <th>Estado</th>
+                              <th>Método Cobro</th>
+                              <th style={{ textAlign: "right" }}>Acción</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {client.debts.map((d) => (
+                              <tr key={d.id}>
+                                <td>{new Date(d.date).toLocaleDateString("es-ES")}</td>
+                                <td>
+                                  <strong>{d.concept}</strong>
+                                  {d.notes && <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{d.notes}</div>}
+                                </td>
+                                <td>{d.amount.toFixed(2)} €</td>
+                                <td style={{ fontWeight: 700, color: d.status === "PENDING" ? "#dc2626" : "var(--text-secondary)" }}>
+                                  {d.status === "PENDING" ? `${(d.remainingAmount !== undefined && d.remainingAmount !== null ? d.remainingAmount : d.amount).toFixed(2)} €` : "0.00 €"}
+                                </td>
+                                <td>
+                                  {d.status === "PENDING" ? (
+                                    <span className={styles.debtPendingBadge}>⏳ Pendiente</span>
+                                  ) : (
+                                    <span className={styles.debtPaidBadge}>✓ Cobrado</span>
+                                  )}
+                                </td>
+                                <td>
+                                  {d.paymentMethod ? (
+                                    <span style={{ fontSize: "12px", textTransform: "capitalize" }}>
+                                      {d.paymentMethod === "CASH" ? "Efectivo" : d.paymentMethod === "CARD" ? "Tarjeta" : d.paymentMethod === "TRANSFER" ? "Transferencia" : d.paymentMethod}
+                                    </span>
+                                  ) : "—"}
+                                </td>
+                                <td style={{ textAlign: "right" }}>
+                                  {d.status === "PENDING" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDebtToPay(d);
+                                        setShowPayDebtModal(true);
+                                      }}
+                                      style={{
+                                        padding: "6px 12px",
+                                        background: "var(--primary)",
+                                        color: "#ffffff",
+                                        border: "none",
+                                        borderRadius: "6px",
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px"
+                                      }}
+                                    >
+                                      💳 Cobrar Deuda
+                                    </button>
+                                  ) : (
+                                    <span style={{ fontSize: "12px", color: "#10b981", fontWeight: 600 }}>
+                                      Saldado {d.paidAt ? `el ${new Date(d.paidAt).toLocaleDateString("es-ES")}` : ""}
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -11913,6 +13053,212 @@ export default function ClientDetailPage() {
                 {assignProductSaving ? "Guardando..." : "Guardar"}
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL COBRAR DEUDA */}
+      {typeof window !== "undefined" && showPayDebtModal && selectedDebtToPay && createPortal(
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 99999, padding: "16px"
+        }}>
+          <div style={{
+            background: "#ffffff", borderRadius: "16px", width: "100%", maxWidth: "460px",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "20px 24px", borderBottom: "1px solid #e2e8f0"
+            }}>
+              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#0f172a" }}>
+                💳 Cobrar Deuda Pendiente
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setShowPayDebtModal(false); setSelectedDebtToPay(null); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
+              >
+                <Icons.Close size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>Concepto</div>
+                <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{selectedDebtToPay.concept}</div>
+                <div style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>Importe a cobrar</div>
+                <div style={{ fontSize: "20px", fontWeight: 800, color: "#dc2626" }}>
+                  {(selectedDebtToPay.remainingAmount !== undefined && selectedDebtToPay.remainingAmount !== null ? selectedDebtToPay.remainingAmount : selectedDebtToPay.amount).toFixed(2)} €
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                  Método de pago *
+                </label>
+                <select
+                  value={debtPaymentMethod}
+                  onChange={(e) => setDebtPaymentMethod(e.target.value as any)}
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: "8px",
+                    border: "1px solid #cbd5e1", fontSize: "13px", color: "#0f172a", background: "#ffffff"
+                  }}
+                >
+                  <option value="CASH">💵 Efectivo</option>
+                  <option value="CARD">💳 Tarjeta (TPV / Datáfono)</option>
+                  <option value="TRANSFER">🏦 Transferencia Bancaria / Bizum</option>
+                </select>
+              </div>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px", color: "#334155" }}>
+                <input
+                  type="checkbox"
+                  checked={debtCreateMovement}
+                  onChange={(e) => setDebtCreateMovement(e.target.checked)}
+                  style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                />
+                <span>Registrar ingreso directo en Caja Diaria</span>
+              </label>
+            </div>
+
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px",
+              padding: "16px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc"
+            }}>
+              <button
+                type="button"
+                onClick={() => { setShowPayDebtModal(false); setSelectedDebtToPay(null); }}
+                className="btn btn-secondary"
+                style={{ padding: "8px 18px", fontSize: "13px" }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={payingDebt}
+                onClick={handlePayDebt}
+                className="btn btn-primary"
+                style={{ padding: "8px 22px", fontSize: "13px", background: "#10b981", borderColor: "#10b981", color: "#ffffff" }}
+              >
+                {payingDebt ? "Cobrando..." : "Confirmar Cobro"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL REGISTRAR DEUDA */}
+      {typeof window !== "undefined" && showCreateDebtModal && createPortal(
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 99999, padding: "16px"
+        }}>
+          <div style={{
+            background: "#ffffff", borderRadius: "16px", width: "100%", maxWidth: "460px",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+            overflow: "hidden"
+          }}>
+            <form onSubmit={handleCreateDebt}>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "20px 24px", borderBottom: "1px solid #e2e8f0"
+              }}>
+                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#0f172a" }}>
+                  📝 Registrar Deuda o Cargo Pendiente
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateDebtModal(false)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
+                >
+                  <Icons.Close size={20} />
+                </button>
+              </div>
+
+              <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    Concepto de la deuda *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Sesión láser pendiente, fianza de tratamiento..."
+                    value={newDebtConcept}
+                    onChange={(e) => setNewDebtConcept(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 14px", borderRadius: "8px",
+                      border: "1px solid #cbd5e1", fontSize: "13px", color: "#0f172a", outline: "none"
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    Importe (€) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="0.00"
+                    value={newDebtAmount}
+                    onChange={(e) => setNewDebtAmount(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 14px", borderRadius: "8px",
+                      border: "1px solid #cbd5e1", fontSize: "13px", color: "#0f172a", outline: "none"
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    Notas adicionales / Observaciones
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Detalles sobre el acuerdo de pago o motivos del aplazamiento..."
+                    value={newDebtNotes}
+                    onChange={(e) => setNewDebtNotes(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 14px", borderRadius: "8px",
+                      border: "1px solid #cbd5e1", fontSize: "13px", color: "#0f172a", outline: "none"
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px",
+                padding: "16px 24px", borderTop: "1px solid #e2e8f0", background: "#f8fafc"
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateDebtModal(false)}
+                  className="btn btn-secondary"
+                  style={{ padding: "8px 18px", fontSize: "13px" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingDebt}
+                  className="btn btn-primary"
+                  style={{ padding: "8px 22px", fontSize: "13px", background: "var(--primary)", borderColor: "var(--primary)" }}
+                >
+                  {creatingDebt ? "Guardando..." : "Registrar Deuda"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>,
         document.body

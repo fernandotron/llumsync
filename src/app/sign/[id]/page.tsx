@@ -17,14 +17,27 @@ export default function PatientSignaturePage() {
   const [isPinVerified, setIsPinVerified] = useState(false);
   const [pinError, setPinError] = useState("");
 
-  const handleVerifyPin = (e: React.FormEvent) => {
+  const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!doc) return;
-    if (pinInput.trim() === doc.pin) {
+    if (!id || !pinInput.trim()) return;
+    setLoading(true);
+    setPinError("");
+    try {
+      const res = await fetch(`/api/documents/signed/${id}?pin=${encodeURIComponent(pinInput.trim())}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setPinError(data.error || "El PIN introducido es incorrecto.");
+        return;
+      }
+      setDoc(data);
       setIsPinVerified(true);
-      setPinError("");
-    } else {
-      setPinError("El PIN introducido es incorrecto. Por favor, verifícalo.");
+      if (data.signature) {
+        setIsSignedSuccessfully(true);
+      }
+    } catch {
+      setPinError("Error de comunicación al verificar el PIN.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,11 +54,11 @@ export default function PatientSignaturePage() {
       })
       .then((data) => {
         setDoc(data);
-        if (data.signature) {
+        if (data.signature || data.isSigned) {
           setIsSignedSuccessfully(true);
         }
-        // If there's no PIN saved, verify automatically
-        if (!data.pin) {
+        // If there's no PIN required or it is verified
+        if (!data.requiresPin || data.pinVerified) {
           setIsPinVerified(true);
         }
       })
@@ -146,7 +159,7 @@ export default function PatientSignaturePage() {
       const res = await fetch(`/api/documents/signed/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signature: signatureBase64 }),
+        body: JSON.stringify({ signature: signatureBase64, pin: pinInput.trim() }),
       });
 
       if (res.ok) {

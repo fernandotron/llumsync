@@ -3,10 +3,18 @@ import { prisma } from "@/lib/db";
 import fs from "fs";
 import path from "path";
 import { BACKUP_DIR, ensureBackupDir, generateBackupData, createDailyBackup } from "@/lib/backup";
+import { authenticateApiRequest } from "@/lib/authGuard";
+import { logEhrAccess } from "@/lib/auditLogger";
 
 // GET /api/backup?action=list|download|export&clinicId=...&filename=...
 export async function GET(request: Request) {
   try {
+    const auth = await authenticateApiRequest();
+    if ("errorResponse" in auth) return auth.errorResponse;
+    if (auth.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Acceso denegado. Se requiere rol de Administrador." }, { status: 403 });
+    }
+
     ensureBackupDir();
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action") || "list";
@@ -19,6 +27,16 @@ export async function GET(request: Request) {
       const jsonStr = JSON.stringify(backupObj, null, 2);
       const dateTag = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
       const exportFilename = `backup-${clinicId || "full"}-${dateTag}.json`;
+
+      // Log EHR database export for compliance audit trail
+      await logEhrAccess({
+        clientId: "GLOBAL_EXPORT",
+        userId: auth.user.id,
+        userName: auth.user.name,
+        action: "EXPORT",
+        details: `Copia de seguridad completa exportada: ${exportFilename}`,
+        clinicId: clinicId || null,
+      });
 
       // Save a copy on disk as well
       const filePath = path.join(BACKUP_DIR, exportFilename);
@@ -80,6 +98,12 @@ export async function GET(request: Request) {
 // Body: { action: "create" | "trigger-daily" | "restore", clinicId?: string, backupData?: any }
 export async function POST(request: Request) {
   try {
+    const auth = await authenticateApiRequest();
+    if ("errorResponse" in auth) return auth.errorResponse;
+    if (auth.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Acceso denegado. Se requiere rol de Administrador." }, { status: 403 });
+    }
+
     ensureBackupDir();
     const body = await request.json();
     const { action = "create", clinicId, backupData } = body;

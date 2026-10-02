@@ -17,13 +17,36 @@ export async function GET(
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
     }
 
+    // Check PIN protection server-side
+    if (signedDoc.pin && signedDoc.pin.trim() !== "") {
+      const url = new URL(request.url);
+      const providedPin = (url.searchParams.get("pin") || request.headers.get("x-signature-pin") || "").trim();
+      
+      if (providedPin !== signedDoc.pin.trim()) {
+        // Redact all sensitive clinical content and client details until valid PIN is verified
+        return NextResponse.json({
+          id: signedDoc.id,
+          name: signedDoc.name,
+          requiresPin: true,
+          pinVerified: false,
+          isSigned: !!signedDoc.signature,
+          ...(providedPin ? { error: "El PIN introducido es incorrecto." } : {}),
+        }, { status: providedPin ? 403 : 200 });
+      }
+    }
+
     // Fetch client details using standard Prisma
     const client = await prisma.client.findUnique({
       where: { id: signedDoc.clientId },
     });
 
-    signedDoc.client = client;
-    return NextResponse.json(signedDoc);
+    // Strip out PIN from response to prevent any credential disclosure
+    const { pin: _pin, ...safeDoc } = signedDoc as any;
+    safeDoc.requiresPin = !!(signedDoc.pin && signedDoc.pin.trim() !== "");
+    safeDoc.pinVerified = true;
+    safeDoc.client = client;
+
+    return NextResponse.json(safeDoc);
   } catch (error) {
     console.error("Error fetching signed document details:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
@@ -38,7 +61,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { signature } = body;
+    const { signature, pin } = body;
 
     if (!signature) {
       return NextResponse.json({ error: "Falta la firma" }, { status: 400 });
@@ -50,6 +73,14 @@ export async function PUT(
 
     if (!signedDoc) {
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
+    }
+
+    // Server-side PIN enforcement for remote signature submission
+    if (signedDoc.pin && signedDoc.pin.trim() !== "") {
+      const providedPin = (pin || request.headers.get("x-signature-pin") || "").trim();
+      if (providedPin !== signedDoc.pin.trim()) {
+        return NextResponse.json({ error: "PIN de seguridad incorrecto o ausente" }, { status: 403 });
+      }
     }
 
     if (signedDoc.signature) {

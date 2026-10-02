@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import { useApp } from "@/context/AppContext";
 import { Icons } from "@/components/Icons";
 import { hasPermission } from "@/lib/permissions";
@@ -49,12 +50,13 @@ interface Client {
   tutorMunicipality?: string;
   
   allowedUsers?: { id: string }[];
+  _count?: { documents: number; files: number };
 }
 
 const TAG_COLORS = ["#f56565", "#ed8936", "#ecc94b", "#48bb78", "#38b2ac", "#4299e1", "#667eea", "#9f7aec", "#ed64a6", "#a0aec0"];
 
 interface ColumnConfig {
-  key: keyof Client | "lastAppointment";
+  key: keyof Client | "lastAppointment" | "documents";
   label: string;
   visible: boolean;
 }
@@ -95,15 +97,23 @@ export default function ContactsPage() {
   const [newCreateTagColor, setNewCreateTagColor] = useState("#f56565");
   const createTagsDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Excel / CSV Import Modal States
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importAllRows, setImportAllRows] = useState<any[]>([]);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStats, setImportStats] = useState<{ total: number; valid: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Sorting
-  const [sortField, setSortField] = useState<keyof Client | "lastAppointment" | null>(null);
+  const [sortField, setSortField] = useState<keyof Client | "lastAppointment" | "documents" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const handleSort = (field: keyof Client | "lastAppointment") => {
+  const handleSort = (field: keyof Client | "lastAppointment" | "documents") => {
     if (sortField === field) {
       setSortDirection(prev => prev === "asc" ? "desc" : "asc");
     } else {
@@ -112,27 +122,31 @@ export default function ContactsPage() {
     }
   };
 
-  // Column Visibility Config
+  // 23 DocFav Clinical Specifications for Column Visibility (guia_clinica.txt lines 65-66)
   const [columns, setColumns] = useState<ColumnConfig[]>([
-    { key: "clientNumber", label: t("colClientNum"), visible: true },
-    { key: "firstName", label: `${t("colFirstName")} y ${t("lastName").toLowerCase()}`, visible: true },
-    { key: "phone", label: t("colPhone"), visible: true },
-    { key: "email", label: t("colEmail"), visible: true },
-    { key: "dniNif", label: identityLabel, visible: true },
-    { key: "birthDate", label: t("colBirthDate"), visible: false },
-    { key: "gender", label: t("colGender"), visible: false },
-    { key: "createdAt", label: t("colCreationDate"), visible: true },
-    { key: "lastAppointment", label: t("colLastAppt"), visible: true },
-    { key: "tags", label: t("colTags"), visible: true },
-    { key: "address", label: t("colAddress"), visible: false },
-    { key: "municipality", label: t("colMunicipality"), visible: false },
-    { key: "postalCode", label: t("colPostalCode"), visible: false },
-    { key: "country", label: t("country"), visible: false },
+    { key: "firstName", label: "Nombre", visible: true },
+    { key: "lastName", label: "Apellidos", visible: true },
+    { key: "phone", label: "Teléfono", visible: true },
+    { key: "email", label: "Email", visible: true },
+    { key: "createdAt", label: "Fecha De Creación", visible: true },
+    { key: "clientNumber", label: "Número De Cliente", visible: true },
+    { key: "lastAppointment", label: "Última Cita", visible: true },
+    { key: "dniNif", label: identityLabel || "DNI/NIF", visible: true },
+    { key: "birthDate", label: "Fecha De Nacimiento", visible: false },
+    { key: "tags", label: "Etiquetas", visible: true },
+    { key: "documents", label: "Documentos", visible: false },
+    { key: "gender", label: "Género", visible: false },
+    { key: "address", label: "Dirección", visible: false },
+    { key: "municipality", label: "Municipio", visible: false },
+    { key: "postalCode", label: "Código Postal", visible: false },
     { key: "iban", label: "IBAN", visible: false },
-    { key: "aestheticTreatments", label: t("colAestheticTreatments"), visible: false },
-    { key: "allergies", label: t("colAllergies"), visible: false },
-    { key: "medication", label: t("colMedication"), visible: false },
-    { key: "medicalHistory", label: t("colMedicalHistory"), visible: false },
+    { key: "bic", label: "BIC", visible: false },
+    { key: "country", label: "País", visible: false },
+    { key: "aestheticTreatments", label: "Tratamientos Estéticos Previos", visible: false },
+    { key: "otherNotes", label: "Otros", visible: false },
+    { key: "allergies", label: "Alergias", visible: false },
+    { key: "medication", label: "Medicación", visible: false },
+    { key: "medicalHistory", label: "Antecedentes Médicos", visible: false },
   ]);
 
   // Dropdown states
@@ -382,6 +396,16 @@ export default function ContactsPage() {
         .catch(console.error);
     }
     if (typeof window !== "undefined") {
+      const savedCols = localStorage.getItem("clifav_client_visible_columns");
+      if (savedCols) {
+        try {
+          const parsed = JSON.parse(savedCols);
+          setColumns(prev => prev.map(col => ({
+            ...col,
+            visible: parsed[col.key] !== undefined ? parsed[col.key] : col.visible,
+          })));
+        } catch (e) {}
+      }
       const saved = localStorage.getItem("clifav_client_available_tags");
       if (saved) {
         try {
@@ -435,9 +459,17 @@ export default function ContactsPage() {
   }, []);
 
   const handleToggleColumn = (key: string) => {
-    setColumns(
-      columns.map((col) => (col.key === key ? { ...col, visible: !col.visible } : col))
-    );
+    setColumns(prev => {
+      const updated = prev.map((col) => (col.key === key ? { ...col, visible: !col.visible } : col));
+      if (typeof window !== "undefined") {
+        try {
+          const map: Record<string, boolean> = {};
+          updated.forEach(c => { map[c.key] = c.visible; });
+          localStorage.setItem("clifav_client_visible_columns", JSON.stringify(map));
+        } catch (e) {}
+      }
+      return updated;
+    });
   };
 
   const getAge = (birthDateStr: string | Date) => {
@@ -496,9 +528,12 @@ export default function ContactsPage() {
       const bApps = (b as any).appointments;
       aVal = aApps && aApps.length > 0 ? new Date(aApps[0].start).getTime() : 0;
       bVal = bApps && bApps.length > 0 ? new Date(bApps[0].start).getTime() : 0;
+    } else if (sortField === "documents") {
+      aVal = ((a as any)._count?.documents || 0) + ((a as any)._count?.files || 0);
+      bVal = ((b as any)._count?.documents || 0) + ((b as any)._count?.files || 0);
     } else {
-      aVal = a[sortField];
-      bVal = b[sortField];
+      aVal = a[sortField as keyof Client];
+      bVal = b[sortField as keyof Client];
     }
     
     if (aVal === undefined || aVal === null) aVal = "";
@@ -719,6 +754,115 @@ export default function ContactsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Export to true Excel (.xlsx) using xlsx library
+  const handleExportExcel = () => {
+    if (filteredClients.length === 0) {
+      toast.error("No hay contactos para exportar");
+      return;
+    }
+
+    const visibleCols = columns.filter((col) => col.visible);
+    const dataRows = filteredClients.map((client) => {
+      const rowObj: Record<string, any> = {};
+      visibleCols.forEach((col) => {
+        let val: any = "";
+        if (col.key === "birthDate" && client.birthDate) {
+          val = new Date(client.birthDate).toLocaleDateString("es-ES");
+        } else if (col.key === "createdAt" && client.createdAt) {
+          val = new Date(client.createdAt).toLocaleDateString("es-ES");
+        } else if (col.key === "documents") {
+          val = ((client as any)._count?.documents || 0) + ((client as any)._count?.files || 0);
+        } else if (col.key === "lastAppointment") {
+          const apps = (client as any).appointments;
+          val = apps && apps.length > 0 ? new Date(apps[0].start).toLocaleDateString("es-ES") : "-";
+        } else {
+          val = (client as any)[col.key] || "";
+        }
+        rowObj[col.label] = val;
+      });
+      return rowObj;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Contactos");
+    
+    // Auto-fit column widths
+    const colWidths = visibleCols.map(c => ({ wch: Math.max(c.label.length + 4, 15) }));
+    worksheet["!cols"] = colWidths;
+
+    const clinicSlug = activeClinic?.name ? activeClinic.name.replace(/\s+/g, "_") : "Clinica";
+    XLSX.writeFile(workbook, `Contactos_${clinicSlug}.xlsx`);
+    toast.success("Excel (.xlsx) generado y descargado correctamente");
+  };
+
+  // Handle import file upload and parsing
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[firstSheetName];
+      const rawRows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+      if (!Array.isArray(rawRows) || rawRows.length === 0) {
+        toast.error("El archivo está vacío o no contiene filas con datos legibles");
+        return;
+      }
+
+      setImportAllRows(rawRows);
+      setImportPreview(rawRows.slice(0, 5));
+      setImportStats({ total: rawRows.length, valid: rawRows.length });
+      toast.info(`Se han detectado ${rawRows.length} registros listos para importar.`);
+    } catch (err) {
+      console.error("Error reading import file:", err);
+      toast.error("Error al procesar el archivo Excel/CSV. Verifica el formato.");
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!activeClinic) {
+      toast.error("No hay una clínica activa seleccionada");
+      return;
+    }
+    if (!importAllRows || importAllRows.length === 0) {
+      toast.error("No hay registros cargados para importar");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const res = await fetch("/api/clients/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clinicId: activeClinic.id,
+          clients: importAllRows,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || `Importados correctamente.`);
+        setShowImportModal(false);
+        setImportAllRows([]);
+        setImportPreview([]);
+        setImportStats(null);
+        fetchClients();
+      } else {
+        toast.error(data.error || "Error al importar los contactos");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error de conexión durante la importación");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Submit client creation
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -851,6 +995,39 @@ export default function ContactsPage() {
     if (key === "createdAt" && client.createdAt) {
       return new Date(client.createdAt).toLocaleDateString("es-ES");
     }
+    if (key === "documents") {
+      const count = ((client as any)._count?.documents || 0) + ((client as any)._count?.files || 0);
+      return (
+        <span className={styles.docBadge}>
+          <Icons.FileText size={13} />
+          <span>{count} doc{count === 1 ? "" : "s"}</span>
+        </span>
+      );
+    }
+    if (key === "allergies") {
+      if (!client.allergies) return "-";
+      return (
+        <span className={styles.allergyTablePill} title={client.allergies}>
+          ⚠️ {client.allergies}
+        </span>
+      );
+    }
+    if (key === "medication") {
+      if (!client.medication) return "-";
+      return (
+        <span className={styles.medicationTablePill} title={client.medication}>
+          💊 {client.medication}
+        </span>
+      );
+    }
+    if (key === "medicalHistory") {
+      if (!client.medicalHistory) return "-";
+      return (
+        <span className={styles.historyTablePill} title={client.medicalHistory}>
+          🩺 {client.medicalHistory}
+        </span>
+      );
+    }
     if (key === "lastAppointment") {
       const appointments = (client as any).appointments;
       if (appointments && appointments.length > 0) {
@@ -858,7 +1035,7 @@ export default function ContactsPage() {
       }
       return "-";
     }
-    return String(client[key as keyof Client] || "-");
+    return String((client as any)[key] || "-");
   };
 
   if (!currentUser || (currentUser.role !== "ADMIN" && !hasPermission(currentUser, "clientes", "Ver clientes"))) {
@@ -1486,11 +1663,24 @@ export default function ContactsPage() {
             )}
           </div>
 
-          {/* Export to Excel */}
+          {/* Export to Excel (.xlsx) and CSV */}
           {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Permitir descargar clientes")) && (
-            <button className="btn btn-secondary" onClick={handleExportCSV}>
-              <Icons.Download size={18} />
-              <span>{t("exportCSV")}</span>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button className="btn btn-secondary" onClick={handleExportExcel} title="Exportar directorio a Excel (.xlsx)">
+                <Icons.Download size={18} />
+                <span>Excel (.xlsx)</span>
+              </button>
+              <button className="btn btn-secondary" onClick={handleExportCSV} title="Exportar directorio a CSV">
+                <span>CSV</span>
+              </button>
+            </div>
+          )}
+
+          {/* Import Contacts Modal Trigger */}
+          {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "clientes", "Editar clientes")) && (
+            <button className="btn btn-secondary" onClick={() => setShowImportModal(true)} title="Importar contactos desde Excel o CSV">
+              <Icons.Upload size={18} />
+              <span>Importar</span>
             </button>
           )}
 
@@ -1615,7 +1805,7 @@ export default function ContactsPage() {
                   />
                 </th>
                 {columns.filter((c) => c.visible).map((c) => {
-                  const sortableKeys = ["clientNumber", "firstName", "lastName", "createdAt", "lastAppointment"];
+                  const sortableKeys = ["clientNumber", "firstName", "lastName", "createdAt", "lastAppointment", "documents", "dniNif", "phone", "email"];
                   const isSortable = sortableKeys.includes(c.key);
                   return (
                     <th 
@@ -1687,7 +1877,7 @@ export default function ContactsPage() {
                               </div>
                               <div className={styles.clientAvatarInfo}>
                                 <Link href={`/dashboard/contacts/${client.id}`} className={styles.clientNameLink}>
-                                  {client.firstName} {client.lastName}
+                                  {columns.some(col => col.key === "lastName" && col.visible) ? client.firstName : `${client.firstName} ${client.lastName}`}
                                 </Link>
                                 {client.phone && (
                                   <a
@@ -1706,8 +1896,11 @@ export default function ContactsPage() {
                                 )}
                               </div>
                             </div>
-                          ) : c.key === "lastName" ? null
-                          : c.key === "tags" && client.tags ? (
+                          ) : c.key === "lastName" ? (
+                            <Link href={`/dashboard/contacts/${client.id}`} className={styles.clientNameLink}>
+                              {client.lastName || "-"}
+                            </Link>
+                          ) : c.key === "tags" && client.tags ? (
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                               {client.tags.split(",").map((tag) => {
                                 const trimmed = tag.trim();
@@ -1849,6 +2042,137 @@ export default function ContactsPage() {
                   Eliminar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EXCEL / CSV IMPORT MODAL */}
+      {showImportModal && (
+        <div className={styles.importModalOverlay} onClick={() => { if (!isImporting) setShowImportModal(false); }}>
+          <div className={styles.importModalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.importModalHeader}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ padding: "8px", borderRadius: "8px", background: "rgba(0,143,163,0.1)", color: "var(--primary)" }}>
+                  <Icons.Upload size={20} />
+                </div>
+                <div>
+                  <h3 className={styles.importModalTitle}>Importar Pacientes</h3>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Formatos compatibles: .xlsx, .xls, .csv</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!isImporting) setShowImportModal(false); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+              >
+                <Icons.Close size={18} />
+              </button>
+            </div>
+
+            <div className={styles.importModalBody}>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".xlsx,.xls,.csv"
+                style={{ display: "none" }}
+                onChange={handleImportFileChange}
+              />
+
+              <div
+                className={styles.importDropZone}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary)" }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <p style={{ margin: "4px 0 0 0", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
+                  {importStats ? "Archivo seleccionado (haz clic para cambiar)" : "Haz clic o arrastra aquí tu archivo Excel o CSV"}
+                </p>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  Columnas admitidas: Nombre, Apellidos, Teléfono, Email, DNI/NIF, Fecha Nacimiento, Género, Dirección, Municipio, CP, IBAN, Alergias, Medicación, Antecedentes Médicos...
+                </span>
+              </div>
+
+              {importStats && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "rgba(16,185,129,0.1)", borderRadius: "8px", border: "1px solid rgba(16,185,129,0.25)" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#065f46" }}>
+                    ✓ {importStats.total} pacientes preparados para importar
+                  </span>
+                  <span style={{ fontSize: "12px", color: "#047857" }}>
+                    Clínica destino: {activeClinic?.name}
+                  </span>
+                </div>
+              )}
+
+              {importPreview.length > 0 && (
+                <div>
+                  <h4 style={{ fontSize: "13px", fontWeight: 700, margin: "0 0 8px 0", color: "var(--text-secondary)" }}>
+                    Vista previa (primeros 5 registros):
+                  </h4>
+                  <div className={styles.importPreviewWrapper}>
+                    <table className={styles.importPreviewTable}>
+                      <thead>
+                        <tr>
+                          <th>Nombre</th>
+                          <th>Apellidos</th>
+                          <th>Teléfono</th>
+                          <th>Email</th>
+                          <th>DNI/NIF</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.map((row, idx) => (
+                          <tr key={idx}>
+                            <td>{row.firstName || row.Nombre || row.first_name || "-"}</td>
+                            <td>{row.lastName || row.Apellidos || row.last_name || "-"}</td>
+                            <td>{row.phone || row.Teléfono || row.Telefono || "-"}</td>
+                            <td>{row.email || row.Email || row.correo || "-"}</td>
+                            <td>{row.dniNif || row["Dni/nif"] || row.DNI || row.NIF || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.importModalFooter}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={isImporting}
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportAllRows([]);
+                  setImportPreview([]);
+                  setImportStats(null);
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={isImporting || importAllRows.length === 0}
+                onClick={handleConfirmImport}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                {isImporting ? (
+                  <>
+                    <div className="spinner" style={{ width: "14px", height: "14px", border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    <span>Importando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icons.Check size={16} />
+                    <span>Confirmar e Importar ({importAllRows.length})</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

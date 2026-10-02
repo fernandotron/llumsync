@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +10,9 @@ export async function POST(request: Request) {
     if (!clinicId || !concept || amount === undefined) {
       return NextResponse.json({ error: "Faltan datos obligatorios (clinicId, concept, amount)" }, { status: 400 });
     }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const fullConcept = category ? `[SALIDA ${category.toUpperCase()}] ${concept}` : `[SALIDA CAJA] ${concept}`;
 

@@ -1,5 +1,41 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const clinicId = searchParams.get("clinicId");
+
+    const auth = await authenticateApiRequest(clinicId || undefined);
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
+    }
+
+    const where: any = {};
+    if (userId) where.userId = userId;
+    if (clinicId) {
+      where.OR = [
+        { clinicId },
+        { clinicId: null }
+      ];
+    }
+
+    const shifts = await prisma.shift.findMany({
+      where,
+      orderBy: [
+        { dayOfWeek: "asc" },
+        { startTime: "asc" }
+      ],
+    });
+
+    return NextResponse.json(shifts);
+  } catch (error) {
+    console.error("Error fetching shifts:", error);
+    return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -8,6 +44,11 @@ export async function POST(request: Request) {
 
     if (!userId || !clinicId) {
       return NextResponse.json({ error: "Faltan userId o clinicId" }, { status: 400 });
+    }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
     }
 
     if (mode === "delete") {
@@ -39,8 +80,8 @@ export async function POST(request: Request) {
           userId,
           clinicId,
           dayOfWeek: Number(dayOfWeek),
-          startTime,
-          endTime,
+          startTime: startTime || "09:00",
+          endTime: endTime || "18:00",
           startDate: startDate ? new Date(startDate) : null,
           endDate: endDate ? new Date(endDate) : null,
         },

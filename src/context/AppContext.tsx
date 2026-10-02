@@ -18,8 +18,15 @@ export interface Clinic {
   address: string;
   phone?: string;
   email?: string;
+  logo?: string;
   country?: string;
   controlHorarioActivo?: boolean;
+  razonSocial?: string;
+  cifNif?: string;
+  scheduleOpening?: string;
+  scheduleClosing?: string;
+  appointmentInterval?: number;
+  cancellationNoticeHours?: number;
   notifyAssignedUser?: boolean;
   adminNotificationUserIds?: string;
   senderEmail?: string;
@@ -32,6 +39,11 @@ export interface Clinic {
   metaPhoneNumberId?: string;
   metaBusinessAccountId?: string;
   metaTemplateName?: string;
+  birthdayEnabled?: boolean;
+  birthdayMessage?: string;
+  birthdayDiscount?: number;
+  birthdayImageUrl?: string;
+  birthdayCardTheme?: string;
 }
 
 

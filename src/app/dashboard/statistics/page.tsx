@@ -204,6 +204,7 @@ export default function StatisticsPage() {
   // 1. General Metrics
   const totalRevenue = filteredSales.reduce((acc, curr) => acc + (curr.total || 0), 0);
   const appointmentsCount = filteredAppointments.length;
+  const avgTicket = filteredSales.length > 0 ? totalRevenue / filteredSales.length : 0;
   const totalDurationMinutes = filteredAppointments.reduce((acc, curr) => {
     if (!curr.start || !curr.end) return acc;
     const diff = (new Date(curr.end).getTime() - new Date(curr.start).getTime()) / 60000;
@@ -212,12 +213,26 @@ export default function StatisticsPage() {
   const occupiedHoursText = `${Math.floor(totalDurationMinutes / 60)}h ${Math.round(totalDurationMinutes % 60)}m`;
 
   const uniqueClientsSet = new Set<string>();
-  filteredAppointments.forEach(a => uniqueClientsSet.add(a.clientId));
-  filteredSales.forEach(s => uniqueClientsSet.add(s.clientId));
+  filteredAppointments.forEach(a => { if (a.clientId) uniqueClientsSet.add(a.clientId); });
+  filteredSales.forEach(s => { if (s.clientId) uniqueClientsSet.add(s.clientId); });
   const uniqueClientsCount = uniqueClientsSet.size;
 
   const noShowsCount = filteredAppointments.filter(a => a.status === "NOSHOW").length;
   const cancellationsCount = filteredAppointments.filter(a => a.status === "CANCELLED").length;
+
+  // Hourly distribution for appointments (8:00 to 20:00)
+  const hourlyDistribution = Array.from({ length: 13 }, (_, i) => {
+    const hour = i + 8;
+    const count = filteredAppointments.filter((a) => {
+      if (!a.start) return false;
+      const h = new Date(a.start).getHours();
+      return h === hour;
+    }).length;
+    return {
+      label: `${String(hour).padStart(2, "0")}:00`,
+      count,
+    };
+  });
 
   // Day-by-day dates array for charts
   const getDaysArray = () => {
@@ -424,6 +439,17 @@ export default function StatisticsPage() {
 
   const totalGenderCount = Object.values(clientGenderCounts).reduce((acc, curr) => acc + curr, 0) || 1;
 
+  // Fidelización / Retención de pacientes
+  const newClientsInPeriod = activeClientsInPeriod.filter((c) => {
+    if (!c.createdAt) return false;
+    const d = new Date(c.createdAt);
+    return (!dateFilterStart || d >= dateFilterStart) && (!dateFilterEnd || d <= dateFilterEnd);
+  }).length;
+  const recurrentClientsInPeriod = Math.max(0, activeClientsInPeriod.length - newClientsInPeriod);
+  const retentionRate = activeClientsInPeriod.length > 0
+    ? Math.round((recurrentClientsInPeriod / activeClientsInPeriod.length) * 100)
+    : 0;
+
   // Clientes Detail table calculations
   const clientMetrics = clients.map((client) => {
     const clientSales = filteredSales.filter(s => s.clientId === client.id);
@@ -462,15 +488,17 @@ export default function StatisticsPage() {
     return 0;
   });
 
-  // 5. Rendimiento (Team stats)
+  // 5. Rendimiento (Team stats) - Null-safe for users and services
   const staffMetrics: Record<string, { id: string; name: string; revenue: number; appointments: number; hourly: number }> = {};
   
   // Initialize staff
   appointments.forEach(a => {
-    if (a.user && !staffMetrics[a.userId]) {
-      staffMetrics[a.userId] = {
-        id: a.userId,
-        name: a.user.name,
+    const staffId = a.userId || "unassigned";
+    const staffName = a.user?.name || "Sin asignar";
+    if (!staffMetrics[staffId]) {
+      staffMetrics[staffId] = {
+        id: staffId,
+        name: staffName,
         revenue: 0,
         appointments: 0,
         hourly: 0
@@ -480,14 +508,15 @@ export default function StatisticsPage() {
 
   // Calculate values
   filteredAppointments.forEach((appt) => {
-    if (!appt.user) return;
+    const staffId = appt.userId || "unassigned";
+    const staffName = appt.user?.name || "Sin asignar";
     const servicePrice = appt.service?.price || 0;
     const isCompleted = appt.status === "COMPLETED";
 
-    if (!staffMetrics[appt.userId]) {
-      staffMetrics[appt.userId] = {
-        id: appt.userId,
-        name: appt.user.name,
+    if (!staffMetrics[staffId]) {
+      staffMetrics[staffId] = {
+        id: staffId,
+        name: staffName,
         revenue: 0,
         appointments: 0,
         hourly: 0
@@ -495,9 +524,9 @@ export default function StatisticsPage() {
     }
 
     // Accumulate service prices as generated revenue
-    staffMetrics[appt.userId].revenue += servicePrice;
+    staffMetrics[staffId].revenue += servicePrice;
     if (isCompleted) {
-      staffMetrics[appt.userId].appointments += 1;
+      staffMetrics[staffId].appointments += 1;
     }
   });
 
@@ -642,12 +671,13 @@ export default function StatisticsPage() {
     } else if (preset === "mes_anterior") {
       start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
       end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-    } else if (preset === "octubre_2025") {
-      start = new Date(2025, 9, 1, 0, 0, 0);
-      end = new Date(2025, 9, 15, 23, 59, 59);
-    } else if (preset === "junio_2026") {
-      start = new Date(2026, 5, 1, 0, 0, 0);
-      end = new Date(2026, 5, 22, 23, 59, 59);
+    } else if (preset === "este_trimestre") {
+      const q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), q * 3, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59);
+    } else if (preset === "este_ano") {
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
     } else if (preset === "personalizado") {
       return; // let user input manually
     }
@@ -682,6 +712,152 @@ export default function StatisticsPage() {
     }
   };
 
+  // Export official multi-sheet clinical statistics Excel (.xlsx)
+  const handleExportExcel = async () => {
+    try {
+      const XLSX = await import("xlsx");
+      const clinicName = activeClinic?.name || "Clínica";
+      const datePeriodStr = getFilterText();
+      const generationDateStr = new Date().toLocaleString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      // ----------------------------------------------------
+      // HOJA 1: RESUMEN EJECUTIVO Y KPIS DEL PERIODO
+      // ----------------------------------------------------
+      const summaryRows = [
+        ["INFORME EJECUTIVO DE INTELIGENCIA CLÍNICA Y FINANCIERA (CLIFAV)"],
+        ["Clínica:", clinicName],
+        ["Dirección:", activeClinic?.address || "Sede Principal"],
+        ["Periodo Analizado:", datePeriodStr],
+        ["Fecha de Generación:", generationDateStr],
+        [],
+        ["INDICADOR CLAVE (KPI)", "VALOR", "DESCRIPCIÓN Y DESGLOSE"],
+        ["Facturación Total", `${totalRevenue.toFixed(2)} €`, `${filteredSales.length} transacciones de venta registradas`],
+        ["Ticket Medio", `${avgTicket.toFixed(2)} €`, "Gasto medio por transacción de venta"],
+        ["Total Citas Registradas", appointmentsCount, `${occupiedHoursText} ocupadas de consulta`],
+        ["Citas Completadas (Asistió)", statusCompleted, `${totalApptsCount > 0 ? ((statusCompleted / totalApptsCount) * 100).toFixed(1) : "0"}% del total`],
+        ["Incomparecencias (No-Show)", statusNoShow, `${totalApptsCount > 0 ? ((statusNoShow / totalApptsCount) * 100).toFixed(1) : "0"}% tasa de absentismo`],
+        ["Cancelaciones", statusCancelled, `${totalApptsCount > 0 ? ((statusCancelled / totalApptsCount) * 100).toFixed(1) : "0"}% tasa de cancelación`],
+        ["Pacientes Únicos Atendidos", uniqueClientsCount, "Pacientes con actividad clínica o compra en el periodo"],
+        ["Nuevos Pacientes Adquiridos", newClientsInPeriod, "Pacientes registrados dentro del periodo"],
+        ["Pacientes Recurrentes", recurrentClientsInPeriod, "Pacientes con historial clínico previo"],
+        ["Tasa de Fidelización / Retención", `${retentionRate}%`, "Porcentaje de pacientes que repiten visita"],
+        ["Tasa de Ocupación de Agenda", `${occupancyRate}%`, `${occupiedHours.toFixed(1)}h ocupadas de ${totalOpenHours.toFixed(1)}h disponibles`],
+      ];
+
+      // ----------------------------------------------------
+      // HOJA 2: DETALLE DE CITAS Y OCUPACIÓN
+      // ----------------------------------------------------
+      const appointmentsRows = [
+        ["DISTRIBUCIÓN Y DESGLOSE DE CITAS POR ESTADO"],
+        ["Estado", "Nº Citas", "% del Total"],
+        ["Completadas / Asistidas", statusCompleted, `${totalApptsCount > 0 ? ((statusCompleted / totalApptsCount) * 100).toFixed(1) : "0"}%`],
+        ["Pendientes", statusPending, `${totalApptsCount > 0 ? ((statusPending / totalApptsCount) * 100).toFixed(1) : "0"}%`],
+        ["Canceladas", statusCancelled, `${totalApptsCount > 0 ? ((statusCancelled / totalApptsCount) * 100).toFixed(1) : "0"}%`],
+        ["Incomparecencias (No-Show / Ausencias)", statusNoShow, `${totalApptsCount > 0 ? ((statusNoShow / totalApptsCount) * 100).toFixed(1) : "0"}%`],
+        [],
+        ["EVOLUCIÓN DIARIA DE AGENDA CLÍNICA"],
+        ["Fecha", "Nº Citas", "Horas Ocupadas", "Nuevos Pacientes"],
+        ...dailyAppointmentsData.map((d) => [d.dayStr, d.count, `${d.hours.toFixed(1)} h`, d.newClientsCount]),
+        [],
+        ["DISTRIBUCIÓN POR FRANJA HORARIA (HORAS PICO)"],
+        ["Hora", "Nº Citas Agendadas"],
+        ...hourlyDistribution.map((h) => [h.label, h.count]),
+      ];
+
+      // ----------------------------------------------------
+      // HOJA 3: VENTAS Y DESGLOSE FINANCIERO
+      // ----------------------------------------------------
+      const salesRows = [
+        ["FACTURACIÓN POR MÉTODO DE PAGO"],
+        ["Método de Pago", "Facturación (€)", "% sobre Total"],
+        ...paymentMethodsList.map((pm) => [pm.name, Number(pm.value.toFixed(2)), `${pm.percent}%`]),
+        [],
+        ["FACTURACIÓN POR CATEGORÍA DE SERVICIO / PRODUCTO"],
+        ["Concepto", "Facturación Estimada (€)"],
+        ["Servicios y Citas Clínicas", Number(salesByCitas.toFixed(2))],
+        ["Bonos de Tratamiento", Number(salesByBonos.toFixed(2))],
+        ["Productos y Farmacia", Number(salesByProductos.toFixed(2))],
+        ["Suscripciones y Cuotas", Number(salesBySuscripciones.toFixed(2))],
+        ["Presupuestos Aceptados", Number(salesByPresupuestos.toFixed(2))],
+        ["TOTAL FACTURADO", Number(salesTotalSum.toFixed(2))],
+        [],
+        ["TOP SERVICIOS Y TRATAMIENTOS MÁS FACTURADOS"],
+        ["Tratamiento / Servicio", "Ingresos Generados (€)"],
+        ...topServices.map((s) => [s.name, Number(s.value.toFixed(2))]),
+      ];
+
+      // ----------------------------------------------------
+      // HOJA 4: TOP PACIENTES
+      // ----------------------------------------------------
+      const clientsRows = [
+        ["RANKING DE PACIENTES POR VOLUMEN DE GASTO Y ACTIVIDAD"],
+        ["Nombre del Paciente", "Facturación Acumulada (€)", "Pagos Pendientes (€)", "Cancelaciones", "Ausencias (No-Show)"],
+        ...sortedClients.map((c) => [
+          c.name,
+          Number(c.revenue.toFixed(2)),
+          Number(c.pending.toFixed(2)),
+          c.cancellations,
+          c.absences,
+        ]),
+      ];
+
+      // ----------------------------------------------------
+      // HOJA 5: RENDIMIENTO DEL CUADRO MÉDICO
+      // ----------------------------------------------------
+      const staffRows = [
+        ["RENDIMIENTO Y PRODUCTIVIDAD DEL CUADRO MÉDICO"],
+        ["Facultativo / Terapeuta", "Citas Atendidas", "Facturación Generada (€)", "Rendimiento Medio (€/h)"],
+        ...sortedStaff.map((s) => [
+          s.name,
+          s.appointments,
+          Number(s.revenue.toFixed(2)),
+          `${Number(s.hourly.toFixed(2))} €/h`,
+        ]),
+      ];
+
+      // Crear Libro de Trabajo Multi-Hoja
+      const wb = XLSX.utils.book_new();
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary["!cols"] = [{ wch: 34 }, { wch: 18 }, { wch: 45 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen Ejecutivo");
+
+      const wsAppts = XLSX.utils.aoa_to_sheet(appointmentsRows);
+      wsAppts["!cols"] = [{ wch: 36 }, { wch: 16 }, { wch: 20 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, wsAppts, "Citas y Ocupación");
+
+      const wsSales = XLSX.utils.aoa_to_sheet(salesRows);
+      wsSales["!cols"] = [{ wch: 36 }, { wch: 22 }, { wch: 16 }];
+      XLSX.utils.book_append_sheet(wb, wsSales, "Ventas y Facturación");
+
+      const wsClients = XLSX.utils.aoa_to_sheet(clientsRows);
+      wsClients["!cols"] = [{ wch: 32 }, { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, wsClients, "Top Pacientes");
+
+      const wsStaff = XLSX.utils.aoa_to_sheet(staffRows);
+      wsStaff["!cols"] = [{ wch: 30 }, { wch: 18 }, { wch: 22 }, { wch: 26 }];
+      XLSX.utils.book_append_sheet(wb, wsStaff, "Cuadro Médico");
+
+      const clinicSlug = clinicName.toLowerCase().replace(/[^a-z0-9]/g, "_");
+      const dateSlug = dateFilterStart && dateFilterEnd
+        ? `${formatDateToInputHelper(dateFilterStart)}_al_${formatDateToInputHelper(dateFilterEnd)}`
+        : "historico";
+      const filename = `informe_estadistico_${clinicSlug}_${dateSlug}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+      toast.success("📊 Informe estadístico multi-hoja exportado con éxito a Excel");
+    } catch (err) {
+      console.error("Error exporting statistics Excel:", err);
+      toast.error("Error al generar el informe en Excel");
+    }
+  };
+
   return (
     <div className={styles.container}>
       {/* TOOLBAR */}
@@ -690,7 +866,42 @@ export default function StatisticsPage() {
           <h1 className={styles.title}>{translate("statsTitle", language)}</h1>
           <span className={styles.clinicSubtitle}>{activeClinic?.name}</span>
         </div>
+
+        <div className={styles.toolbarActions}>
+          <button
+            type="button"
+            className={styles.exportBtn}
+            onClick={handleExportExcel}
+            title="Exportar informe estadístico completo a Excel (.xlsx)"
+          >
+            <Icons.Download size={15} />
+            <span>📊 Exportar Informe (Excel)</span>
+          </button>
+
+          <button
+            type="button"
+            className={styles.printBtn}
+            onClick={() => window.print()}
+            title="Imprimir informe directivo o guardar como PDF"
+          >
+            <Icons.Printer size={15} />
+            <span>🖨️ Imprimir / PDF</span>
+          </button>
+        </div>
       </header>
+
+      {/* Print-only executive report header */}
+      <div className={styles.printOnlyHeader}>
+        <div className={styles.printBrand}>
+          <h2>{activeClinic?.name || "Clifav"}</h2>
+          <span>Informe Directivo de Analítica y Rendimiento Clínico</span>
+        </div>
+        <div className={styles.printMeta}>
+          <div><strong>Periodo:</strong> {getFilterText()}</div>
+          <div><strong>Generado:</strong> {new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+          <div><strong>Sede:</strong> {activeClinic?.address || "Consulta Principal"}</div>
+        </div>
+      </div>
 
       {/* FILTER BUTTON & BADGE */}
       <div className={styles.filterBar} ref={datePickerRef} style={{ position: "relative" }}>
@@ -745,17 +956,17 @@ export default function StatisticsPage() {
                   onChange={(e) => handlePresetChange(e.target.value)}
                   style={{ width: "100%", height: "28px", padding: "2px 8px", fontSize: "12px" }}
                 >
-                  <option value="hoy">{t("today")}</option>
-                  <option value="ayer">{t("yesterday")}</option>
-                  <option value="ultimos_7">{t("last7days")}</option>
-                  <option value="ultimos_30">{t("last30days")}</option>
-                  <option value="ultimos_90">{t("last90days")}</option>
-                  <option value="esta_semana">{t("thisWeek")}</option>
-                  <option value="este_mes">{t("thisMonth")}</option>
-                  <option value="mes_anterior">{t("lastMonth")}</option>
-                  <option value="octubre_2025">Octubre 1-15, 2025 (Demo)</option>
-                  <option value="junio_2026">Junio 1-22, 2026 (Demo)</option>
-                  <option value="personalizado">{t("custom")}</option>
+                  <option value="hoy">{t("today") || "Hoy"}</option>
+                  <option value="ayer">{t("yesterday") || "Ayer"}</option>
+                  <option value="ultimos_7">{t("last7days") || "Últimos 7 días"}</option>
+                  <option value="ultimos_30">{t("last30days") || "Últimos 30 días"}</option>
+                  <option value="ultimos_90">{t("last90days") || "Últimos 90 días"}</option>
+                  <option value="esta_semana">{t("thisWeek") || "Esta semana"}</option>
+                  <option value="este_mes">{t("thisMonth") || "Este mes"}</option>
+                  <option value="mes_anterior">{t("lastMonth") || "Mes anterior"}</option>
+                  <option value="este_trimestre">Este trimestre</option>
+                  <option value="este_ano">Este año</option>
+                  <option value="personalizado">{t("custom") || "Personalizado"}</option>
                 </select>
               </div>
 
@@ -919,6 +1130,21 @@ export default function StatisticsPage() {
                 <span className={styles.kpiLabel}>{t("statsSales")}</span>
                 <strong className={styles.kpiValue}>{formatPrice(totalRevenue)}</strong>
                 <span className={styles.kpiSub}>{filteredSales.length} venta{filteredSales.length !== 1 ? "s" : ""}</span>
+              </div>
+            </div>
+
+            {/* Ticket Medio */}
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiIconWrap} style={{ background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                  <line x1="7" y1="7" x2="7.01" y2="7"/>
+                </svg>
+              </div>
+              <div className={styles.kpiContent}>
+                <span className={styles.kpiLabel}>Ticket Medio</span>
+                <strong className={styles.kpiValue}>{formatPrice(avgTicket)}</strong>
+                <span className={styles.kpiSub}>por venta emitida</span>
               </div>
             </div>
 
@@ -1421,6 +1647,41 @@ export default function StatisticsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Distribución Horaria (Horas Pico) */}
+            <div className={styles.card}>
+              <h3 className={styles.chartCardTitle}>Distribución Horaria (Horas Pico)</h3>
+              <div className={styles.chartCanvas} style={{ height: "160px", marginTop: "10px" }}>
+                <svg viewBox="0 0 420 150" className={styles.svgChart}>
+                  <line x1="25" y1="20" x2="405" y2="20" className={styles.gridLine} />
+                  <line x1="25" y1="65" x2="405" y2="65" className={styles.gridLine} />
+                  <line x1="25" y1="110" x2="405" y2="110" className={styles.axisLine} />
+                  {(() => {
+                    const maxH = Math.max(...hourlyDistribution.map(h => h.count)) || 1;
+                    const barW = 18;
+                    const step = 28;
+                    return hourlyDistribution.map((h, idx) => {
+                      const x = 30 + idx * step;
+                      const barH = (h.count / maxH) * 85;
+                      const y = 110 - barH;
+                      return (
+                        <g key={h.label}>
+                          {h.count > 0 && (
+                            <rect x={x} y={y} width={barW} height={barH} fill="#0ea5e9" rx="2" />
+                          )}
+                          <text x={x + barW / 2} y={Math.max(14, y - 4)} className={styles.chartText} textAnchor="middle" style={{ fontSize: "8.5px", fontWeight: "700" }}>
+                            {h.count > 0 ? h.count : ""}
+                          </text>
+                          <text x={x + barW / 2} y="125" className={styles.chartText} textAnchor="middle" style={{ fontSize: "7.5px" }}>
+                            {h.label.slice(0, 2)}h
+                          </text>
+                        </g>
+                      );
+                    });
+                  })()}
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1837,6 +2098,24 @@ export default function StatisticsPage() {
                     );
                   })()}
                 </svg>
+              </div>
+            </div>
+
+            {/* Fidelización: Nuevos vs Recurrentes */}
+            <div style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "14px", marginTop: "8px" }}>
+              <h3 className={styles.chartCardTitle} style={{ marginBottom: "10px" }}>Fidelización de Pacientes</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                  <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Tasa de Retención / Recurrencia</span>
+                  <strong style={{ color: "#10b981", fontSize: "14px", fontWeight: 700 }}>{retentionRate}%</strong>
+                </div>
+                <div className={styles.kpiProgressBar}>
+                  <div className={styles.kpiProgressFill} style={{ width: `${retentionRate}%`, background: "linear-gradient(90deg, #10b981, #059669)" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  <span>Nuevos en el periodo: <strong style={{ color: "var(--text-primary)" }}>{newClientsInPeriod}</strong></span>
+                  <span>Recurrentes: <strong style={{ color: "var(--text-primary)" }}>{recurrentClientsInPeriod}</strong></span>
+                </div>
               </div>
             </div>
           </div>

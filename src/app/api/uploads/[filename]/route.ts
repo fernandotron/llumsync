@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getSessionUser } from "@/lib/authGuard";
 
 export async function GET(
   request: Request,
@@ -15,8 +16,11 @@ export async function GET(
     const publicFilePath = path.join(process.cwd(), "public", "uploads", safeFilename);
 
     let targetPath = "";
+    let isPrivate = false;
+
     if (fs.existsSync(filePath)) {
       targetPath = filePath;
+      isPrivate = true;
     } else if (fs.existsSync(publicFilePath)) {
       targetPath = publicFilePath;
     }
@@ -24,6 +28,17 @@ export async function GET(
     // 2. Check if file exists
     if (!targetPath) {
       return NextResponse.json({ error: "Archivo no encontrado" }, { status: 404 });
+    }
+
+    // 3. For confidential medical uploads, strictly require authenticated session
+    if (isPrivate) {
+      const user = await getSessionUser();
+      if (!user) {
+        return NextResponse.json(
+          { error: "No autorizado. Debe iniciar sesión para acceder a historias clínicas y archivos médicos." },
+          { status: 401 }
+        );
+      }
     }
 
     // 3. Read file

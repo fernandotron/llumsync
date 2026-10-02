@@ -88,21 +88,48 @@ export async function POST(request: Request) {
         }
       }
 
+      // Helper to extract field value with alias fallback
+      const getVal = (aliases: string[]) => {
+        for (const a of aliases) {
+          if (client[a] !== undefined && client[a] !== null && String(client[a]).trim() !== "") {
+            return String(client[a]).trim();
+          }
+        }
+        return null;
+      };
+
       const clientData = {
-        firstName: firstName || "Contacto",
-        lastName: lastName || "Importado",
-        phone: client.phone ? String(client.phone).trim() : null,
-        email: client.email ? String(client.email).trim() : null,
-        dniNif: dniVal ? encrypt(dniVal) : null,
-        birthDate: parseDate(client.birthDate),
-        gender: client.gender ? String(client.gender).trim() : null,
-        address: client.address ? String(client.address).trim() : null,
-        municipality: client.municipality ? String(client.municipality).trim() : null,
-        postalCode: client.postalCode ? String(client.postalCode).trim() : null,
-        country: client.country ? String(client.country).trim() : null,
-        iban: ibanVal ? encrypt(ibanVal) : null,
-        bic: client.bic ? String(client.bic).trim() : null,
-        tags: client.tags ? String(client.tags).trim() : null,
+        firstName: firstName || getVal(["Nombre", "first_name"]) || "Contacto",
+        lastName: lastName || getVal(["Apellidos", "last_name"]) || "Importado",
+        phone: client.phone ? String(client.phone).trim() : getVal(["Teléfono", "Telefono", "phone_number", "celular"]),
+        email: client.email ? String(client.email).trim() : getVal(["Email", "correo", "e-mail"]),
+        dniNif: dniVal || getVal(["Dni/nif", "DNI", "NIF", "Documento", "Identificación"]),
+        birthDate: parseDate(client.birthDate || getVal(["Fecha De Nacimiento", "Fecha de nacimiento", "birth_date", "Cumpleaños"])),
+        gender: client.gender ? String(client.gender).trim() : getVal(["Género", "Genero", "sexo"]),
+        address: client.address ? String(client.address).trim() : getVal(["Dirección", "Direccion", "Calle"]),
+        municipality: client.municipality ? String(client.municipality).trim() : getVal(["Municipio", "Ciudad", "Población"]),
+        postalCode: client.postalCode ? String(client.postalCode).trim() : getVal(["Código Postal", "Codigo Postal", "CP"]),
+        country: client.country ? String(client.country).trim() : getVal(["País", "Pais"]),
+        iban: ibanVal || getVal(["Iban", "IBAN", "Cuenta"]),
+        bic: client.bic ? String(client.bic).trim() : getVal(["Bic", "BIC", "SWIFT"]),
+        tags: client.tags ? String(client.tags).trim() : getVal(["Etiquetas", "Tags"]),
+        
+        // Clinical history & DocFav EHR fields
+        aestheticTreatments: getVal(["aestheticTreatments", "Tratamientos Estéticos Previos", "Tratamientos Previos", "Tratamientos"]),
+        allergies: getVal(["allergies", "Alergias", "Alergia"]),
+        medication: getVal(["medication", "Medicación", "Medicacion", "Tratamiento actual"]),
+        medicalHistory: getVal(["medicalHistory", "Antecedentes Médicos", "Antecedentes Medicos", "Historial Médico", "Patologías"]),
+        otherNotes: getVal(["otherNotes", "Otros", "Notas", "Observaciones"]),
+
+        // Tutor / Representative details
+        tutorName: getVal(["tutorName", "Nombre Tutor", "Nombre_Tutor"]),
+        tutorLastName: getVal(["tutorLastName", "Apellidos Tutor", "Apellidos_Tutor"]),
+        tutorDniNif: getVal(["tutorDniNif", "DNI Tutor", "NIF Tutor", "DNI_Tutor"]),
+        tutorPhone: getVal(["tutorPhone", "Teléfono Tutor", "Telefono Tutor", "Telefono_Tutor"]),
+        tutorEmail: getVal(["tutorEmail", "Email Tutor", "Correo Tutor", "Email_Tutor"]),
+        tutorAddress: getVal(["tutorAddress", "Dirección Tutor", "Direccion Tutor", "Calle_Tutor"]),
+        tutorPostalCode: getVal(["tutorPostalCode", "Código Postal Tutor", "Codigo Postal Tutor", "Codigo_Postal_Tutor"]),
+        tutorMunicipality: getVal(["tutorMunicipality", "Municipio Tutor", "Ciudad Tutor", "Municipio_Tutor"]),
       };
 
       if (existingClient) {

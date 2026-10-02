@@ -49,3 +49,8 @@ dev.db
 *.db-shm
 *.db-wal
 
+# Local scratch and backups
+/scratch/
+/backups/
+
+

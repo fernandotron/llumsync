@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
+import { hashPassword } from "@/lib/crypto";
 
 export async function POST(request: Request) {
   try {
@@ -28,6 +30,28 @@ export async function POST(request: Request) {
       );
     }
 
+    const auth = await authenticateApiRequest(clinicIds[0]);
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
+    }
+
+    // Only administrators or users with settings/users permission can create staff
+    if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPERADMIN") {
+      let canManageUsers = false;
+      try {
+        const perms = JSON.parse(auth.user.permissionsJson || "{}");
+        canManageUsers = Array.isArray(perms.configuracion) && perms.configuracion.includes("Ver configuración");
+      } catch {
+        canManageUsers = false;
+      }
+      if (!canManageUsers) {
+        return NextResponse.json(
+          { error: "No tienes permisos suficientes para dar de alta nuevos empleados." },
+          { status: 403 }
+        );
+      }
+    }
+
     // Verify user doesn't exist
     const existing = await prisma.user.findFirst({
       where: { email: email.trim().toLowerCase() },
@@ -39,17 +63,17 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.create({
       data: {
-        name,
-        lastName: lastName || null,
+        name: name.trim(),
+        lastName: lastName ? lastName.trim() : null,
         email: email.trim().toLowerCase(),
-        password, // demo simple password
-        role,
-        phone: phone || null,
-        dniNif: dniNif || null,
-        address: address || null,
-        municipality: municipality || null,
-        postalCode: postalCode || null,
-        additionalData: additionalData || null,
+        password: hashPassword(password),
+        role: role.toUpperCase(),
+        phone: phone ? phone.trim() : null,
+        dniNif: dniNif ? dniNif.trim() : null,
+        address: address ? address.trim() : null,
+        municipality: municipality ? municipality.trim() : null,
+        postalCode: postalCode ? postalCode.trim() : null,
+        additionalData: additionalData ? additionalData.trim() : null,
         color: color || "#3b82f6",
         clinics: {
           connect: clinicIds.map((id: string) => ({ id })),
@@ -63,6 +87,11 @@ export async function POST(request: Request) {
           otros: []
         })
       },
+      include: {
+        clinics: {
+          select: { id: true, name: true }
+        }
+      }
     });
 
     // Create default shifts for this new user in the first selected clinic (Mon-Fri 09:00 to 18:00)
@@ -78,7 +107,8 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json(user);
+    const { password: _, ...safeUser } = user;
+    return NextResponse.json(safeUser);
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 // GET /api/fiscal-profiles?clinicId=xxx
 export async function GET(request: Request) {
@@ -9,6 +10,11 @@ export async function GET(request: Request) {
 
     if (!clinicId) {
       return NextResponse.json({ error: "clinicId requerido" }, { status: 400 });
+    }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
     }
 
     const profiles = await prisma.fiscalProfile.findMany({
@@ -33,6 +39,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "clinicId requerido" }, { status: 400 });
     }
 
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
+    }
+
     const profile = await prisma.fiscalProfile.create({
       data: {
         clinicId,
@@ -43,7 +54,7 @@ export async function POST(request: Request) {
         municipality: rest.municipality || "",
         postalCode: rest.postalCode || "",
         logo: rest.logo || "",
-        irpf: rest.irpf || 0,
+        irpf: rest.irpf !== undefined ? parseFloat(rest.irpf) || 0 : 0,
         creditorSuffix: rest.creditorSuffix || "0000",
         iban: rest.iban || "",
         bicSwift: rest.bicSwift || "",

@@ -19,8 +19,15 @@ interface Clinic {
   address: string;
   phone?: string;
   email?: string;
+  logo?: string;
   country?: string;
   controlHorarioActivo?: boolean;
+  razonSocial?: string;
+  cifNif?: string;
+  scheduleOpening?: string;
+  scheduleClosing?: string;
+  appointmentInterval?: number;
+  cancellationNoticeHours?: number;
   notifyAssignedUser?: boolean;
   adminNotificationUserIds?: string;
   senderEmail?: string;
@@ -77,6 +84,7 @@ interface User {
   showInAgenda?: boolean;
   shifts?: Shift[];
   permissionsJson?: string;
+  clinics?: Clinic[];
 }
 
 interface Template {
@@ -437,6 +445,14 @@ export default function SettingsPage() {
   const [clinicLogo, setClinicLogo] = useState("");
   const [clinicCountry, setClinicCountry] = useState("ES");
   const [clinicControlHorarioActivo, setClinicControlHorarioActivo] = useState(false);
+  const [clinicRazonSocial, setClinicRazonSocial] = useState("");
+  const [clinicCifNif, setClinicCifNif] = useState("");
+  const [clinicScheduleOpening, setClinicScheduleOpening] = useState("08:00");
+  const [clinicScheduleClosing, setClinicScheduleClosing] = useState("20:00");
+  const [clinicAppointmentInterval, setClinicAppointmentInterval] = useState(15);
+  const [clinicCancellationNoticeHours, setClinicCancellationNoticeHours] = useState(24);
+  const [clinicLogoUploading, setClinicLogoUploading] = useState(false);
+
   const [isCreatingClinic, setIsCreatingClinic] = useState(false);
   const [clinicSubTab, setClinicSubTab] = useState<"general" | "cierre" | "empleados" | "opciones">("general");
   const [cierreStartDate, setCierreStartDate] = useState("");
@@ -448,6 +464,8 @@ export default function SettingsPage() {
   const [newClinicPhone, setNewClinicPhone] = useState("");
   const [newClinicEmail, setNewClinicEmail] = useState("");
   const [newClinicCountry, setNewClinicCountry] = useState("ES");
+  const [newClinicRazonSocial, setNewClinicRazonSocial] = useState("");
+  const [newClinicCifNif, setNewClinicCifNif] = useState("");
 
   
   // Lists
@@ -529,6 +547,7 @@ export default function SettingsPage() {
   const [editStaffName, setEditStaffName] = useState("");
   const [editStaffLastName, setEditStaffLastName] = useState("");
   const [editStaffEmail, setEditStaffEmail] = useState("");
+  const [editStaffRole, setEditStaffRole] = useState("PROFESIONAL");
   const [editStaffDniNif, setEditStaffDniNif] = useState("");
   const [editStaffPhone, setEditStaffPhone] = useState("");
   const [editStaffAddress, setEditStaffAddress] = useState("");
@@ -586,6 +605,7 @@ export default function SettingsPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
   const [showVariablesDropdown, setShowVariablesDropdown] = useState(false);
+  const [showPresetsDropdown, setShowPresetsDropdown] = useState(false);
   const [showHtmlModal, setShowHtmlModal] = useState(false);
   const [htmlModalContent, setHtmlModalContent] = useState("");
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -1324,8 +1344,15 @@ export default function SettingsPage() {
     setClinicAddress(activeClinic.address);
     setClinicPhone(activeClinic.phone || "");
     setClinicEmail(activeClinic.email || "");
+    setClinicLogo(activeClinic.logo || "");
     setClinicCountry(activeClinic.country || "ES");
     setClinicControlHorarioActivo(activeClinic.controlHorarioActivo || false);
+    setClinicRazonSocial(activeClinic.razonSocial || "");
+    setClinicCifNif(activeClinic.cifNif || "");
+    setClinicScheduleOpening(activeClinic.scheduleOpening || "08:00");
+    setClinicScheduleClosing(activeClinic.scheduleClosing || "20:00");
+    setClinicAppointmentInterval(activeClinic.appointmentInterval || 15);
+    setClinicCancellationNoticeHours(activeClinic.cancellationNoticeHours || 24);
     
     // Populate notification config data
     setConfigNotifyAssignedUser(activeClinic.notifyAssignedUser ?? true);
@@ -2476,11 +2503,13 @@ export default function SettingsPage() {
     if (!currentUser) return;
 
     const payload = {
-      name: newClinicName,
-      address: newClinicAddress,
+      name: newClinicName.trim(),
+      address: newClinicAddress.trim(),
       phone: newClinicPhone || null,
       email: newClinicEmail || null,
       country: newClinicCountry,
+      razonSocial: newClinicRazonSocial || null,
+      cifNif: newClinicCifNif || null,
       userId: currentUser.id
     };
 
@@ -2512,26 +2541,39 @@ export default function SettingsPage() {
     if (!activeClinic) return;
 
     const payload = {
-      name: clinicName,
-      address: clinicAddress,
-      phone: clinicPhone,
-      email: clinicEmail,
-      logo: clinicLogo,
+      name: clinicName.trim(),
+      address: clinicAddress.trim(),
+      phone: clinicPhone || null,
+      email: clinicEmail || null,
+      logo: clinicLogo || null,
       controlHorarioActivo: clinicControlHorarioActivo,
       country: clinicCountry,
+      razonSocial: clinicRazonSocial || null,
+      cifNif: clinicCifNif || null,
+      scheduleOpening: clinicScheduleOpening || "08:00",
+      scheduleClosing: clinicScheduleClosing || "20:00",
+      appointmentInterval: clinicAppointmentInterval || 15,
+      cancellationNoticeHours: clinicCancellationNoticeHours || 24,
     };
 
+    try {
+      const res = await fetch(`/api/clinics/${activeClinic.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const res = await fetch(`/api/clinics/${activeClinic.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (res.ok) {
-      const updatedClinic = await res.json();
-      setActiveClinic(updatedClinic);
-      toast.success("Configuración de clínica actualizada con éxito.");
+      if (res.ok) {
+        const updatedClinic = await res.json();
+        setActiveClinic(updatedClinic);
+        toast.success("Configuración de clínica actualizada con éxito.");
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Error al actualizar la configuración de la clínica.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error de red al guardar la configuración de la consulta.");
     }
   };
 
@@ -2730,6 +2772,7 @@ export default function SettingsPage() {
     setEditStaffName(user.name || "");
     setEditStaffLastName(user.lastName || "");
     setEditStaffEmail(user.email || "");
+    setEditStaffRole(user.role || "PROFESIONAL");
     setEditStaffDniNif(user.dniNif || "");
     setEditStaffPhone(user.phone || "");
     setEditStaffAddress(user.address || "");
@@ -2790,6 +2833,7 @@ export default function SettingsPage() {
           name: editStaffName.trim(),
           lastName: editStaffLastName.trim(),
           email: editStaffEmail.trim(),
+          role: editStaffRole,
           dniNif: editStaffDniNif.trim(),
           phone: editStaffPhone.trim(),
           address: editStaffAddress.trim(),
@@ -2818,6 +2862,34 @@ export default function SettingsPage() {
       console.error(err);
       setEditStaffSaveStatus("error");
       setTimeout(() => setEditStaffSaveStatus("idle"), 3000);
+    }
+  };
+
+  const handleDeleteEmployee = async (clinicOnly: boolean = true) => {
+    if (!selectedEmployee || !activeClinic) return;
+    const confirmMsg = clinicOnly
+      ? `¿Estás seguro de que deseas desvincular a ${selectedEmployee.name} ${selectedEmployee.lastName || ""} de la consulta "${activeClinic.name}"? Sus citas históricas y registros se mantendrán intactos.`
+      : `¿Estás seguro de que deseas desactivar a ${selectedEmployee.name} ${selectedEmployee.lastName || ""}? El historial de citas y pacientes quedará preservado para cumplimiento legal.`;
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const url = clinicOnly
+        ? `/api/users/${selectedEmployee.id}?clinicId=${activeClinic.id}`
+        : `/api/users/${selectedEmployee.id}`;
+      const res = await fetch(url, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || "Empleado desvinculado con éxito.");
+        setSelectedEmployee(null);
+        setSelectedEmployeeTab(null);
+        fetchData();
+      } else {
+        toast.error(data.error || "Error al desvincular al usuario.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error de conexión al eliminar o desvincular el usuario.");
     }
   };
 
@@ -3055,37 +3127,191 @@ export default function SettingsPage() {
     return days[dayNum];
   };
 
+  // Pre-configured legal template presets
+  const handleLoadPresetTemplate = (presetType: "ley41" | "tutor" | "rgpd") => {
+    if (presetType === "ley41") {
+      setTemplateName("Consentimiento Informado General (Ley 41/2002)");
+      const content = `<h2 style="text-align: center; color: #005d7f;">DOCUMENTO DE CONSENTIMIENTO INFORMADO GENERAL</h2>
+<p style="text-align: center; font-size: 12px; color: #64748b;">(En cumplimiento de la Ley 41/2002 reguladora de la autonomía del paciente)</p>
+<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+<p><strong>CENTRO SANITARIO:</strong><br />
+Clínica: {{Nombre_Clinica}} | CIF/NIF: {{NIF_Clinica}}<br />
+Dirección: {{Direccion_Clinica}}</p>
+
+<p><strong>DATOS DEL PACIENTE:</strong><br />
+D./Dña. {{Nombre}} {{Apellidos}}, con DNI/NIF {{DNI}}, domicilio en {{Direccion}}, {{Municipio}} (C.P. {{Codigo_Postal}}), con Nº de Paciente {{Numero_Paciente}}.</p>
+
+<p><strong>INFORMACIÓN DEL PROCEDIMIENTO ASISTENCIAL:</strong><br />
+El profesional sanitario responsable D./Dña. {{Profesional_Tratante}} me ha informado verbalmente y por escrito de manera clara, comprensible y suficiente sobre los objetivos, beneficios esperados, alternativas y posibles riesgos del procedimiento médico.</p>
+
+<p>Habiendo comprendido la información recibida y aclaradas mis dudas, manifiesto voluntariamente mi conformidad con la realización del tratamiento.</p>
+
+<p style="margin-top: 20px;">En {{Municipio}}, a {{Fecha_Documento}}.</p>
+
+<table style="width: 100%; margin-top: 30px; border: none;">
+  <tr>
+    <td style="width: 50%; vertical-align: top; text-align: center;">
+      <p><strong>EL/LA PACIENTE</strong></p>
+      {{Firma_Paciente}}
+    </td>
+    <td style="width: 50%; vertical-align: top; text-align: center;">
+      <p><strong>EL/LA FACULTATIVO/A</strong></p>
+      {{Firma_Medico}}
+    </td>
+  </tr>
+</table>`;
+      setTemplateContent(content);
+      if (editorRef.current) editorRef.current.innerHTML = content;
+      setShowPresetsDropdown(false);
+      toast.success("Plantilla de Ley 41/2002 cargada.");
+    } else if (presetType === "tutor") {
+      setTemplateName("Consentimiento Menores / Representación Legal (Pediatría)");
+      const content = `<h2 style="text-align: center; color: #005d7f;">CONSENTIMIENTO INFORMADO POR REPRESENTACIÓN / PEDIATRÍA</h2>
+<p style="text-align: center; font-size: 12px; color: #64748b;">(Conforme al Artículo 9.3 de la Ley 41/2002 de Autonomía del Paciente)</p>
+<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+<p><strong>REPRESENTANTE LEGAL / TUTOR:</strong><br />
+D./Dña. {{Nombre_Tutor}} {{Apellidos_Tutor}}, con NIF {{NIF_Tutor}}, teléfono {{Telefono_Tutor}}, domicilio en {{Direccion_Tutor}}, en calidad de tutor/a legal de:</p>
+
+<p><strong>PACIENTE MENOR O REPRESENTADO:</strong><br />
+D./Dña. {{Nombre}} {{Apellidos}}, con edad {{Edad}}, con DNI {{DNI}} y Nº de Paciente {{Numero_Paciente}}.</p>
+
+<p><strong>CONFORMIDAD CLÍNICA:</strong><br />
+D./Dña. {{Profesional_Tratante}}, en representación del centro {{Nombre_Clinica}}, ha facilitado la información pertinente adecuada a la edad y capacidad del menor y a su representante legal.</p>
+
+<p>El/la tutor/a legal otorga su consentimiento para la realización del tratamiento prescrito.</p>
+
+<p style="margin-top: 20px;">En {{Municipio}}, a {{Fecha_Documento}}.</p>
+
+<table style="width: 100%; margin-top: 30px; border: none;">
+  <tr>
+    <td style="width: 50%; vertical-align: top; text-align: center;">
+      <p><strong>EL/LA TUTOR/A LEGAL</strong></p>
+      {{Firma_Tutor}}
+    </td>
+    <td style="width: 50%; vertical-align: top; text-align: center;">
+      <p><strong>EL/LA FACULTATIVO/A</strong></p>
+      {{Firma_Medico}}
+    </td>
+  </tr>
+</table>`;
+      setTemplateContent(content);
+      if (editorRef.current) editorRef.current.innerHTML = content;
+      setShowPresetsDropdown(false);
+      toast.success("Plantilla para tutor legal cargada.");
+    } else if (presetType === "rgpd") {
+      setTemplateName("Protección de Datos y RGPD Sanitario");
+      const content = `<h2 style="text-align: center; color: #005d7f;">CLÁUSULA RGPD Y TRATAMIENTO DE DATOS DE SALUD</h2>
+<p style="text-align: center; font-size: 12px; color: #64748b;">(Reglamento UE 2016/679 y Ley Orgánica 3/2018 - LOPDGDD)</p>
+<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+
+<p><strong>RESPONSABLE DEL TRATAMIENTO:</strong><br />
+{{Nombre_Clinica}} (CIF/NIF: {{NIF_Clinica}})<br />
+Dirección: {{Direccion_Clinica}} | Email: {{Email_Clinica}}</p>
+
+<p><strong>FINALIDAD DEL TRATAMIENTO:</strong><br />
+Gestión de la historia clínica, diagnóstico, seguimiento asistencial y facturación a D./Dña. {{Nombre}} {{Apellidos}} con DNI {{DNI}}.</p>
+
+<p><strong>CONSERVACIÓN LEGAL:</strong><br />
+Los datos y la documentación clínica se conservarán durante los plazos legalmente exigibles por la Ley 41/2002 de Autonomía del Paciente (mínimo 5 años desde el alta asistencial).</p>
+
+<p><strong>DERECHOS:</strong><br />
+El paciente puede ejercer sus derechos de acceso, rectificación y supresión dirigiéndose al centro sanitario.</p>
+
+<p style="margin-top: 20px;">Aceptado a fecha {{Fecha_Documento}}.</p>
+
+<div style="text-align: center; margin-top: 30px;">
+  <p><strong>FIRMA DEL PACIENTE:</strong></p>
+  {{Firma_Paciente}}
+</div>`;
+      setTemplateContent(content);
+      if (editorRef.current) editorRef.current.innerHTML = content;
+      setShowPresetsDropdown(false);
+      toast.success("Plantilla de RGPD Sanitario cargada.");
+    }
+  };
+
   // Insert Variable into cursor in template editor
   const handleInsertVariable = (variable: string) => {
     let html = "";
-    if (variable === "{{client.firstName}}" || variable === "{{Cliente:Nombre}}") {
+    if (variable === "{{Nombre}}" || variable === "{{client.firstName}}" || variable === "{{Cliente:Nombre}}") {
       html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Nombre]</span>';
-    } else if (variable === "{{client.lastName}}" || variable === "{{Cliente:Apellidos}}") {
+    } else if (variable === "{{Apellidos}}" || variable === "{{client.lastName}}" || variable === "{{Cliente:Apellidos}}") {
       html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Apellidos]</span>';
-    } else if (variable === "{{Cliente:Dirección_Cliente}}") {
-      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Direccion_cliente]</span>';
-    } else if (variable === "{{client.dniNif}}" || variable === "{{Empleado_DNI}}") {
+    } else if (variable === "{{DNI}}" || variable === "{{NIF}}" || variable === "{{client.dniNif}}" || variable === "{{Empleado_DNI}}") {
       html = '<span class="var-badge" style="border:1px solid #db2777; color:#db2777; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[NIF]</span>';
-    } else if (variable === "{{client.birthDate}}") {
+    } else if (variable === "{{Email}}" || variable === "{{client.email}}" || variable === "{{Cliente:Email}}") {
+      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Email_Cliente]</span>';
+    } else if (variable === "{{Telefono}}" || variable === "{{client.phone}}" || variable === "{{Cliente:Telefono}}") {
+      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Telefono_Cliente]</span>';
+    } else if (variable === "{{Direccion}}" || variable === "{{Dirección}}" || variable === "{{Cliente:Dirección_Cliente}}" || variable === "{{Calle}}") {
+      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Direccion_cliente]</span>';
+    } else if (variable === "{{Municipio}}" || variable === "{{client.municipality}}") {
+      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Municipio_cliente]</span>';
+    } else if (variable === "{{Codigo_Postal}}" || variable === "{{client.postalCode}}") {
+      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Codigo_Postal_cliente]</span>';
+    } else if (variable === "{{Numero_Paciente}}" || variable === "{{Numero_paciente}}") {
+      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Numero_paciente]</span>';
+    } else if (variable === "{{Edad}}") {
+      html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Edad]</span>';
+    } else if (variable === "{{Fecha_Nacimiento}}" || variable === "{{client.birthDate}}") {
       html = '<span class="var-badge" style="background:#0d9488; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Fecha_nacimiento]</span>';
-    } else if (variable === "{{client.allergies}}") {
+    } else if (variable === "{{Alergias}}" || variable === "{{client.allergies}}") {
       html = '<span class="var-badge" style="background:#ef4444; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Alergias]</span>';
-    } else if (variable === "{{clinic.name}}" || variable === "{{Nombre_Consulta}}") {
+    } else if (variable === "{{Nombre_Tutor}}" || variable === "{{Tutor:Nombre}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Nombre_Tutor]</span>';
+    } else if (variable === "{{Apellidos_Tutor}}" || variable === "{{Tutor:Apellidos}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Apellidos_Tutor]</span>';
+    } else if (variable === "{{Nombre_Completo_Tutor}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Nombre_Completo_Tutor]</span>';
+    } else if (variable === "{{NIF_Tutor}}" || variable === "{{DNI_Tutor}}" || variable === "{{Tutor:DNI}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[DNI_Tutor]</span>';
+    } else if (variable === "{{Telefono_Tutor}}" || variable === "{{Tutor:Telefono}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Telefono_Tutor]</span>';
+    } else if (variable === "{{Email_Tutor}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Email_Tutor]</span>';
+    } else if (variable === "{{Direccion_Tutor}}" || variable === "{{Calle_Tutor}}" || variable === "{{Tutor:Direccion}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Direccion_Tutor]</span>';
+    } else if (variable === "{{Municipio_Tutor}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Municipio_Tutor]</span>';
+    } else if (variable === "{{Codigo_Postal_Tutor}}") {
+      html = '<span class="var-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Codigo_Postal_Tutor]</span>';
+    } else if (variable === "{{Nombre_Clinica}}" || variable === "{{clinic.name}}" || variable === "{{Nombre_Consulta}}" || variable === "{{Nombre_Negocio}}") {
       html = '<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Nombre_clinica]</span>';
+    } else if (variable === "{{Direccion_Clinica}}" || variable === "{{Dirección_Consulta}}") {
+      html = '<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Direccion_consulta]</span>';
+    } else if (variable === "{{NIF_Clinica}}" || variable === "{{CIF_Clinica}}") {
+      html = '<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[NIF_clinica]</span>';
+    } else if (variable === "{{Telefono_Clinica}}") {
+      html = '<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Telefono_clinica]</span>';
+    } else if (variable === "{{Email_Clinica}}") {
+      html = '<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Email_clinica]</span>';
     } else if (variable === "{{clinic.municipality}}") {
       html = '<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Municipio_clinica]</span>';
-    } else if (variable === "{{document.date}}") {
+    } else if (variable === "{{Profesional_Tratante}}" || variable === "{{Empleado_Nombre_Completo}}") {
+      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_nombre_completo]</span>';
+    } else if (variable === "{{Empleado_Nombre}}") {
+      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_nombre]</span>';
+    } else if (variable === "{{Empleado_Apellidos}}") {
+      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_apellidos]</span>';
+    } else if (variable === "{{Empleado_Correo}}") {
+      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_correo]</span>';
+    } else if (variable === "{{Empleado_Teléfono}}") {
+      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_telefono]</span>';
+    } else if (variable === "{{Fecha_Documento}}" || variable === "{{document.date}}") {
       html = '<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Fecha_documento]</span>';
-    } else if (variable === "{{signature.client}}") {
+    } else if (variable === "{{Fecha_Hora_Documento}}") {
+      html = '<span class="var-badge" style="background:#2563eb; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Fecha_Hora_Documento]</span>';
+    } else if (variable === "{{Firma_Paciente}}" || variable === "{{signature.client}}") {
       html = '<span class="var-badge var-signature" data-type="ordinary" style="background:#eab308; color:black; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Paciente]</span>';
-    } else if (variable === "{{signature.doctor}}") {
+    } else if (variable === "{{Firma_Medico}}" || variable === "{{signature.doctor}}") {
       html = '<span class="var-badge var-signature" data-type="doctor_ordinary" style="background:#3b82f6; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Médico]</span>';
-    } else if (variable === "{{signature.certified}}") {
+    } else if (variable === "{{Firma_Tutor}}") {
+      html = '<span class="var-badge var-signature" data-type="tutor_ordinary" style="background:#0284c7; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">✍️ [Firma Tutor]</span>';
+    } else if (variable === "{{Firma_Certificada}}" || variable === "{{signature.certified}}") {
       html = '<span class="var-badge var-signature" data-type="certified" style="background:#ca8a04; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">🔏 [Firma Certificada]</span>';
-    } else if (variable === "{{signature.digital}}") {
+    } else if (variable === "{{Firma_Digital}}" || variable === "{{signature.digital}}") {
       html = '<span class="var-badge var-signature" data-type="digital" style="background:#06b6d4; color:white; padding:4px 10px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Campo_firma_digital]</span>';
-    } else if (variable === "{{Dirección_Consulta}}") {
-      html = '<span class="var-badge" style="background:#4b5563; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Direccion_consulta]</span>';
     } else if (variable === "{{Fecha_Hora_Cita}}") {
       html = '<span class="var-badge" style="background:#6366f1; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Fecha_hora_cita]</span>';
     } else if (variable === "{{Fecha_larga}}") {
@@ -3108,16 +3334,6 @@ export default function SettingsPage() {
       html = '<span class="var-badge" style="background:#8b5cf6; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Recurso]</span>';
     } else if (variable === "{{Zona_horaria}}") {
       html = '<span class="var-badge" style="background:#8b5cf6; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Zona_horaria]</span>';
-    } else if (variable === "{{Empleado_Nombre_Completo}}") {
-      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_nombre_completo]</span>';
-    } else if (variable === "{{Empleado_Nombre}}") {
-      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_nombre]</span>';
-    } else if (variable === "{{Empleado_Apellidos}}") {
-      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_apellidos]</span>';
-    } else if (variable === "{{Empleado_Correo}}") {
-      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_correo]</span>';
-    } else if (variable === "{{Empleado_Teléfono}}") {
-      html = '<span class="var-badge" style="background:#10b981; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Empleado_telefono]</span>';
     } else if (variable === "{{Deuda}}") {
       html = '<span class="var-badge" style="background:#f43f5e; color:white; padding:2px 6px; border-radius:4px; font-size:12px; margin:0 2px; font-weight:600; display:inline-block;" contenteditable="false">[Deuda]</span>';
     } else {
@@ -3579,36 +3795,64 @@ export default function SettingsPage() {
                     {t("timezone") === "Time Zone" ? "Create New Clinic" : t("timezone") === "Zona horària" ? "Crear Nova Consulta" : t("timezone") === "Ordu-eremua" ? "Kontsulta Berria Sortu" : "Añadir Nueva Consulta"}
                   </h3>
                   
-                  <div className="form-group">
-                    <label className="form-label">
-                      {t("timezone") === "Time Zone" ? "Clinical Center Name *" : t("timezone") === "Zona horària" ? "Nom del Centre Clínic *" : t("timezone") === "Ordu-eremua" ? "Zentro Klinikoaren Izena *" : "Nombre del Centro Clínico *"}
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={newClinicName}
-                      onChange={(e) => setNewClinicName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      {t("timezone") === "Time Zone" ? "Full Address *" : t("timezone") === "Zona horària" ? "Adreça Completa *" : t("timezone") === "Ordu-eremua" ? "Helbide Osoa *" : "Dirección Completa *"}
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={newClinicAddress}
-                      onChange={(e) => setNewClinicAddress(e.target.value)}
-                      required
-                    />
+                  <div style={{ display: "flex", gap: "16px" }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">
+                        {t("timezone") === "Time Zone" ? "Clinical Center Name *" : "Nombre del Centro Clínico *"}
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={newClinicName}
+                        onChange={(e) => setNewClinicName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">
+                        {t("timezone") === "Time Zone" ? "Legal / Corporate Name" : "Razón Social / Titular"}
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Ej: Medesmed Clínica Médica SL"
+                        value={newClinicRazonSocial}
+                        onChange={(e) => setNewClinicRazonSocial(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div style={{ display: "flex", gap: "16px" }}>
                     <div className="form-group" style={{ flex: 1 }}>
                       <label className="form-label">
-                        {t("timezone") === "Time Zone" ? "Support Phone" : t("timezone") === "Zona horària" ? "Telèfon d'Atenció" : t("timezone") === "Ordu-eremua" ? "Arreta Telefonoa" : "Teléfono de Atención"}
+                        CIF / NIF
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Ej: B12345678"
+                        value={newClinicCifNif}
+                        onChange={(e) => setNewClinicCifNif(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">
+                        {t("timezone") === "Time Zone" ? "Full Address *" : "Dirección Completa *"}
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={newClinicAddress}
+                        onChange={(e) => setNewClinicAddress(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "16px" }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label className="form-label">
+                        {t("timezone") === "Time Zone" ? "Support Phone" : "Teléfono de Atención"}
                       </label>
                       <input
                         type="text"
@@ -3619,7 +3863,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
                       <label className="form-label">
-                        {t("timezone") === "Time Zone" ? "Corporate Email" : t("timezone") === "Zona horària" ? "Email Corporatiu" : t("timezone") === "Ordu-eremua" ? "Email Korporatiboa" : "Email Corporativo"}
+                        {t("timezone") === "Time Zone" ? "Corporate Email" : "Email Corporativo"}
                       </label>
                       <input
                         type="email"
@@ -3632,7 +3876,7 @@ export default function SettingsPage() {
 
                   <div className="form-group">
                     <label className="form-label">
-                      {t("timezone") === "Time Zone" ? "Clinic Country *" : t("timezone") === "Zona horària" ? "País de la consulta *" : t("timezone") === "Ordu-eremua" ? "Kontsultaren herrialdea *" : "País de la consulta *"}
+                      {t("timezone") === "Time Zone" ? "Clinic Country *" : "País de la consulta *"}
                     </label>
                     <select
                       className="input"
@@ -3650,7 +3894,7 @@ export default function SettingsPage() {
                   </div>
 
                   <button type="submit" className="btn btn-primary" style={{ width: "fit-content", marginTop: "16px" }}>
-                    {t("timezone") === "Time Zone" ? "Create Clinic" : t("timezone") === "Zona horària" ? "Crear Consulta" : t("timezone") === "Ordu-eremua" ? "Kontsulta Sortu" : "Crear Consulta"}
+                    {t("timezone") === "Time Zone" ? "Create Clinic" : "Crear Consulta"}
                   </button>
                 </form>
               ) : (
@@ -3703,37 +3947,114 @@ export default function SettingsPage() {
 
                   {/* Sub Tab contents */}
                   {clinicSubTab === "general" && (
-                    <form onSubmit={handleUpdateClinic} className={styles.formLayout}>
-                      <div className="form-group">
-                        <label className="form-label">
-                          {t("timezone") === "Time Zone" ? "Clinical Center Name *" : t("timezone") === "Zona horària" ? "Nom del Centre Clínic *" : t("timezone") === "Ordu-eremua" ? "Zentro Klinikoaren Izena *" : "Nombre del Centro Clínico *"}
-                        </label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={clinicName}
-                          onChange={(e) => setClinicName(e.target.value)}
-                          required
-                        />
+                    <form onSubmit={handleUpdateClinic} className={styles.formLayout} style={{ maxWidth: "750px" }}>
+                      {/* Logo Section */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "20px", padding: "16px", background: "var(--bg-input)", borderRadius: "10px", border: "1px solid var(--border-color)", marginBottom: "8px" }}>
+                        <div style={{
+                          width: "72px",
+                          height: "72px",
+                          borderRadius: "12px",
+                          backgroundColor: "#f1f5f9",
+                          border: "2px dashed var(--border-color)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          overflow: "hidden",
+                          flexShrink: 0
+                        }}>
+                          {clinicLogo ? (
+                            <img src={clinicLogo} alt="Logo de la clínica" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                          ) : (
+                            <span style={{ fontSize: "24px", fontWeight: "700", color: "var(--primary)" }}>
+                              {clinicName ? clinicName.charAt(0).toUpperCase() : "🏥"}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)" }}>Logotipo del Centro Clínico</span>
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Formatos recomendados: PNG, JPG o SVG (máx. 2MB). Se utilizará en presupuestos, consentimientos y facturas.</span>
+                          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                            <label className="btn btn-secondary" style={{ padding: "6px 14px", fontSize: "12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                              <span>📁 {clinicLogo ? "Cambiar logotipo" : "Subir logotipo"}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: "none" }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    if (file.size > 2 * 1024 * 1024) {
+                                      toast.error("La imagen supera el límite de 2MB");
+                                      return;
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      setClinicLogo(ev.target?.result as string);
+                                      toast.success("Logotipo cargado. Pulsa 'Guardar Cambios' para confirmarlo.");
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </label>
+                            {clinicLogo && (
+                              <button
+                                type="button"
+                                onClick={() => setClinicLogo("")}
+                                className="btn btn-danger"
+                                style={{ padding: "6px 12px", fontSize: "12px", background: "transparent", border: "1px solid var(--danger)", color: "var(--danger)" }}
+                              >
+                                Eliminar
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="form-group">
-                        <label className="form-label">
-                          {t("timezone") === "Time Zone" ? "Full Address *" : t("timezone") === "Zona horària" ? "Adreça Completa *" : t("timezone") === "Ordu-eremua" ? "Helbide Osoa *" : "Dirección Completa *"}
-                        </label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={clinicAddress}
-                          onChange={(e) => setClinicAddress(e.target.value)}
-                          required
-                        />
+                      {/* Clinical & Fiscal Details */}
+                      <div style={{ display: "flex", gap: "16px" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label className="form-label">
+                            {t("timezone") === "Time Zone" ? "Clinical Center Name *" : "Nombre del Centro Clínico *"}
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            value={clinicName}
+                            onChange={(e) => setClinicName(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label className="form-label">
+                            Razón Social / Titular Legal
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="Ej: Medesmed Centro Médico SL"
+                            value={clinicRazonSocial}
+                            onChange={(e) => setClinicRazonSocial(e.target.value)}
+                          />
+                        </div>
                       </div>
 
                       <div style={{ display: "flex", gap: "16px" }}>
                         <div className="form-group" style={{ flex: 1 }}>
                           <label className="form-label">
-                            {t("timezone") === "Time Zone" ? "Support Phone" : t("timezone") === "Zona horària" ? "Telèfon d'Atenció" : t("timezone") === "Ordu-eremua" ? "Arreta Telefonoa" : "Teléfono de Atención"}
+                            CIF / NIF Sanitario
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="Ej: B12345678"
+                            value={clinicCifNif}
+                            onChange={(e) => setClinicCifNif(e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label className="form-label">
+                            {t("timezone") === "Time Zone" ? "Support Phone" : "Teléfono de Atención"}
                           </label>
                           <input
                             type="text"
@@ -3742,9 +4063,24 @@ export default function SettingsPage() {
                             onChange={(e) => setClinicPhone(e.target.value)}
                           />
                         </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "16px" }}>
                         <div className="form-group" style={{ flex: 1 }}>
                           <label className="form-label">
-                            {t("timezone") === "Time Zone" ? "Corporate Email" : t("timezone") === "Zona horària" ? "Email Corporatiu" : t("timezone") === "Ordu-eremua" ? "Email Korporatiboa" : "Email Corporativo"}
+                            {t("timezone") === "Time Zone" ? "Full Address *" : "Dirección Completa *"}
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            value={clinicAddress}
+                            onChange={(e) => setClinicAddress(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label className="form-label">
+                            {t("timezone") === "Time Zone" ? "Corporate Email" : "Email Corporativo"}
                           </label>
                           <input
                             type="email"
@@ -3757,7 +4093,7 @@ export default function SettingsPage() {
 
                       <div className="form-group">
                         <label className="form-label">
-                          {t("timezone") === "Time Zone" ? "Clinic Country *" : t("timezone") === "Zona horària" ? "País de la consulta *" : t("timezone") === "Ordu-eremua" ? "Kontsultaren herrialdea *" : "País de la consulta *"}
+                          {t("timezone") === "Time Zone" ? "Clinic Country *" : "País de la consulta *"}
                         </label>
                         <select
                           className="input"
@@ -3768,25 +4104,96 @@ export default function SettingsPage() {
                         >
                           {Object.values(COUNTRIES).map((c) => (
                             <option key={c.code} value={c.code}>
-                              {c.name}
+                              {c.name} ({c.currency})
                             </option>
                           ))}
                         </select>
                       </div>
 
-                      <div style={{ marginTop: "24px", padding: "16px", background: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-color)", marginBottom: "24px" }}>
-                        <h4 style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700 }}>
-                          {t("timezone") === "Time Zone" ? "Advanced Clinic Options" : t("timezone") === "Zona horària" ? "Opcions Avançades de la Consulta" : t("timezone") === "Ordu-eremua" ? "Kontsultaren Aukera Aurreratuak" : "Opciones Avanzadas de la Consulta"}
+                      {/* Consultation Schedules & Agenda Parameters (DocFav 2026) */}
+                      <div style={{ marginTop: "12px", padding: "18px", background: "var(--bg-input)", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+                        <h4 style={{ margin: "0 0 6px", fontSize: "14px", fontWeight: 700, color: "var(--primary)" }}>
+                          🕒 Horario de Consulta y Parámetros de Agenda
                         </h4>
                         <p style={{ margin: "0 0 16px", color: "var(--text-secondary)", fontSize: "12px" }}>
-                          {t("timezone") === "Time Zone" ? "Enable or disable advanced system features." : t("timezone") === "Zona horària" ? "Habilita o deshabilita funcionalitats avançades del sistema." : t("timezone") === "Ordu-eremua" ? "Sistemako aukera aurreratuak gaitu edo desgaitu." : "Habilita o deshabilita funcionalidades avanzadas del sistema."}
+                          Configuración clínica del calendario, intervalos de cita y antelación para gestión de cancelaciones.
+                        </p>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: "12px", fontWeight: 600 }}>Hora Apertura Consulta</label>
+                            <input
+                              type="time"
+                              className="input"
+                              value={clinicScheduleOpening}
+                              onChange={(e) => setClinicScheduleOpening(e.target.value)}
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: "12px", fontWeight: 600 }}>Hora Cierre Consulta</label>
+                            <input
+                              type="time"
+                              className="input"
+                              value={clinicScheduleClosing}
+                              onChange={(e) => setClinicScheduleClosing(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: "12px", fontWeight: 600 }}>Intervalo de citas en Agenda</label>
+                            <select
+                              className="input"
+                              value={clinicAppointmentInterval}
+                              onChange={(e) => setClinicAppointmentInterval(parseInt(e.target.value) || 15)}
+                            >
+                              <option value={5}>5 minutos</option>
+                              <option value={10}>10 minutos</option>
+                              <option value={15}>15 minutos (Estándar DocFav)</option>
+                              <option value={20}>20 minutos</option>
+                              <option value={30}>30 minutos</option>
+                              <option value={45}>45 minutos</option>
+                              <option value={60}>60 minutos (1 hora)</option>
+                            </select>
+                            <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                              Franjas horarias visualizadas al pasar el cursor por el calendario de citas.
+                            </span>
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontSize: "12px", fontWeight: 600 }}>Antelación mínima cancelación</label>
+                            <select
+                              className="input"
+                              value={clinicCancellationNoticeHours}
+                              onChange={(e) => setClinicCancellationNoticeHours(parseInt(e.target.value) || 24)}
+                            >
+                              <option value={6}>6 horas antes</option>
+                              <option value={12}>12 horas antes</option>
+                              <option value={24}>24 horas antes (1 día)</option>
+                              <option value={48}>48 horas antes (2 días)</option>
+                              <option value={72}>72 horas antes (3 días)</option>
+                            </select>
+                            <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                              Tiempo límite para que el paciente anule su cita sin penalización.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Advanced Options (Control Horario) */}
+                      <div style={{ padding: "16px", background: "var(--bg-input)", borderRadius: "8px", border: "1px solid var(--border-color)", marginBottom: "16px" }}>
+                        <h4 style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700 }}>
+                          {t("timezone") === "Time Zone" ? "Advanced Clinic Options" : "Opciones Avanzadas de la Consulta"}
+                        </h4>
+                        <p style={{ margin: "0 0 16px", color: "var(--text-secondary)", fontSize: "12px" }}>
+                          Habilita o deshabilita funcionalidades avanzadas del sistema.
                         </p>
                         
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div>
-                            <span style={{ fontSize: "13px", fontWeight: 600, display: "block" }}>⏰ {t("timezone") === "Time Zone" ? "Activate Time Tracking" : t("timezone") === "Zona horària" ? "Activar Control Horari" : t("timezone") === "Ordu-eremua" ? "Denbora Kontrola Aktibatu" : "Activar Control Horario"}</span>
+                            <span style={{ fontSize: "13px", fontWeight: 600, display: "block" }}>⏰ {t("timezone") === "Time Zone" ? "Activate Time Tracking" : "Activar Control Horario"}</span>
                             <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                              {t("timezone") === "Time Zone" ? "Allows professionals to track their work day and daily breaks." : t("timezone") === "Zona horària" ? "Permet als professionals fitxar la seva jornada i pauses diàries." : t("timezone") === "Ordu-eremua" ? "Profesionalei euren laneguna eta eguneroko atsedenaldiak erregistratzen uzten die." : "Permite a los profesionales fichar su jornada y pausas diarias."}
+                              Permite a los profesionales fichar su jornada y pausas diarias.
                             </span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center" }}>
@@ -3813,7 +4220,7 @@ export default function SettingsPage() {
                       </div>
 
                       <button type="submit" className="btn btn-primary" style={{ width: "fit-content" }}>
-                        {t("timezone") === "Time Zone" ? "Save Changes" : t("timezone") === "Zona horària" ? "Desar Canvis" : t("timezone") === "Ordu-eremua" ? "Aldaketak Gorde" : "Guardar Cambios"}
+                        {t("timezone") === "Time Zone" ? "Save Changes" : "Guardar Cambios"}
                       </button>
                     </form>
                   )}
@@ -4381,6 +4788,38 @@ export default function SettingsPage() {
                                 <span style={{ position: "absolute", right: "12px", top: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>{currencySymbol}</span>
                               </div>
                             </div>
+                          </div>
+                          {/* Quick Tax Rate Presets (Art. 20 LIVA compliant) */}
+                          <div style={{ marginTop: "10px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                            <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, marginRight: "4px" }}>Tipo de IVA:</span>
+                            {[
+                              { label: "0% Exento (Art. 20 LIVA)", value: "0" },
+                              { label: "4% Superreducido", value: "4" },
+                              { label: "10% Reducido", value: "10" },
+                              { label: "21% General", value: "21" },
+                            ].map((preset) => {
+                              const isActive = serviceFormTax === preset.value;
+                              return (
+                                <button
+                                  key={preset.value}
+                                  type="button"
+                                  onClick={() => setServiceFormTax(preset.value)}
+                                  style={{
+                                    padding: "4px 8px",
+                                    fontSize: "11px",
+                                    fontWeight: isActive ? 700 : 500,
+                                    borderRadius: "4px",
+                                    border: isActive ? "1px solid var(--primary)" : "1px solid var(--border-color)",
+                                    background: isActive ? "var(--primary-light, rgba(0, 93, 127, 0.1))" : "var(--bg-input)",
+                                    color: isActive ? "var(--primary)" : "var(--text-secondary)",
+                                    cursor: "pointer",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                >
+                                  {preset.label}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
@@ -5066,60 +5505,109 @@ export default function SettingsPage() {
                       top: "100%", 
                       left: 0, 
                       background: "white", 
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)", 
-                      border: "1px solid #e2e8f0", 
-                      borderRadius: "6px", 
-                      width: "240px", 
-                      zIndex: 10, 
-                      maxHeight: "300px", 
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.18)", 
+                      border: "1px solid #cbd5e1", 
+                      borderRadius: "8px", 
+                      width: "270px", 
+                      zIndex: 100, 
+                      maxHeight: "360px", 
                       overflowY: "auto", 
-                      padding: "6px 0", 
+                      padding: "8px 0", 
                       marginTop: "4px" 
                     }}>
-                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>PACIENTE</div>
-                      <button type="button" onClick={() => { handleInsertVariable("{{client.firstName}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Paciente</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{client.lastName}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Apellidos Paciente</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Cliente:Dirección_Cliente}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Dirección Paciente</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{client.dniNif}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>NIF Paciente</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{client.birthDate}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>F. Nacimiento</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{client.allergies}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Alergias</button>
+                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "#0d9488", background: "#f0fdfa", letterSpacing: "0.5px" }}>PACIENTE / CLIENTE</div>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Nombre}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Nombre}} (Nombre)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Apellidos}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Apellidos}} (Apellidos)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{DNI}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{DNI}} (DNI / NIF)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Email}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Email}} (Email)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Telefono}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Telefono}} (Teléfono)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Direccion}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Direccion}} (Dirección)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Municipio}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Municipio}} (Ciudad)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Codigo_Postal}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Codigo_Postal}} (C. Postal)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Numero_Paciente}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Numero_Paciente}} (Nº Historia)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Edad}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Edad}} (Edad)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Fecha_Nacimiento}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Fecha_Nacimiento}} (F. Nac.)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Alergias}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Alergias}} (Alergias)"}</button>
 
-                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>CLÍNICA / CONSULTA</div>
-                      <button type="button" onClick={() => { handleInsertVariable("{{clinic.name}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Clínica</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Dirección_Consulta}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Dirección Clínica</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{clinic.municipality}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Municipio Clínica</button>
+                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "#0284c7", background: "#f0f9ff", letterSpacing: "0.5px" }}>TUTOR LEGAL (LEY 41/2002)</div>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Nombre_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Nombre_Tutor}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Apellidos_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Apellidos_Tutor}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Nombre_Completo_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Nombre_Completo_Tutor}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{NIF_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{NIF_Tutor}} (DNI/NIF)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Telefono_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Telefono_Tutor}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Email_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Email_Tutor}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Direccion_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Direccion_Tutor}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Municipio_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Municipio_Tutor}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Codigo_Postal_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Codigo_Postal_Tutor}}"}</button>
 
-                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>CITA</div>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Fecha_Hora_Cita}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Fecha/Hora Cita</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Fecha_larga}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Fecha Larga Cita</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Hora_Cita}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Hora Cita</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Nombre_Servicio}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Servicio</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Recurso}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Recurso/Cabina</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Zona_horaria}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Zona Horaria</button>
+                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "#475569", background: "#f1f5f9", letterSpacing: "0.5px" }}>CLÍNICA Y FACULTATIVO</div>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Nombre_Clinica}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Nombre_Clinica}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Direccion_Clinica}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Direccion_Clinica}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{NIF_Clinica}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{NIF_Clinica}} (CIF/NIF)"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Telefono_Clinica}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Telefono_Clinica}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Email_Clinica}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Email_Clinica}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Profesional_Tratante}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Profesional_Tratante}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Fecha_Documento}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Fecha_Documento}}"}</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Fecha_Hora_Documento}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>{"{{Fecha_Hora_Documento}}"}</button>
 
-                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>LINKS</div>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Link_VideoConsulta}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Videoconsulta</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Link_Cancelar_Cita}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Cancelar Cita</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Link_Mover_Cita}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Mover Cita</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Link_Confirmar_Cita}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Confirmar Cita</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Link_Pago_Online}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Link Pago Online</button>
+                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "#b45309", background: "#fef3c7", letterSpacing: "0.5px" }}>FIRMAS LEGALES</div>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Firma_Paciente}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#eab308", color: "black", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>✍️</span> Firma Paciente</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Firma_Tutor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#0284c7", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>✍️</span> Firma Tutor Legal</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Firma_Medico}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#3b82f6", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>✍️</span> Firma Médico</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Firma_Certificada}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#ca8a04", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>🔏</span> Firma Certificada</button>
+                      <button type="button" onClick={() => { handleInsertVariable("{{Firma_Digital}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#06b6d4", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>🔗</span> Firma Digital Remota</button>
+                    </div>
+                  )}
+                </div>
 
-                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>EMPLEADO / TUTOR</div>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Empleado_Nombre_Completo}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Completo</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Empleado_Nombre}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Nombre Empleado</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Empleado_Apellidos}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Apellidos Empleado</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Empleado_Correo}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Correo Empleado</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Empleado_Teléfono}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Teléfono Empleado</button>
-
-                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>OTRO</div>
-                      <button type="button" onClick={() => { handleInsertVariable("{{Deuda}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Deuda Pendiente</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{document.date}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%" }}>Fecha Documento</button>
-
-                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "var(--text-secondary)", background: "#f1f5f9", letterSpacing: "0.5px" }}>FIRMAS REQUERIDAS</div>
-                      <button type="button" onClick={() => { handleInsertVariable("{{signature.client}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#eab308", color: "black", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>✍️</span> Firma Paciente (Ordinaria)</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{signature.doctor}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#3b82f6", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>✍️</span> Firma Médico (Ordinaria)</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{signature.certified}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#ca8a04", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>🔏</span> Firma Certificada (Remota)</button>
-                      <button type="button" onClick={() => { handleInsertVariable("{{signature.digital}}"); setShowVariablesDropdown(false); }} style={{ padding: "6px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ fontSize: "10px", background: "#06b6d4", color: "white", padding: "1px 6px", borderRadius: "4px", fontWeight: 700 }}>🔗</span> Firma Digital (Enlace Remoto)</button>
+                {/* Pre-configured Presets Dropdown */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPresetsDropdown(!showPresetsDropdown)}
+                    style={{ padding: "6px 12px", background: "#059669", color: "white", border: "none", borderRadius: "4px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <span>📋 Plantillas Modelo ▾</span>
+                  </button>
+                  {showPresetsDropdown && (
+                    <div style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      background: "white",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      width: "280px",
+                      zIndex: 100,
+                      padding: "8px 0",
+                      marginTop: "4px"
+                    }}>
+                      <div style={{ padding: "4px 12px", fontSize: "10px", fontWeight: "bold", color: "#059669", background: "#ecfdf5", letterSpacing: "0.5px" }}>MODELOS HOMOLOGADOS</div>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadPresetTemplate("ley41")}
+                        style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", flexDirection: "column", gap: "2px" }}
+                      >
+                        <span style={{ fontWeight: 600, color: "#1e293b" }}>Consentimiento Ley 41/2002</span>
+                        <span style={{ fontSize: "10px", color: "#64748b" }}>General para intervenciones y actos médicos</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadPresetTemplate("tutor")}
+                        style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", flexDirection: "column", gap: "2px" }}
+                      >
+                        <span style={{ fontWeight: 600, color: "#1e293b" }}>Pediatría / Tutor Legal</span>
+                        <span style={{ fontSize: "10px", color: "#64748b" }}>Consentimiento informado por representación</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadPresetTemplate("rgpd")}
+                        style={{ padding: "8px 12px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: "12px", width: "100%", display: "flex", flexDirection: "column", gap: "2px" }}
+                      >
+                        <span style={{ fontWeight: 600, color: "#1e293b" }}>RGPD Sanitario / LOPDGDD</span>
+                        <span style={{ fontSize: "10px", color: "#64748b" }}>Tratamiento de datos y conservación de historial</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -10677,6 +11165,22 @@ export default function SettingsPage() {
                         />
                       </div>
 
+                      {/* Rol / Cargo */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                        <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Rol / Perfil *</label>
+                        <select
+                          className="input select"
+                          style={{ padding: "7px 10px", fontSize: "13px" }}
+                          value={editStaffRole}
+                          onChange={(e) => setEditStaffRole(e.target.value)}
+                        >
+                          <option value="SUPERADMIN">Superadministrador (Acceso Total)</option>
+                          <option value="ADMIN">Administrador de Clínica</option>
+                          <option value="PROFESIONAL">Profesional Sanitario / Médico</option>
+                          <option value="RECEPCION">Recepción / Gestión de Citas</option>
+                        </select>
+                      </div>
+
                       {/* Teléfono */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                         <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Teléfono</label>
@@ -11024,6 +11528,243 @@ export default function SettingsPage() {
                       </button>
                     </div>
                   </form>
+                ) : selectedEmployeeTab === "consultas" ? (
+                  <div className={styles.drawerBody} style={{ gap: "16px", padding: "20px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                        Consultas y Clínicas Asignadas
+                      </span>
+                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0 }}>
+                        Gestiona el acceso de {selectedEmployee.name} a las distintas sedes de tu organización.
+                      </p>
+                    </div>
+
+                    {/* Active Clinic Card */}
+                    {activeClinic && (
+                      <div style={{
+                        padding: "16px",
+                        border: "1.5px solid var(--primary)",
+                        borderRadius: "10px",
+                        background: "var(--primary-light, rgba(0, 93, 127, 0.05))",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px"
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontSize: "16px" }}>🏥</span>
+                            <span style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{activeClinic.name}</span>
+                          </div>
+                          <span style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "3px 8px",
+                            borderRadius: "12px",
+                            background: "#dcfce7",
+                            color: "#166534"
+                          }}>
+                            Sede Activa
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                          {activeClinic.address} {activeClinic.phone ? `· ${activeClinic.phone}` : ""}
+                        </div>
+                        <div style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "10px", marginTop: "4px", display: "flex", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEmployee(true)}
+                            className="btn btn-secondary"
+                            style={{
+                              color: "var(--danger)",
+                              borderColor: "var(--danger)",
+                              fontSize: "12px",
+                              padding: "6px 12px"
+                            }}
+                          >
+                            Desvincular de esta consulta
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Other clinics if any */}
+                    {(currentUser?.clinics || []).filter(c => c.id !== activeClinic?.id).length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>
+                          Otras sedes disponibles en la cuenta:
+                        </span>
+                        {(currentUser?.clinics || []).filter(c => c.id !== activeClinic?.id).map(c => {
+                          const isAssigned = selectedEmployee.clinics?.some(ec => ec.id === c.id);
+                          return (
+                            <div
+                              key={c.id}
+                              style={{
+                                padding: "12px 14px",
+                                border: "1px solid var(--border-color)",
+                                borderRadius: "8px",
+                                background: "var(--bg-card)",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                              }}
+                            >
+                              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{c.name}</span>
+                                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{c.address}</span>
+                              </div>
+                              <span style={{
+                                fontSize: "11px",
+                                padding: "2px 8px",
+                                borderRadius: "10px",
+                                background: isAssigned ? "#dbeafe" : "#f1f5f9",
+                                color: isAssigned ? "#1e40af" : "#64748b",
+                                fontWeight: 600
+                              }}>
+                                {isAssigned ? "Vinculado" : "No asignado"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : selectedEmployeeTab === "comisiones" ? (
+                  <div className={styles.drawerBody} style={{ gap: "16px", padding: "20px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                        Tarifas y Comisiones del Profesional
+                      </span>
+                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0 }}>
+                        Configura porcentajes o importes fijos por servicio y producto para {selectedEmployee.name}.
+                      </p>
+                    </div>
+
+                    <div style={{
+                      padding: "18px",
+                      borderRadius: "10px",
+                      background: "var(--bg-input)",
+                      border: "1px solid var(--border-color)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "12px"
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "8px",
+                          background: "var(--primary-light, rgba(0, 93, 127, 0.1))",
+                          color: "var(--primary)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "18px"
+                        }}>
+                          💰
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>
+                            Gestión Integral de Liquidaciones
+                          </div>
+                          <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                            Establece comisiones por servicio, mínimos garantizados y calcula liquidaciones mensuales.
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                          setSelectedEmployee(null);
+                          setSelectedEmployeeTab(null);
+                          setActiveTab("liquidaciones");
+                        }}
+                        style={{ alignSelf: "flex-start", fontSize: "13px", padding: "8px 16px" }}
+                      >
+                        Abrir Liquidaciones y Comisiones →
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedEmployeeTab === "config" ? (
+                  <div className={styles.drawerBody} style={{ gap: "20px", padding: "20px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase" }}>
+                        Seguridad y Estado de la Cuenta
+                      </span>
+                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: 0 }}>
+                        Opciones de desvinculación, control de acceso y preservación del histórico legal.
+                      </p>
+                    </div>
+
+                    {/* Status badge */}
+                    <div style={{
+                      padding: "14px 16px",
+                      borderRadius: "8px",
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px"
+                    }}>
+                      <span style={{ fontSize: "20px" }}>🛡️</span>
+                      <div>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#166534" }}>Usuario Activo en Plantilla</div>
+                        <div style={{ fontSize: "11px", color: "#15803d" }}>Cumplimiento Ley 41/2002 y RGPD sanitario</div>
+                      </div>
+                    </div>
+
+                    {/* Action 1: Desvincular de la clínica actual */}
+                    <div style={{
+                      padding: "16px",
+                      borderRadius: "10px",
+                      border: "1px solid var(--border-color)",
+                      background: "var(--bg-card)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px"
+                    }}>
+                      <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-primary)" }}>
+                        Desvincular de "{activeClinic?.name}"
+                      </div>
+                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>
+                        Quita el acceso del empleado a esta clínica y retira sus turnos y visibilidad de agenda. Sus citas pasadas y registros médicos permanecerán intactos para auditoría legal.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEmployee(true)}
+                        className="btn btn-secondary"
+                        style={{ alignSelf: "flex-start", marginTop: "4px", color: "#d97706", borderColor: "#d97706", fontSize: "12px" }}
+                      >
+                        Desvincular de esta consulta
+                      </button>
+                    </div>
+
+                    {/* Action 2: Desactivar globalmente */}
+                    <div style={{
+                      padding: "16px",
+                      borderRadius: "10px",
+                      border: "1px solid #fecaca",
+                      background: "#fff5f5",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px"
+                    }}>
+                      <div style={{ fontWeight: 700, fontSize: "13px", color: "#b91c1c" }}>
+                        Desactivar Empleado del Sistema
+                      </div>
+                      <p style={{ fontSize: "12px", color: "#7f1d1d", margin: 0 }}>
+                        Revoca todas las credenciales de inicio de sesión y desvincula al usuario de todas las clínicas. Los historiales médicos se conservan conforme a la ley.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEmployee(false)}
+                        className="btn btn-danger"
+                        style={{ alignSelf: "flex-start", marginTop: "4px", fontSize: "12px" }}
+                      >
+                        Desactivar cuenta permanentemente
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className={styles.drawerBody}>
                     <p style={{ color: "var(--text-secondary)", fontSize: "13px" }}>

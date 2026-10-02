@@ -17,6 +17,12 @@ model Clinic {
   email               String?
   logo                String?
   country             String               @default("ES")
+  razonSocial         String?
+  cifNif              String?
+  scheduleOpening     String?              @default("08:00")
+  scheduleClosing     String?              @default("20:00")
+  appointmentInterval Int?                 @default(15)
+  cancellationNoticeHours Int?             @default(24)
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   users               User[]
@@ -61,6 +67,7 @@ model Clinic {
   birthdayDiscount      Int     @default(15)
   birthdayImageUrl      String?
   birthdayCardTheme     String  @default("GOLD")
+  loyaltyTemplate       LoyaltyTemplate?
 }
 
 
@@ -192,6 +199,9 @@ model Client {
   memberNumber       String?
   isMember           Boolean          @default(false)
   membershipDate     DateTime?
+  membershipTier     String?          @default("ESTÁNDAR")
+  membershipStatus   String?          @default("ACTIVE")
+  membershipPoints   Int              @default(0)
   debts              ClientDebt[]
 
   @@index([clinicId, deletedAt])
@@ -398,6 +408,21 @@ model AppointmentLog {
   createdAt     DateTime @default(now())
 }
 
+model EhrAuditLog {
+  id          String   @id @default(uuid())
+  clientId    String   // ID del cliente/paciente
+  userId      String?  // ID del usuario clínico que accedió
+  userName    String?  // Nombre del usuario (snapshot)
+  action      String   // "VIEW", "UPDATE", "EXPORT", "DELETE_ATTEMPT", "ALLERGY_OVERRIDE"
+  details     String?  // Detalles adicionales o campos consultados/modificados
+  clinicId    String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([clientId, createdAt])
+  @@index([clinicId, createdAt])
+}
+
 model WorkEntry {
   id                  String    @id @default(uuid())
   userId              String
@@ -480,18 +505,27 @@ model NotificationLog {
 }
 
 model InventoryProduct {
-  id          String   @id @default(uuid())
-  name        String
-  sku         String?
-  stock       Int      @default(0)
-  minStock    Int      @default(0)
-  costPrice   Float    @default(0)
-  clinicId    String
-  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  services    ServiceProduct[]
-  transactions InventoryTransaction[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String                 @id @default(uuid())
+  name           String
+  sku            String?
+  category       String?                @default("CONSUMIBLE") // "CONSUMIBLE", "VENTA_DIRECTA", "MEDICAMENTO", "MATERIAL_QUIRURGICO"
+  batchNumber    String?                // Lote del fabricante (Trazabilidad Sanitaria AEMPS)
+  expirationDate DateTime?              // Fecha de caducidad
+  supplier       String?                // Laboratorio o Proveedor
+  location       String?                // Ubicación en almacén (ej: Frigorífico, Armario A)
+  stock          Int                    @default(0)
+  minStock       Int                    @default(0)
+  costPrice      Float                  @default(0)
+  salePrice      Float                  @default(0) // PVP para valoración comercial y margen
+  clinicId       String
+  clinic         Clinic                 @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  services       ServiceProduct[]
+  transactions   InventoryTransaction[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([clinicId])
+  @@index([expirationDate])
 }
 
 model ServiceProduct {
@@ -509,16 +543,26 @@ model ServiceProduct {
 }
 
 model InventoryTransaction {
-  id        String   @id @default(uuid())
-  productId String
-  product   InventoryProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type      String   // "ADD", "REMOVE", "CONSUMPTION"
-  quantity  Int
-  notes     String?
-  clinicId  String
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
+  id             String           @id @default(uuid())
+  productId      String
+  product        InventoryProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type           String           // "ENTRADA", "CONSUMO_CITA", "VENTA_MOSTRADOR", "AJUSTE", "ROTURA_MERMA", "DEVOLUCION" (compatible con legados ADD, REMOVE, CONSUMPTION)
+  quantity       Int
+  previousStock  Int?             // Stock antes del movimiento
+  newStock       Int?             // Stock resultante tras el movimiento
+  batchNumber    String?          // Lote asignado
+  expirationDate DateTime?        // Caducidad asociada
+  costPrice      Float?           // Precio unitario de coste en la entrada
+  invoiceRef     String?          // Albarán o factura de proveedor
+  supplier       String?          // Proveedor o laboratorio
+  notes          String?
+  clinicId       String
+  userId         String?
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+
+  @@index([clinicId, createdAt])
+  @@index([productId])
 }
 
 model UserCommissionConfig {
@@ -645,5 +689,15 @@ model ClientDebt {
   date            DateTime  @default(now())
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model LoyaltyTemplate {
+  id               String   @id @default(uuid())
+  clinicId         String   @unique
+  clinic           Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  activeTemplateId String   @default("preset-gold")
+  templates        String   @default("[]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 

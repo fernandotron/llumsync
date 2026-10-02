@@ -36,6 +36,9 @@ export async function generateBackupData(clinicId?: string) {
     waitlistEntries,
     workEntries,
     reminders,
+    inventoryProducts,
+    inventoryTransactions,
+    serviceProducts,
   ] = await Promise.all([
     prisma.clinic.findMany({ where: whereIdClinic }),
     prisma.user.findMany({ where: clinicId ? { clinicId } : {} }),
@@ -58,6 +61,9 @@ export async function generateBackupData(clinicId?: string) {
     prisma.waitlistEntry.findMany({ where: whereClinic }),
     prisma.workEntry.findMany({ where: whereClinic }),
     prisma.appointmentReminder.findMany({ where: whereClinic }),
+    prisma.inventoryProduct.findMany({ where: whereClinic }),
+    prisma.inventoryTransaction.findMany({ where: whereClinic }),
+    prisma.serviceProduct.findMany({ where: whereClinic }),
   ]);
 
   const summary = {
@@ -70,6 +76,9 @@ export async function generateBackupData(clinicId?: string) {
     cashSessions: cashSessions.length,
     services: services.length,
     products: products.length,
+    inventoryProducts: inventoryProducts.length,
+    inventoryTransactions: inventoryTransactions.length,
+    serviceProducts: serviceProducts.length,
     budgets: budgets.length,
     timeBlocks: timeBlocks.length,
     vouchers: vouchers.length,
@@ -103,6 +112,9 @@ export async function generateBackupData(clinicId?: string) {
       waitlistEntries,
       workEntries,
       reminders,
+      inventoryProducts,
+      inventoryTransactions,
+      serviceProducts,
     },
   };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 export async function GET(request: Request) {
   try {
@@ -8,6 +9,11 @@ export async function GET(request: Request) {
 
     if (!clinicId) {
       return NextResponse.json({ error: "Falta clinicId" }, { status: 400 });
+    }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) {
+      return auth.errorResponse;
     }
 
     const onlyAgenda = searchParams.get("onlyAgenda") === "true";
@@ -25,11 +31,28 @@ export async function GET(request: Request) {
     const users = await prisma.user.findMany({
       where: whereClause,
       include: {
-        shifts: true,
+        shifts: {
+          where: {
+            OR: [
+              { clinicId },
+              { clinicId: null }
+            ]
+          }
+        },
+        clinics: {
+          select: {
+            id: true,
+            name: true,
+          }
+        }
       },
+      orderBy: { name: "asc" },
     });
 
-    return NextResponse.json(users);
+    // Remove password hash from response
+    const safeUsers = users.map(({ password, ...u }: { password: string; [key: string]: any }) => u);
+
+    return NextResponse.json(safeUsers);
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });

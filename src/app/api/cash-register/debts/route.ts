@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { authenticateApiRequest } from "@/lib/authGuard";
 
 export async function GET(request: Request) {
   try {
@@ -10,6 +11,9 @@ export async function GET(request: Request) {
     if (!clinicId) {
       return NextResponse.json({ error: "Falta clinicId" }, { status: 400 });
     }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const debts = await prisma.clientDebt.findMany({
       where: {
@@ -45,6 +49,9 @@ export async function POST(request: Request) {
     if (!clinicId || !clientId || !concept || amount === undefined) {
       return NextResponse.json({ error: "Faltan datos obligatorios (clinicId, clientId, concept, amount)" }, { status: 400 });
     }
+
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const newDebt = await prisma.clientDebt.create({
       data: {
@@ -84,6 +91,17 @@ export async function PUT(request: Request) {
     if (!debtId || !paymentMethod) {
       return NextResponse.json({ error: "Faltan datos obligatorios (debtId, paymentMethod)" }, { status: 400 });
     }
+
+    const existingDebt = await prisma.clientDebt.findUnique({
+      where: { id: debtId },
+    });
+
+    if (!existingDebt) {
+      return NextResponse.json({ error: "Deuda no encontrada" }, { status: 404 });
+    }
+
+    const auth = await authenticateApiRequest(existingDebt.clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
 
     const updatedDebt = await prisma.clientDebt.update({
       where: { id: debtId },

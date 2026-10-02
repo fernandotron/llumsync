@@ -943,6 +943,10 @@ export default function LoyaltyCardDesigner() {
         .replace(/\{\{Numero de socio\}\}/g, "M00042")
         .replace(/\{\{DNI\}\}/g, "12345678X")
         .replace(/\{\{Fecha Alta\}\}/g, "27/07/2026")
+        .replace(/\{\{Nivel\}\}/g, "VIP GOLD")
+        .replace(/\{\{Tier\}\}/g, "VIP GOLD")
+        .replace(/\{\{Puntos\}\}/g, "1.250 pts")
+        .replace(/\{\{Estado\}\}/g, "ACTIVO")
         .replace(/\{\{Nombre Clinica\}\}/g, clinicName);
     }
     return cleanText;
@@ -1378,6 +1382,9 @@ export default function LoyaltyCardDesigner() {
                   {[
                     "Nombre de Cliente",
                     "Numero de socio",
+                    "Nivel",
+                    "Puntos",
+                    "Estado",
                     "DNI",
                     "Fecha Alta",
                     "Nombre Clinica",

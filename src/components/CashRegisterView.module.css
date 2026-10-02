@@ -351,3 +351,116 @@
   justify-content: space-between;
   margin-top: 16px;
 }
+
+/* Historial de Cierres & Ticket */
+.ticketBox {
+  background: var(--bg-card);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+}
+
+.ticketHeader {
+  text-align: center;
+  border-bottom: 2px dashed var(--border-color);
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+
+.ticketTitle {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+}
+
+.ticketSubtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.ticketRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 5px 0;
+  color: var(--text-secondary);
+}
+
+.ticketRow strong {
+  color: var(--text-primary);
+}
+
+.ticketDivider {
+  height: 1px;
+  border-top: 1px dashed var(--border-color);
+  margin: 12px 0;
+}
+
+.ticketDenomList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  background: var(--bg-input);
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.badgeDiscrepancyZero {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.badgeDiscrepancyNeg {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.badgeDiscrepancyPos {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(234, 179, 8, 0.12);
+  color: #ca8a04;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printableTicketArea,
+  .printableTicketArea * {
+    visibility: visible;
+  }
+  .printableTicketArea {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
