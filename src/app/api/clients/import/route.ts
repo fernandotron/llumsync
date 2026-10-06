@@ -18,12 +18,35 @@ function normalizeDni(val: any): string {
 
 /**
  * Normalizes phone numbers by stripping whitespace, hyphens, parentheses, and dots.
+ * Strips leading Spanish country codes (+34, 0034, or 34 prefix).
  */
 function normalizePhone(val: any): string {
   if (!val) return "";
-  const s = String(val).replace(/[\s\-\.\(\)]/g, "").trim();
-  // Strip leading Spanish country code (+34 or 0034) for local matching
-  return s.replace(/^(\+34|0034)/, "");
+  let s = String(val).replace(/[\s\-\.\(\)\+]/g, "").trim();
+  if (s.startsWith("0034")) {
+    s = s.slice(4);
+  } else if (s.length === 11 && s.startsWith("34")) {
+    s = s.slice(2);
+  }
+  return s;
+}
+
+/**
+ * Validates that a string looks like a valid human name:
+ * - Minimum 2 characters
+ * - Must contain at least one letter (including Spanish accents/ñ)
+ * - Must not be pure digits/symbols
+ * - Must not be a UUID, hash, or DNI/NIE
+ */
+function isValidPersonName(name: string | null | undefined): boolean {
+  if (!name || typeof name !== "string") return false;
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return false;
+  if (uuidRegex.test(trimmed) || hex32Regex.test(trimmed)) return false;
+  if (!/[a-zA-ZáéíóúÁÉÍÓÚñÑçÇàèìòùÀÈÌÒÙäëïöüÄËÏÖÜ]/.test(trimmed)) return false;
+  if (/^[\d\s\-_./\\#,:;]+$/.test(trimmed)) return false;
+  if (/^[XYZxyz]?\d{6,8}[A-Za-z]$/.test(trimmed)) return false;
+  return true;
 }
 
 /**
@@ -86,7 +109,13 @@ function extractFieldValue(row: Record<string, any>, candidateKeys: string[]): s
   // Reserved internal system keys that MUST NEVER be mapped to user profile fields
   const EXCLUDED_SYSTEM_KEYS = new Set([
     "id", "_id", "uuid", "uid", "key", "createdat", "updatedat", "deletedat",
-    "clinicid", "clientnumber", "patientid", "idcliente", "idpaciente", "clientid"
+    "clinicid", "clientnumber", "patientid", "idcliente", "idpaciente", "clientid",
+    "numerodecliente", "numerocliente", "numcliente", "ncliente", "ndecliente",
+    "codigocliente", "codigodecliente", "codcliente", "nocliente", "nrodecliente",
+    "numdecliente", "num", "numero", "nro", "no", "indice", "index", "fila", "row",
+    "numerodepaciente", "numeropaciente", "numpaciente", "npaciente", "ndepaciente",
+    "codigopaciente", "codigodepaciente", "codpaciente", "nrodepaciente",
+    "tipocliente", "tipodecliente", "estadocliente", "grupocliente"
   ]);
 
   // 1. Direct match
@@ -145,6 +174,12 @@ function extractFieldValue(row: Record<string, any>, candidateKeys: string[]): s
 
     for (const [key, val] of Object.entries(normalizedRow)) {
       if (key.length >= 4 && key.includes(cleanCandidate) && !EXCLUDED_SYSTEM_KEYS.has(key)) {
+        // Prevent key containing "numero", "codigo", "id", "num", "cod" from matching name candidates
+        if (cleanCandidate.includes("nombre") || cleanCandidate.includes("apellido") || cleanCandidate.includes("paciente") || cleanCandidate.includes("cliente")) {
+          if (key.includes("numero") || key.includes("num") || key.includes("codigo") || key.includes("cod") || key.includes("id")) {
+            continue;
+          }
+        }
         if (!uuidRegex.test(val)) return val;
       }
     }
@@ -196,12 +231,13 @@ export async function POST(request: Request) {
       },
     });
 
-    // Lookup structures for fast duplicate detection
+    // Lookup structures for fast and accurate duplicate detection
     const existingDnis = new Map<string, string>(); // cleanDni -> client.id
-    const existingPhones = new Map<string, string>(); // cleanPhone -> client.id
-    const existingEmails = new Map<string, string>(); // cleanEmail -> client.id
-    const existingClientNames = new Map<string, string>(); // client.id -> cleanFullName
-    const existingNamesSet = new Set<string>(); // cleanFullName -> exists
+    // One phone or email can be legitimately shared by multiple clients (e.g. family members)
+    const existingPhones = new Map<string, Array<{ id: string; firstName: string; lastName: string; normFullName: string }>>();
+    const existingEmails = new Map<string, Array<{ id: string; firstName: string; lastName: string; normFullName: string }>>();
+    const existingNamesSet = new Set<string>(); // normFullName -> exists
+    const existingSingleNamesWithoutContact = new Set<string>(); // single name when no phone/dni/email
 
     for (const c of existingClients) {
       if (c.dniNif) {
@@ -209,22 +245,40 @@ export async function POST(request: Request) {
         const norm = normalizeDni(dec);
         if (norm) existingDnis.set(norm, c.id);
       }
+
+      const normFirst = (c.firstName || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const normLast = (c.lastName && c.lastName !== "-" ? c.lastName : "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const normFull = `${normFirst} ${normLast}`.trim().replace(/\s+/g, "");
+
+      const clientInfo = {
+        id: c.id,
+        firstName: normFirst,
+        lastName: normLast,
+        normFullName: normFull,
+      };
+
       if (c.phone) {
         const cleanP = normalizePhone(c.phone);
-        if (cleanP.length >= 7) existingPhones.set(cleanP, c.id);
+        if (cleanP.length >= 7) {
+          if (!existingPhones.has(cleanP)) existingPhones.set(cleanP, []);
+          existingPhones.get(cleanP)!.push(clientInfo);
+        }
       }
+
       if (c.email) {
         const cleanE = c.email.trim().toLowerCase();
-        if (cleanE.includes("@")) existingEmails.set(cleanE, c.id);
+        if (cleanE.includes("@")) {
+          if (!existingEmails.has(cleanE)) existingEmails.set(cleanE, []);
+          existingEmails.get(cleanE)!.push(clientInfo);
+        }
       }
-      const normName = `${c.firstName || ""} ${c.lastName || ""}`
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]/g, "");
-      existingClientNames.set(c.id, normName);
-      if (normName && normName.length >= 3 && normName !== "paciente") {
-        existingNamesSet.add(normName);
+
+      if (normFull && normFull.length >= 4 && normFull !== "paciente") {
+        existingNamesSet.add(normFull);
+      }
+
+      if (normFirst && (!normLast || normLast === "-") && !c.phone && !c.dniNif && !c.email && normFirst.length >= 3) {
+        existingSingleNamesWithoutContact.add(normFirst);
       }
     }
 
@@ -266,24 +320,32 @@ export async function POST(request: Request) {
 
       // 3. Extract Name fields
       let firstName = extractFieldValue(client, [
-        "firstName", "Nombre", "first_name", "firstname", "Primer Nombre",
+        "firstName", "Nombres", "nombres", "Nombre", "first_name", "firstname", "Primer Nombre",
         "Nombre Paciente", "Nombre del Paciente", "Nombre_Paciente"
       ]) || "";
 
       let lastName = extractFieldValue(client, [
-        "lastName", "Apellidos", "last_name", "lastname", "Primer Apellido",
-        "Segundo Apellido", "Apellidos Paciente", "Apellido", "Apellidos_Paciente"
+        "lastName", "Apellidos", "apellidos", "last_name", "lastname", "Primer Apellido",
+        "Segundo Apellido", "Apellidos Paciente", "Apellido", "apellido", "Apellidos_Paciente"
       ]) || "";
 
       const fullNameCandidate = extractFieldValue(client, [
         "Nombre y Apellidos", "Nombre y apellidos", "Nombre Completo", "nombreyapellidos",
-        "nombrecompleto", "Paciente", "paciente", "Cliente", "cliente", "Titular",
-        "Nombre del cliente", "Paciente / Nombre"
+        "nombrecompleto", "Nombre del Paciente", "Nombre y Apellidos del Paciente",
+        "Paciente / Nombre", "Nombre del cliente", "Titular"
       ]);
 
+      // Sanitize names against numbers/UUIDs
+      if (!isValidPersonName(firstName)) firstName = "";
+      if (!isValidPersonName(lastName)) lastName = "";
+      const validFullName = isValidPersonName(fullNameCandidate) ? fullNameCandidate! : "";
+
       // Smart splitting if full name is provided or if firstName contains both
-      if ((!firstName && fullNameCandidate) || (firstName && !lastName && (firstName.includes(" ") || firstName.includes(",")))) {
-        const source = (fullNameCandidate || firstName).trim();
+      if (validFullName && (!firstName || (firstName && !lastName))) {
+        const source = (firstName && (firstName.includes(" ") || firstName.includes(",")))
+          ? firstName
+          : (validFullName || firstName).trim();
+
         if (source.includes(",")) {
           // Format: "Apellidos, Nombre"
           const [apell, ...rest] = source.split(",");
@@ -291,6 +353,28 @@ export async function POST(request: Request) {
           firstName = rest.join(" ").trim();
         } else {
           // Format: "Nombre Apellidos"
+          const tokens = source.split(/\s+/).filter(Boolean);
+          if (tokens.length === 1) {
+            firstName = tokens[0];
+            if (!lastName) lastName = "-";
+          } else if (tokens.length === 2) {
+            firstName = tokens[0];
+            lastName = tokens[1];
+          } else if (tokens.length === 3) {
+            firstName = tokens[0];
+            lastName = `${tokens[1]} ${tokens[2]}`;
+          } else if (tokens.length >= 4) {
+            firstName = tokens.slice(0, tokens.length - 2).join(" ");
+            lastName = tokens.slice(tokens.length - 2).join(" ");
+          }
+        }
+      } else if (firstName && !lastName && (firstName.includes(" ") || firstName.includes(","))) {
+        const source = firstName.trim();
+        if (source.includes(",")) {
+          const [apell, ...rest] = source.split(",");
+          lastName = apell.trim();
+          firstName = rest.join(" ").trim();
+        } else {
           const tokens = source.split(/\s+/).filter(Boolean);
           if (tokens.length === 1) {
             firstName = tokens[0];
@@ -308,29 +392,17 @@ export async function POST(request: Request) {
         }
       }
 
-      // Sanitize against UUID values
-      if (lastName && uuidRegex.test(lastName)) {
-        lastName = "-";
-      }
-      if (firstName && uuidRegex.test(firstName)) {
-        firstName = "Paciente";
-      }
+      // Final validation of names
+      if (!isValidPersonName(firstName)) firstName = "";
+      if (!isValidPersonName(lastName) || lastName === "-") lastName = "-";
 
-      // If after parsing we have firstName but no lastName
-      if (firstName && !lastName) {
-        lastName = "-";
-      } else if (!firstName && lastName) {
-        firstName = lastName;
-        lastName = "-";
-      }
-
-      // If the row lacks names, check if it has DNI, phone or email
-      if (!firstName && !lastName) {
+      // If both are empty or invalid, check if we have any other identifying info
+      if (!firstName && (!lastName || lastName === "-")) {
         if (cleanDni || cleanPhone || cleanEmail) {
           firstName = "Paciente";
           lastName = cleanDni || cleanPhone || `Importado-${idx + 1}`;
         } else {
-          // Empty or invalid row: skip completely
+          // Empty or invalid row: skip completely (prevents phantom records like 93, 94, 97, 610)
           continue;
         }
       }
@@ -339,49 +411,68 @@ export async function POST(request: Request) {
       let isDuplicate = false;
 
       // Primary check: Identity Document (DNI / NIE / NIF / Passport)
-      if (cleanDni) {
+      if (cleanDni && cleanDni.length >= 5) {
         if (existingDnis.has(cleanDni)) {
           isDuplicate = true;
         }
       }
 
-      const incomingName = `${firstName} ${lastName}`
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]/g, "");
+      const incomingFirst = firstName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const incomingLast = (lastName !== "-" ? lastName : "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      const incomingFullName = `${incomingFirst} ${incomingLast}`.trim().replace(/\s+/g, "");
 
-      // Secondary check: If no DNI, match by Phone + Name or Email + Name
+      // Secondary check: Phone match + Name confirmation
       if (!isDuplicate && cleanPhone && cleanPhone.length >= 7) {
-        const existingId = existingPhones.get(cleanPhone);
-        if (existingId) {
-          const existingName = existingClientNames.get(existingId);
-          if (existingName && incomingName && (existingName === incomingName || existingName.includes(incomingName) || incomingName.includes(existingName))) {
-            isDuplicate = true;
+        const clientsWithPhone = existingPhones.get(cleanPhone);
+        if (clientsWithPhone && clientsWithPhone.length > 0) {
+          for (const ec of clientsWithPhone) {
+            // Exact full name match
+            if (incomingFullName && ec.normFullName && incomingFullName === ec.normFullName) {
+              isDuplicate = true;
+              break;
+            }
+            // First + Last name both match
+            if (incomingFirst && incomingLast && ec.firstName && ec.lastName && ec.lastName !== "-" && incomingLast !== "-") {
+              if (incomingFirst === ec.firstName && (incomingLast === ec.lastName || ec.lastName.includes(incomingLast) || incomingLast.includes(ec.lastName))) {
+                isDuplicate = true;
+                break;
+              }
+            }
           }
         }
       }
 
+      // Tertiary check: Email match + Name confirmation
       if (!isDuplicate && cleanEmail && cleanEmail.includes("@")) {
-        const existingId = existingEmails.get(cleanEmail);
-        if (existingId) {
-          const existingName = existingClientNames.get(existingId);
-          if (existingName && incomingName && (existingName === incomingName || existingName.includes(incomingName) || incomingName.includes(existingName))) {
+        const clientsWithEmail = existingEmails.get(cleanEmail);
+        if (clientsWithEmail && clientsWithEmail.length > 0) {
+          for (const ec of clientsWithEmail) {
+            if (incomingFullName && ec.normFullName && incomingFullName === ec.normFullName) {
+              isDuplicate = true;
+              break;
+            }
+            if (incomingFirst && incomingLast && ec.firstName && ec.lastName && ec.lastName !== "-" && incomingLast !== "-") {
+              if (incomingFirst === ec.firstName && incomingLast === ec.lastName) {
+                isDuplicate = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // Quaternary check: Exact full name match (only if both first and last names are valid and non-empty)
+      if (!isDuplicate && incomingFirst && incomingLast && incomingLast !== "-" && incomingFullName.length >= 5) {
+        if (existingNamesSet.has(incomingFullName)) {
+          if (!cleanPhone || cleanPhone.length < 7) {
             isDuplicate = true;
           }
         }
       }
 
-      // Tertiary check: Match by full name if both firstName and lastName are valid and non-empty (even without phone or DNI)
-      if (!isDuplicate && firstName && lastName && lastName !== "-" && incomingName.length >= 4) {
-        if (existingNamesSet.has(incomingName)) {
-          isDuplicate = true;
-        }
-      }
-
-      // Also match if firstName alone (when lastName is "-") matches an existing record with identical single name without contact info
-      if (!isDuplicate && firstName && lastName === "-" && !cleanPhone && !cleanDni && !cleanEmail && incomingName.length >= 4) {
-        if (existingNamesSet.has(incomingName)) {
+      // Also match if client has only a single name without phone/dni/email
+      if (!isDuplicate && incomingFirst && (!incomingLast || incomingLast === "-") && !cleanDni && !cleanPhone && !cleanEmail && incomingFirst.length >= 3) {
+        if (existingSingleNamesWithoutContact.has(incomingFirst)) {
           isDuplicate = true;
         }
       }
@@ -480,11 +571,25 @@ export async function POST(request: Request) {
 
         // Add to in-memory index to prevent intra-file duplicates
         if (cleanDni) existingDnis.set(cleanDni, createdClient.id);
-        if (cleanPhone && cleanPhone.length >= 7) existingPhones.set(cleanPhone, createdClient.id);
-        if (cleanEmail && cleanEmail.includes("@")) existingEmails.set(cleanEmail, createdClient.id);
-        if (incomingName) {
-          existingClientNames.set(createdClient.id, incomingName);
-          existingNamesSet.add(incomingName);
+        const newClientInfo = {
+          id: createdClient.id,
+          firstName: incomingFirst,
+          lastName: incomingLast,
+          normFullName: incomingFullName,
+        };
+        if (cleanPhone && cleanPhone.length >= 7) {
+          if (!existingPhones.has(cleanPhone)) existingPhones.set(cleanPhone, []);
+          existingPhones.get(cleanPhone)!.push(newClientInfo);
+        }
+        if (cleanEmail && cleanEmail.includes("@")) {
+          if (!existingEmails.has(cleanEmail)) existingEmails.set(cleanEmail, []);
+          existingEmails.get(cleanEmail)!.push(newClientInfo);
+        }
+        if (incomingFullName && incomingFullName.length >= 4) {
+          existingNamesSet.add(incomingFullName);
+        }
+        if (incomingFirst && (!incomingLast || incomingLast === "-") && !cleanDni && !cleanPhone && !cleanEmail && incomingFirst.length >= 3) {
+          existingSingleNamesWithoutContact.add(incomingFirst);
         }
 
       } catch (rowErr) {
@@ -495,7 +600,7 @@ export async function POST(request: Request) {
 
     let message = `Importación completada: ${createdCount} nuevos pacientes añadidos correctamente.`;
     if (skippedCount > 0) {
-      message += ` ${skippedCount} pacientes omitidos porque ya estaban registrados en la clínica (por documento/DNI).`;
+      message += ` ${skippedCount} pacientes omitidos porque ya estaban registrados en la clínica (por DNI, teléfono o nombre ya existentes).`;
     }
     if (errorCount > 0) {
       message += ` (${errorCount} filas no se pudieron procesar por formato no válido).`;
