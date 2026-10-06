@@ -2373,7 +2373,7 @@ export default function SettingsPage() {
           setEditingVoucher(null);
         }
       } else {
-        toast.success("Error al eliminar el bono");
+        toast.error("Error al eliminar el bono");
       }
     } catch (err) {
       console.error(err);
@@ -2725,11 +2725,11 @@ export default function SettingsPage() {
         fetchData();
         toast.info("Servicio eliminado con éxito.");
       } else {
-        toast.success("Error al eliminar el servicio.");
+        toast.error("Error al eliminar el servicio.");
       }
     } catch (error) {
       console.error("Error deleting service:", error);
-      toast.success("Error en el servidor al intentar eliminar el servicio.");
+      toast.error("Error en el servidor al intentar eliminar el servicio.");
     }
   };
 
@@ -3030,7 +3030,7 @@ export default function SettingsPage() {
         fetchData();
         setActiveCellMenu(null);
       } else {
-        toast.success("Error al eliminar el turno.");
+        toast.error("Error al eliminar el turno.");
       }
     } catch (err) {
       console.error("Error deleting shift:", err);
@@ -3610,7 +3610,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       fetchData();
       toast.info("Plantilla eliminada correctamente.");
     } else {
-      toast.success("Error al eliminar la plantilla.");
+      toast.error("Error al eliminar la plantilla.");
     }
   };
 

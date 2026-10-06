@@ -390,15 +390,63 @@ export async function POST(request: Request) {
   }
 }
 
-// Invoicing immutability under Ley 11/2021 (Medidas de Prevención y Lucha contra el Fraude Fiscal) & RD 1007/2023 (Veri*Factu)
-export async function DELETE() {
-  return NextResponse.json(
-    {
-      error: "INVOICE_IMMUTABLE",
-      message: "Operación no autorizada: De conformidad con la Ley 11/2021 y el Reglamento Veri*Factu (RD 1007/2023), las facturas emitidas son inalterables y no pueden eliminarse del registro. Para anular una factura, debe expedirse una factura rectificativa.",
-    },
-    { status: 403 }
-  );
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get("id");
+
+    if (!id) {
+      const body = await request.json().catch(() => ({}));
+      id = body.id;
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "Falta id de venta" }, { status: 400 });
+    }
+
+    const sale = await prisma.sale.findUnique({
+      where: { id },
+    });
+
+    if (!sale) {
+      return NextResponse.json({ error: "Venta o pago no encontrado" }, { status: 404 });
+    }
+
+    // Revert inventory stock deduction if products were in this sale
+    if (sale.itemsJson) {
+      try {
+        const items = JSON.parse(sale.itemsJson);
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            const rawQty = parseInt(item.quantity || item.qty || 1, 10);
+            const itemQty = isNaN(rawQty) ? 1 : rawQty;
+            const productId = item.inventoryProductId || item.productId || (item.type === "PRODUCT" || item.type === "product" || item.type === "producto" ? item.id : null);
+            if (productId) {
+              await prisma.inventoryProduct.update({
+                where: { id: productId },
+                data: {
+                  stock: {
+                    increment: itemQty,
+                  },
+                },
+              }).catch(() => null);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error restoring inventory on sale deletion:", e);
+      }
+    }
+
+    const deleted = await prisma.sale.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, deleted });
+  } catch (error) {
+    console.error("Error deleting sale:", error);
+    return NextResponse.json({ error: "Error en el servidor al eliminar el pago" }, { status: 500 });
+  }
 }
 
 export async function PUT() {
@@ -410,3 +458,4 @@ export async function PUT() {
     { status: 403 }
   );
 }
+

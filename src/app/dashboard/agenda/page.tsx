@@ -2515,7 +2515,7 @@ export default function AgendaPage() {
           setAppointmentPhotos(updatedPhotos);
         }
       } else {
-        toast.success("Error al eliminar la foto");
+        toast.error("Error al eliminar la foto");
       }
     } catch (err) {
       console.error(err);
@@ -3701,7 +3701,7 @@ export default function AgendaPage() {
         fetchAppointments();
         triggerAutoSync();
       } else {
-        toast.success("Error al eliminar el bloqueo");
+        toast.error("Error al eliminar el bloqueo");
       }
     } catch (err) {
       console.error("Error deleting time block:", err);
@@ -3775,7 +3775,7 @@ export default function AgendaPage() {
       });
 
       if (!deleteRes.ok) {
-        toast.success("Error al eliminar la reserva de tiempo para la conversión.");
+        toast.error("Error al eliminar la reserva de tiempo para la conversión.");
         return;
       }
 
@@ -3862,7 +3862,7 @@ export default function AgendaPage() {
         fetchWaitlist();
         toast.info("Entrada eliminada con éxito.");
       } else {
-        toast.success("Error al eliminar de la lista de espera.");
+        toast.error("Error al eliminar de la lista de espera.");
       }
     } catch (err) {
       console.error("Error deleting waitlist entry:", err);

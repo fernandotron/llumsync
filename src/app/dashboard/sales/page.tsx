@@ -6064,12 +6064,12 @@ export default function SalesPage() {
                                       });
                                       if (!res.ok) {
                                         console.error("Failed to delete sale from database:", await res.text());
-                                        toast.success("Error al eliminar el pago de la base de datos.");
+                                        toast.error("Error al eliminar el pago de la base de datos.");
                                         return;
                                       }
                                     } catch (err) {
                                       console.error("Error deleting sale:", err);
-                                      toast.success("Error al eliminar el pago de la base de datos.");
+                                      toast.error("Error al eliminar el pago de la base de datos.");
                                       return;
                                     }
                                   }
@@ -6100,6 +6100,7 @@ export default function SalesPage() {
                                       }
                                     }
                                     fetchSalesData();
+                                    toast.success("Pago eliminado correctamente.");
                                   }
                                 }
                               }}
@@ -9778,7 +9779,7 @@ export default function SalesPage() {
                                     if (res.ok) {
                                       fetchSalesData();
                                     } else {
-                                      toast.success("Error al eliminar el movimiento");
+                                      toast.error("Error al eliminar el movimiento");
                                     }
                                     setConfirmDeleteMovId(null);
                                     setOpenDropdownMovId(null);

@@ -601,7 +601,7 @@ export default function ContactsPage() {
         setSelectedClients([]);
         fetchClients();
       } else {
-        toast.success("Error al eliminar clientes");
+        toast.error("Error al eliminar clientes");
       }
     } catch (err) {
       console.error(err);
