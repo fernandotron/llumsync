@@ -59,7 +59,7 @@ export async function authenticateApiRequest(clinicId?: string | null): Promise<
     };
   }
 
-  if (clinicId && user.role !== "ADMIN") {
+  if (clinicId && user.role !== "ADMIN" && user.role !== "SUPERADMIN") {
     const hasClinicAccess = user.clinics.some((c) => c.id === clinicId);
     if (!hasClinicAccess) {
       return {

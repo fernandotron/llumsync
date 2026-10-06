@@ -109,7 +109,7 @@ export async function DELETE(
     if ("errorResponse" in auth) {
       return auth.errorResponse;
     }
-    if (auth.user.role !== "ADMIN") {
+    if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPERADMIN") {
       return NextResponse.json({ error: "Solo los administradores pueden eliminar la clínica." }, { status: 403 });
     }
 

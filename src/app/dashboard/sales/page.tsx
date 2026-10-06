@@ -4694,9 +4694,9 @@ export default function SalesPage() {
   };
 
   const renderEditClientDrawer = () => {
-    if (!showEditClientModal) return null;
+    if (!showEditClientModal || typeof window === "undefined") return null;
 
-    return (
+    return createPortal(
       <div className={styles.drawerBackdrop} onClick={() => setShowEditClientModal(false)}>
         <div className={styles.drawerPanel} onClick={(e) => e.stopPropagation()}>
           <div className={styles.drawerHeader}>
@@ -4869,7 +4869,8 @@ export default function SalesPage() {
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -6749,9 +6750,9 @@ export default function SalesPage() {
           )}
 
           {/* Voucher Selection Modal */}
-          {showVoucherSelectionModal && (
+          {showVoucherSelectionModal && typeof window !== "undefined" && createPortal(
             <div className={styles.modalOverlay} onClick={() => setShowVoucherSelectionModal(false)}>
-              <div className={styles.modalBox} style={{ maxWidth: "450px" }} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalBox} style={{ maxWidth: "450px", margin: "auto", maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
                   <span className={styles.modalTitle} style={{ fontWeight: 600, fontSize: "16px", color: "var(--primary)" }}>Añadir venta</span>
                   <button type="button" className={styles.modalCloseBtn} onClick={() => setShowVoucherSelectionModal(false)}>×</button>
@@ -6826,13 +6827,14 @@ export default function SalesPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Budget Selection Modal */}
-          {showBudgetSelectionModal && (
+          {showBudgetSelectionModal && typeof window !== "undefined" && createPortal(
             <div className={styles.modalOverlay} onClick={() => setShowBudgetSelectionModal(false)}>
-              <div className={styles.modalBox} style={{ maxWidth: "450px" }} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalBox} style={{ maxWidth: "450px", margin: "auto", maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.modalHeader}>
                   <span className={styles.modalTitle} style={{ fontWeight: 600, fontSize: "16px", color: "var(--primary)" }}>Cobrar con Presupuesto</span>
                   <button type="button" className={styles.modalCloseBtn} onClick={() => setShowBudgetSelectionModal(false)}>×</button>
@@ -6899,14 +6901,15 @@ export default function SalesPage() {
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Add Article Modal - Selecciona el servicio popup */}
 
           {showAddArticleModal && typeof window !== "undefined" && createPortal(
             <div className={styles.modalOverlay} onClick={() => setShowAddArticleModal(false)}>
-              <div className={styles.modalBox} style={{ maxWidth: "520px", padding: 0, overflow: "hidden", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalBox} style={{ maxWidth: "520px", padding: 0, overflow: "hidden", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)", margin: "auto", maxHeight: "90vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className={styles.modalHeader} style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-panel-solid)" }}>
                   <div>
@@ -6920,7 +6923,7 @@ export default function SalesPage() {
                   <button type="button" className={styles.modalCloseBtn} onClick={() => setShowAddArticleModal(false)}>×</button>
                 </div>
 
-                <div className={styles.modalBody} style={{ padding: "20px 24px" }}>
+                <div className={styles.modalBody} style={{ padding: "20px 24px", overflowY: "auto" }}>
                   {/* Selector de Tipo (Servicio vs Producto) */}
                   <div className={styles.addArticleTabs} style={{ display: "flex", gap: "8px", padding: "4px", background: "var(--bg-input)", borderRadius: "10px", marginBottom: "20px" }}>
                     <button
@@ -7183,8 +7186,10 @@ export default function SalesPage() {
           )}
 
           {/* Tipo de pagos side drawer */}
-          <div className={`${styles.posDrawerOverlay} ${showPaymentMethodsDrawer ? styles.posDrawerOverlayOpen : ""}`} onClick={() => setShowPaymentMethodsDrawer(false)} style={{ zIndex: 1100 }} />
-          <div className={`${styles.posDrawer} ${showPaymentMethodsDrawer ? styles.posDrawerOpen : ""}`} style={{ zIndex: 1200 }}>
+          {typeof window !== "undefined" && createPortal(
+            <>
+              <div className={`${styles.posDrawerOverlay} ${showPaymentMethodsDrawer ? styles.posDrawerOverlayOpen : ""}`} onClick={() => setShowPaymentMethodsDrawer(false)} style={{ zIndex: 99998 }} />
+              <div className={`${styles.posDrawer} ${showPaymentMethodsDrawer ? styles.posDrawerOpen : ""}`} style={{ zIndex: 99999 }}>
             {isCreatingNewMethod ? (
               // Create payment method view (Image 3)
               <>
@@ -7392,6 +7397,9 @@ export default function SalesPage() {
               </>
             )}
           </div>
+            </>,
+            document.body
+          )}
         </div>
       ) : (
         <>
@@ -9899,7 +9907,7 @@ export default function SalesPage() {
       {showNoFiscalProfileModal && typeof window !== "undefined" && createPortal(
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 9999,
+            position: "fixed", inset: 0, zIndex: 99999,
             background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
@@ -9910,6 +9918,7 @@ export default function SalesPage() {
             style={{
               background: "var(--bg-card)", borderRadius: "16px",
               padding: "36px 40px", maxWidth: "440px", width: "90%",
+              margin: "auto", maxHeight: "90vh", overflowY: "auto",
               boxShadow: "0 25px 60px rgba(0,0,0,0.35)",
               border: "1px solid var(--border-color)",
               textAlign: "center",
@@ -9980,7 +9989,7 @@ export default function SalesPage() {
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 9999,
+            zIndex: 99999,
             background: "rgba(15, 23, 42, 0.45)",
             backdropFilter: "blur(12px)",
             display: "flex",
@@ -9988,6 +9997,7 @@ export default function SalesPage() {
             justifyContent: "center",
             padding: "20px",
           }}
+          onClick={() => setShowFiscalSetupModal(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -9997,10 +10007,12 @@ export default function SalesPage() {
               padding: "40px",
               maxWidth: "520px",
               width: "100%",
+              margin: "auto",
+              maxHeight: "90vh",
+              overflowY: "auto",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.4)",
               border: "1px solid var(--border-color)",
               position: "relative",
-              overflow: "hidden",
             }}
           >
             {/* Ambient Background Gradient for Premium look */}
@@ -10222,8 +10234,8 @@ export default function SalesPage() {
 
       {/* DETAILED INVOICE MODAL */}
       {selectedSaleDetail && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px" }}>
+        <div className={styles.modalOverlay} onClick={() => setSelectedSaleDetail(null)}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px", margin: "auto", maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2>Factura Simplificada</h2>
               <button onClick={() => setSelectedSaleDetail(null)} className={styles.closeBtn}>
@@ -10299,8 +10311,8 @@ export default function SalesPage() {
 
       {/* ADD MANUAL MOVEMENT MODAL */}
       {showMovementModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px" }}>
+        <div className={styles.modalOverlay} onClick={handleCloseMovementModal}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px", margin: "auto", maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2>{editingMovementId ? "Editar movimiento de caja" : "Añadir movimiento de caja"}</h2>
               <button onClick={handleCloseMovementModal} className={styles.closeBtn}>
@@ -10386,7 +10398,7 @@ export default function SalesPage() {
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 10000,
+            zIndex: 99999,
             background: "rgba(15, 23, 42, 0.55)",
             backdropFilter: "blur(6px)",
             display: "flex",
@@ -10404,6 +10416,9 @@ export default function SalesPage() {
               padding: "28px 32px",
               maxWidth: "540px",
               width: "100%",
+              margin: "auto",
+              maxHeight: "90vh",
+              overflowY: "auto",
               boxShadow: "0 25px 60px rgba(0,0,0,0.3)",
               border: "1px solid var(--border-color)",
             }}
@@ -10580,6 +10595,8 @@ export default function SalesPage() {
         </div>,
         document.body
       )}
+
+      {showEditClientModal && renderEditClientDrawer()}
     </div>
   );
 }

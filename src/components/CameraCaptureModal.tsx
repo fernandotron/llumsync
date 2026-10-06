@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icons } from "./Icons";
 
 interface CameraCaptureModalProps {
@@ -144,10 +145,11 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalElement = (
     <div
       style={{
         position: "fixed",
+        inset: 0,
         top: 0,
         left: 0,
         right: 0,
@@ -171,7 +173,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          position: "relative"
+          position: "relative",
+          margin: "auto",
+          maxHeight: "90vh"
         }}
       >
         {/* Header */}
@@ -387,4 +391,6 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalElement, document.body) : null;
 };

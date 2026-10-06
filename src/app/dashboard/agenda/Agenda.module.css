@@ -644,6 +644,47 @@
   text-overflow: ellipsis;
 }
 
+/* Zoom Enhancements */
+[data-zoom="poco"] .appClient {
+  font-size: 9.5px;
+}
+
+[data-zoom="poco"] .hourCell {
+  font-size: 10px;
+}
+
+[data-zoom="grande"] .appClient {
+  font-size: 11.5px;
+}
+
+[data-zoom="grande"] .hourCell {
+  font-size: 12.5px;
+}
+
+[data-zoom="muy_grande"] .appClient {
+  font-size: 13px;
+}
+
+[data-zoom="muy_grande"] .appService {
+  font-size: 11px;
+}
+
+[data-zoom="muy_grande"] .appTime {
+  font-size: 11px;
+}
+
+[data-zoom="muy_grande"] .hourCell {
+  font-size: 14px;
+}
+
+[data-zoom="muy_grande"] .blockTitle {
+  font-size: 13px;
+}
+
+[data-zoom="muy_grande"] .blockNotes {
+  font-size: 12px;
+}
+
 /* Status colors */
 .statusPending {
   background-color: rgba(245, 158, 11, 0.09) !important;
@@ -924,6 +965,7 @@
 /* Modal Styling */
 .modalOverlay {
   position: fixed;
+  inset: 0;
   top: 0;
   left: 0;
   width: 100vw;
@@ -941,6 +983,7 @@
   max-width: 500px;
   border-radius: var(--radius-lg);
   padding: 32px;
+  margin: auto;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -2143,6 +2186,7 @@
   max-width: 440px;
   border-radius: var(--radius-lg);
   padding: 24px;
+  margin: auto;
   max-height: 90vh;
   overflow-y: auto;
   background: var(--bg-panel-solid) !important;
@@ -2222,6 +2266,7 @@
   max-width: 460px;
   border-radius: var(--radius-lg);
   padding: 28px;
+  margin: auto;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -2353,6 +2398,9 @@
   max-width: 440px;
   border-radius: var(--radius-lg);
   padding: 24px;
+  margin: auto;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .blockDetailBody {
@@ -3002,7 +3050,11 @@
 .drawerOverlay {
   position: fixed;
   inset: 0;
-  z-index: 9998;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(3px);
   animation: overlayFadeIn 0.2s ease;
@@ -4276,6 +4328,10 @@
 .centeredOverlay {
   position: fixed;
   inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 100002;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(4px);
@@ -4293,6 +4349,7 @@
   width: 760px;
   max-width: 95vw;
   max-height: 90vh;
+  margin: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5184,7 +5241,10 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
   border: 1.5px solid rgba(245, 158, 11, 0.5);
-  overflow: hidden;
+  margin: auto;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
 }

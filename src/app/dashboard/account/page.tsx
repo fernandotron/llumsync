@@ -140,7 +140,7 @@ export default function AccountPage() {
     );
   }
 
-  const showBilling = user.role === "ADMIN";
+  const showBilling = user.role === "ADMIN" || user.role === "SUPERADMIN";
 
   // Handle saving Personal Preferences
   const handleSavePreferences = async (e: React.FormEvent) => {

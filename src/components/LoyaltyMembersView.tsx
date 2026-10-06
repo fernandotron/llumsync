@@ -631,8 +631,8 @@ export default function LoyaltyMembersView() {
 
       {/* MODAL: DAR DE ALTA NUEVO SOCIO */}
       {showAddMemberModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+        <div className={styles.modalOverlay} onClick={() => setShowAddMemberModal(false)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 800 }}>✨ Registrar Nuevo Socio</h3>
             <p style={{ margin: "0 0 16px", fontSize: "13px", color: "var(--text-secondary)" }}>
               Asigna una membresía y tarjeta digital de fidelización a un paciente registrado.
@@ -713,8 +713,8 @@ export default function LoyaltyMembersView() {
 
       {/* MODAL: EDITAR SOCIO */}
       {editingMember && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+        <div className={styles.modalOverlay} onClick={() => setEditingMember(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 800 }}>
               ✏️ Modificar Socio: {editingMember.firstName} {editingMember.lastName}
             </h3>
@@ -790,8 +790,8 @@ export default function LoyaltyMembersView() {
 
       {/* MODAL: DAR DE BAJA MEMBRESÍA */}
       {unenrollMember && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+        <div className={styles.modalOverlay} onClick={() => setUnenrollMember(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 800, color: "#dc2626" }}>
               ⚠️ Confirmar Baja de Membresía
             </h3>
@@ -826,8 +826,8 @@ export default function LoyaltyMembersView() {
 
       {/* MODAL: TARJETA DIGITAL PREMIUM DE SOCIO */}
       {showCardModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalBox} ${styles.modalBoxLarge}`}>
+        <div className={styles.modalOverlay} onClick={() => setShowCardModal(null)}>
+          <div className={`${styles.modalBox} ${styles.modalBoxLarge}`} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800 }}>📇 Tarjeta Digital de Socio</h3>

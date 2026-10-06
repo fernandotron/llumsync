@@ -1,19 +1,141 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { encrypt, decrypt } from "@/lib/crypto";
+import { decrypt } from "@/lib/crypto";
+import { authenticateApiRequest } from "@/lib/authGuard";
+import { getCountryConfig } from "@/lib/countries";
 
-const parseDate = (val: any) => {
+/**
+ * Normalizes an identity document (DNI, NIE, NIF, CIF, Passport)
+ * by removing spaces, dashes, dots, slashes, underscores and converting to uppercase.
+ */
+function normalizeDni(val: any): string {
+  if (!val) return "";
+  return String(val)
+    .toUpperCase()
+    .replace(/[\s\.\-\/\_]/g, "")
+    .trim();
+}
+
+/**
+ * Normalizes phone numbers by stripping whitespace, hyphens, parentheses, and dots.
+ */
+function normalizePhone(val: any): string {
+  if (!val) return "";
+  const s = String(val).replace(/[\s\-\.\(\)]/g, "").trim();
+  // Strip leading Spanish country code (+34 or 0034) for local matching
+  return s.replace(/^(\+34|0034)/, "");
+}
+
+/**
+ * Robust date parser supporting Excel numerical serial numbers,
+ * DD/MM/YYYY, YYYY-MM-DD, ISO strings, and Date objects.
+ */
+function parseDate(val: any): Date | null {
   if (!val) return null;
-  if (typeof val === "number") {
-    // Convert Excel date serial number to JS Date
-    const date = new Date((val - 25569) * 86400 * 1000);
-    return isNaN(date.getTime()) ? null : date;
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? null : val;
   }
-  const date = new Date(val);
-  return isNaN(date.getTime()) ? null : date;
-};
+  if (typeof val === "number") {
+    // Excel serial dates: e.g. 25569 = 1970-01-01
+    if (val > 0 && val < 100000) {
+      const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+      return isNaN(date.getTime()) ? null : date;
+    }
+  }
+  if (typeof val === "string") {
+    const s = val.trim();
+    if (!s) return null;
+    // Format DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+    const dmyMatch = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+    if (dmyMatch) {
+      const day = parseInt(dmyMatch[1], 10);
+      const month = parseInt(dmyMatch[2], 10) - 1;
+      const year = parseInt(dmyMatch[3], 10);
+      const d = new Date(year, month, day);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    // Format YYYY/MM/DD, YYYY-MM-DD
+    const ymdMatch = s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+    if (ymdMatch) {
+      const year = parseInt(ymdMatch[1], 10);
+      const month = parseInt(ymdMatch[2], 10) - 1;
+      const day = parseInt(ymdMatch[3], 10);
+      const d = new Date(year, month, day);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
 
-const normalizeDni = (s: string | null | undefined) => (s ? String(s).replace(/[\s\.\-\/]/g, "").toLowerCase() : "");
+/**
+ * Intelligent helper to extract a field value from an arbitrary spreadsheet row object.
+ * Checks:
+ * 1. Direct key match (case sensitive)
+ * 2. Case-insensitive, accent-insensitive, whitespace/punctuation-stripped key match
+ * 3. Substring / contains match
+ */
+function extractFieldValue(row: Record<string, any>, candidateKeys: string[]): string | null {
+  if (!row || typeof row !== "object") return null;
+
+  // 1. Direct match
+  for (const k of candidateKeys) {
+    if (row[k] !== undefined && row[k] !== null) {
+      const val = String(row[k]).trim();
+      if (val !== "") return val;
+    }
+  }
+
+  // 2. Normalized dictionary of row keys
+  const normalizedRow: { [cleanKey: string]: string } = {};
+  for (const rawKey of Object.keys(row)) {
+    if (row[rawKey] === undefined || row[rawKey] === null) continue;
+    const val = String(row[rawKey]).trim();
+    if (val === "") continue;
+
+    const cleanKey = rawKey
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+    if (cleanKey && normalizedRow[cleanKey] === undefined) {
+      normalizedRow[cleanKey] = val;
+    }
+  }
+
+  for (const candidate of candidateKeys) {
+    const cleanCandidate = candidate
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+    if (normalizedRow[cleanCandidate] !== undefined) {
+      return normalizedRow[cleanCandidate];
+    }
+  }
+
+  // 3. Fallback: partial inclusion
+  for (const candidate of candidateKeys) {
+    const cleanCandidate = candidate
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+    if (cleanCandidate.length < 3) continue;
+
+    for (const [key, val] of Object.entries(normalizedRow)) {
+      if (key.includes(cleanCandidate) || cleanCandidate.includes(key)) {
+        return val;
+      }
+    }
+  }
+
+  return null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -24,167 +146,316 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Falta el identificador de la clínica (clinicId)" }, { status: 400 });
     }
 
-    if (!Array.isArray(clients)) {
-      return NextResponse.json({ error: "El cuerpo de la solicitud debe contener un arreglo de clientes" }, { status: 400 });
+    if (!Array.isArray(clients) || clients.length === 0) {
+      return NextResponse.json({ error: "El archivo no contiene filas con datos de pacientes para importar" }, { status: 400 });
     }
 
-    // Retrieve maximum clientNumber to generate new sequential numbers
+    const auth = await authenticateApiRequest(clinicId);
+    if ("errorResponse" in auth) return auth.errorResponse;
+
+    // Fetch clinic country default
+    const clinic = await prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { country: true },
+    });
+    const defaultCountry = clinic?.country ? getCountryConfig(clinic.country).name : "España";
+
+    // Retrieve maximum clientNumber to generate new sequential numbers without race conditions or collision
     const maxClient = await prisma.client.findFirst({
       orderBy: { clientNumber: "desc" },
+      select: { clientNumber: true },
     });
     let nextClientNumber = maxClient ? maxClient.clientNumber + 1 : 1001;
 
-    // Build Set of existing DNI/NIF values for this clinic
-    const existingDniClients = await prisma.client.findMany({
-      where: { clinicId, deletedAt: null, dniNif: { not: null } },
-      select: { id: true, dniNif: true },
+    // Fetch existing active clients for this clinic to check duplicates by DNI/Document, Phone, or Email
+    const existingClients = await prisma.client.findMany({
+      where: { clinicId, deletedAt: null },
+      select: {
+        id: true,
+        dniNif: true,
+        phone: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
     });
 
-    const existingDnis = new Set<string>();
-    for (const c of existingDniClients) {
+    // Lookup structures for fast duplicate detection
+    const existingDnis = new Map<string, string>(); // cleanDni -> client.id
+    const existingPhones = new Map<string, string>(); // cleanPhone -> client.id
+    const existingEmails = new Map<string, string>(); // cleanEmail -> client.id
+    const existingClientNames = new Map<string, string>(); // client.id -> cleanFullName
+
+    for (const c of existingClients) {
       if (c.dniNif) {
         const dec = decrypt(c.dniNif);
         const norm = normalizeDni(dec);
-        if (norm) existingDnis.add(norm);
+        if (norm) existingDnis.set(norm, c.id);
       }
+      if (c.phone) {
+        const cleanP = normalizePhone(c.phone);
+        if (cleanP.length >= 7) existingPhones.set(cleanP, c.id);
+      }
+      if (c.email) {
+        const cleanE = c.email.trim().toLowerCase();
+        if (cleanE.includes("@")) existingEmails.set(cleanE, c.id);
+      }
+      const normName = `${c.firstName || ""} ${c.lastName || ""}`
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "");
+      existingClientNames.set(c.id, normName);
     }
 
     let createdCount = 0;
-    let updatedCount = 0;
     let skippedCount = 0;
+    let errorCount = 0;
 
-    for (const client of clients) {
-      // Validate that at least first name or last name is present
-      const firstName = (client.firstName || "").trim();
-      const lastName = (client.lastName || "").trim();
+    for (let idx = 0; idx < clients.length; idx++) {
+      const client = clients[idx];
+      if (!client || typeof client !== "object") continue;
 
-      // If the row is totally empty or lacks both names, skip it
+      // 1. Extract DNI / Document
+      const dniRaw = extractFieldValue(client, [
+        "dniNif", "DNI", "NIF", "NIE", "CIF", "Dni/nif", "DNI/NIF", "Documento",
+        "Nº Documento", "Num Documento", "Identificación", "Identificacion",
+        "Pasaporte", "Cedula", "Cédula", "Doc", "Numero Documento", "Num_Documento"
+      ]);
+      const cleanDni = normalizeDni(dniRaw);
+
+      // 2. Extract Phone & Email
+      const phoneRaw = extractFieldValue(client, [
+        "phone", "Teléfono", "Telefono", "phone_number", "celular", "Móvil", "Movil",
+        "Tlf", "WhatsApp", "Teléfono Móvil", "Telefono Movil", "Tel"
+      ]);
+      const cleanPhone = normalizePhone(phoneRaw);
+
+      const emailRaw = extractFieldValue(client, [
+        "email", "Email", "correo", "e-mail", "Correo Electrónico", "Correo", "Mail"
+      ]);
+      const cleanEmail = emailRaw ? emailRaw.trim().toLowerCase() : "";
+
+      // 3. Extract Name fields
+      let firstName = extractFieldValue(client, [
+        "firstName", "Nombre", "first_name", "firstname", "Primer Nombre",
+        "Nombre Paciente", "Nombre del Paciente", "Nombre_Paciente"
+      ]) || "";
+
+      let lastName = extractFieldValue(client, [
+        "lastName", "Apellidos", "last_name", "lastname", "Primer Apellido",
+        "Segundo Apellido", "Apellidos Paciente", "Apellido", "Apellidos_Paciente"
+      ]) || "";
+
+      const fullNameCandidate = extractFieldValue(client, [
+        "Nombre y Apellidos", "Nombre y apellidos", "Nombre Completo", "nombreyapellidos",
+        "nombrecompleto", "Paciente", "paciente", "Cliente", "cliente", "Titular",
+        "Nombre del cliente", "Paciente / Nombre"
+      ]);
+
+      // Smart splitting if full name is provided or if firstName contains both
+      if ((!firstName && fullNameCandidate) || (firstName && !lastName && (firstName.includes(" ") || firstName.includes(",")))) {
+        const source = (fullNameCandidate || firstName).trim();
+        if (source.includes(",")) {
+          // Format: "Apellidos, Nombre"
+          const [apell, ...rest] = source.split(",");
+          lastName = apell.trim();
+          firstName = rest.join(" ").trim();
+        } else {
+          // Format: "Nombre Apellidos"
+          const tokens = source.split(/\s+/).filter(Boolean);
+          if (tokens.length === 1) {
+            firstName = tokens[0];
+            lastName = "-";
+          } else if (tokens.length === 2) {
+            firstName = tokens[0];
+            lastName = tokens[1];
+          } else if (tokens.length === 3) {
+            firstName = tokens[0];
+            lastName = `${tokens[1]} ${tokens[2]}`;
+          } else if (tokens.length >= 4) {
+            firstName = tokens.slice(0, tokens.length - 2).join(" ");
+            lastName = tokens.slice(tokens.length - 2).join(" ");
+          }
+        }
+      }
+
+      // If after parsing we have firstName but no lastName
+      if (firstName && !lastName) {
+        lastName = "-";
+      } else if (!firstName && lastName) {
+        firstName = lastName;
+        lastName = "-";
+      }
+
+      // If the row lacks names, check if it has DNI, phone or email
       if (!firstName && !lastName) {
+        if (cleanDni || cleanPhone || cleanEmail) {
+          firstName = "Paciente";
+          lastName = cleanDni || cleanPhone || `Importado-${idx + 1}`;
+        } else {
+          // Empty or invalid row: skip completely
+          continue;
+        }
+      }
+
+      // 4. CHECK IF PATIENT ALREADY EXISTS (DNI / DOCUMENT CHECK)
+      let isDuplicate = false;
+
+      // Primary check: Identity Document (DNI / NIE / NIF / Passport)
+      if (cleanDni) {
+        if (existingDnis.has(cleanDni)) {
+          isDuplicate = true;
+        }
+      }
+
+      // Secondary check: If no DNI, match by Phone + Name or Email + Name
+      if (!isDuplicate && cleanPhone && cleanPhone.length >= 7) {
+        const existingId = existingPhones.get(cleanPhone);
+        if (existingId) {
+          const existingName = existingClientNames.get(existingId);
+          const incomingName = `${firstName} ${lastName}`
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "");
+          if (existingName && incomingName && (existingName.includes(incomingName) || incomingName.includes(existingName))) {
+            isDuplicate = true;
+          }
+        }
+      }
+
+      if (!isDuplicate && cleanEmail && cleanEmail.includes("@")) {
+        const existingId = existingEmails.get(cleanEmail);
+        if (existingId) {
+          const existingName = existingClientNames.get(existingId);
+          const incomingName = `${firstName} ${lastName}`
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "");
+          if (existingName && incomingName && (existingName.includes(incomingName) || incomingName.includes(existingName))) {
+            isDuplicate = true;
+          }
+        }
+      }
+
+      // If patient already exists, skip to prevent duplicates
+      if (isDuplicate) {
+        skippedCount++;
         continue;
       }
 
-      let existingClient = null;
+      // 5. EXTRACT REMAINING FIELDS
+      const birthDateRaw = extractFieldValue(client, [
+        "birthDate", "Fecha De Nacimiento", "Fecha de nacimiento", "Fecha Nacimiento",
+        "birth_date", "Cumpleaños", "F. Nacimiento", "FNacimiento", "F_Nacimiento"
+      ]);
+      const birthDate = parseDate(birthDateRaw);
 
-      // Try to find existing client ONLY by explicit system UUID id (if present)
-      if (client.id && typeof client.id === "string" && client.id.trim().length > 10) {
-        try {
-          existingClient = await prisma.client.findUnique({
-            where: { id: client.id.trim() },
-          });
-        } catch (e) {
-          // Ignore invalid uuid formats
-        }
+      let gender = extractFieldValue(client, ["gender", "Género", "Genero", "sexo", "Sexo"]) || null;
+      if (gender) {
+        const gLow = gender.toLowerCase().trim();
+        if (gLow.startsWith("m") && !gLow.startsWith("mu")) gender = "Masculino";
+        else if (gLow.startsWith("f") || gLow.startsWith("mu")) gender = "Femenino";
+        else gender = "Otro";
       }
 
-      const dniVal = client.dniNif ? String(client.dniNif).trim() : null;
-      const cleanDni = normalizeDni(dniVal);
-      const ibanVal = client.iban ? String(client.iban).trim() : null;
+      const address = extractFieldValue(client, ["address", "Dirección", "Direccion", "Calle", "Domicilio"]);
+      const municipality = extractFieldValue(client, ["municipality", "Municipio", "Ciudad", "Población", "Poblacion", "Localidad"]);
+      const postalCode = extractFieldValue(client, ["postalCode", "Código Postal", "Codigo Postal", "CP", "C.P."]);
+      const country = extractFieldValue(client, ["country", "País", "Pais"]) || defaultCountry;
+      const iban = extractFieldValue(client, ["iban", "Iban", "IBAN", "Cuenta", "Cuenta Bancaria"]);
+      const bic = extractFieldValue(client, ["bic", "Bic", "BIC", "SWIFT"]);
+      const tags = extractFieldValue(client, ["tags", "Etiquetas", "Tags"]);
 
-      // If creating a NEW client (not updating by ID) and DNI is provided, skip if DNI already exists
-      if (!existingClient && cleanDni) {
-        if (existingDnis.has(cleanDni)) {
-          skippedCount++;
-          continue; // Omit client with duplicate DNI
-        }
-      }
+      // Medical & Clinical notes
+      const aestheticTreatments = extractFieldValue(client, ["aestheticTreatments", "Tratamientos Estéticos Previos", "Tratamientos Previos", "Tratamientos"]);
+      const allergies = extractFieldValue(client, ["allergies", "Alergias", "Alergia"]);
+      const medication = extractFieldValue(client, ["medication", "Medicación", "Medicacion", "Tratamiento actual"]);
+      const medicalHistory = extractFieldValue(client, ["medicalHistory", "Antecedentes Médicos", "Antecedentes Medicos", "Historial Médico", "Patologías", "Patologias"]);
+      const otherNotes = extractFieldValue(client, ["otherNotes", "Otros", "Notas", "Observaciones"]);
 
-      // Helper to extract field value with alias fallback
-      const getVal = (aliases: string[]) => {
-        for (const a of aliases) {
-          if (client[a] !== undefined && client[a] !== null && String(client[a]).trim() !== "") {
-            return String(client[a]).trim();
-          }
-        }
-        return null;
-      };
+      // Tutor details
+      const tutorName = extractFieldValue(client, ["tutorName", "Nombre Tutor", "Nombre_Tutor"]);
+      const tutorLastName = extractFieldValue(client, ["tutorLastName", "Apellidos Tutor", "Apellidos_Tutor"]);
+      const tutorDniNif = extractFieldValue(client, ["tutorDniNif", "DNI Tutor", "NIF Tutor", "DNI_Tutor"]);
+      const tutorPhone = extractFieldValue(client, ["tutorPhone", "Teléfono Tutor", "Telefono Tutor", "Telefono_Tutor"]);
+      const tutorEmail = extractFieldValue(client, ["tutorEmail", "Email Tutor", "Correo Tutor", "Email_Tutor"]);
+      const tutorAddress = extractFieldValue(client, ["tutorAddress", "Dirección Tutor", "Direccion Tutor", "Calle_Tutor"]);
+      const tutorPostalCode = extractFieldValue(client, ["tutorPostalCode", "Código Postal Tutor", "Codigo Postal Tutor", "Codigo_Postal_Tutor"]);
+      const tutorMunicipality = extractFieldValue(client, ["tutorMunicipality", "Municipio Tutor", "Ciudad Tutor", "Municipio_Tutor"]);
 
-      const clientData = {
-        firstName: firstName || getVal(["Nombre", "first_name"]) || "Contacto",
-        lastName: lastName || getVal(["Apellidos", "last_name"]) || "Importado",
-        phone: client.phone ? String(client.phone).trim() : getVal(["Teléfono", "Telefono", "phone_number", "celular"]),
-        email: client.email ? String(client.email).trim() : getVal(["Email", "correo", "e-mail"]),
-        dniNif: dniVal || getVal(["Dni/nif", "DNI", "NIF", "Documento", "Identificación"]),
-        birthDate: parseDate(client.birthDate || getVal(["Fecha De Nacimiento", "Fecha de nacimiento", "birth_date", "Cumpleaños"])),
-        gender: client.gender ? String(client.gender).trim() : getVal(["Género", "Genero", "sexo"]),
-        address: client.address ? String(client.address).trim() : getVal(["Dirección", "Direccion", "Calle"]),
-        municipality: client.municipality ? String(client.municipality).trim() : getVal(["Municipio", "Ciudad", "Población"]),
-        postalCode: client.postalCode ? String(client.postalCode).trim() : getVal(["Código Postal", "Codigo Postal", "CP"]),
-        country: client.country ? String(client.country).trim() : getVal(["País", "Pais"]),
-        iban: ibanVal || getVal(["Iban", "IBAN", "Cuenta"]),
-        bic: client.bic ? String(client.bic).trim() : getVal(["Bic", "BIC", "SWIFT"]),
-        tags: client.tags ? String(client.tags).trim() : getVal(["Etiquetas", "Tags"]),
-        
-        // Clinical history & DocFav EHR fields
-        aestheticTreatments: getVal(["aestheticTreatments", "Tratamientos Estéticos Previos", "Tratamientos Previos", "Tratamientos"]),
-        allergies: getVal(["allergies", "Alergias", "Alergia"]),
-        medication: getVal(["medication", "Medicación", "Medicacion", "Tratamiento actual"]),
-        medicalHistory: getVal(["medicalHistory", "Antecedentes Médicos", "Antecedentes Medicos", "Historial Médico", "Patologías"]),
-        otherNotes: getVal(["otherNotes", "Otros", "Notas", "Observaciones"]),
+      // Assign sequential clientNumber
+      const assignedClientNumber = nextClientNumber++;
 
-        // Tutor / Representative details
-        tutorName: getVal(["tutorName", "Nombre Tutor", "Nombre_Tutor"]),
-        tutorLastName: getVal(["tutorLastName", "Apellidos Tutor", "Apellidos_Tutor"]),
-        tutorDniNif: getVal(["tutorDniNif", "DNI Tutor", "NIF Tutor", "DNI_Tutor"]),
-        tutorPhone: getVal(["tutorPhone", "Teléfono Tutor", "Telefono Tutor", "Telefono_Tutor"]),
-        tutorEmail: getVal(["tutorEmail", "Email Tutor", "Correo Tutor", "Email_Tutor"]),
-        tutorAddress: getVal(["tutorAddress", "Dirección Tutor", "Direccion Tutor", "Calle_Tutor"]),
-        tutorPostalCode: getVal(["tutorPostalCode", "Código Postal Tutor", "Codigo Postal Tutor", "Codigo_Postal_Tutor"]),
-        tutorMunicipality: getVal(["tutorMunicipality", "Municipio Tutor", "Ciudad Tutor", "Municipio_Tutor"]),
-      };
-
-      if (existingClient) {
-        // Update existing client (preserving system clientNumber)
-        await prisma.client.update({
-          where: { id: existingClient.id },
+      try {
+        const createdClient = await prisma.client.create({
           data: {
-            ...clientData,
-            updatedAt: new Date(),
-          },
-        });
-        updatedCount++;
-      } else {
-        // Always assign a new sequential clientNumber for imported contacts
-        let assignedClientNumber = nextClientNumber;
-        let unique = false;
-        while (!unique) {
-          const check = await prisma.client.findUnique({
-            where: { clientNumber: assignedClientNumber },
-          });
-          if (!check) {
-            unique = true;
-          } else {
-            assignedClientNumber++;
-          }
-        }
-        nextClientNumber = assignedClientNumber + 1;
-
-        const createdAtVal = parseDate(client.createdAt) || new Date();
-
-        await prisma.client.create({
-          data: {
-            id: client.id && typeof client.id === "string" && client.id.trim().length > 10 ? client.id.trim() : undefined,
             clientNumber: assignedClientNumber,
             clinicId,
-            createdAt: createdAtVal,
+            firstName,
+            lastName,
+            phone: phoneRaw ? String(phoneRaw).trim() : null,
+            email: cleanEmail || null,
+            dniNif: cleanDni || dniRaw || null,
+            birthDate,
+            gender,
+            address,
+            municipality,
+            postalCode,
+            country,
+            iban,
+            bic,
+            tags,
+            aestheticTreatments,
+            allergies,
+            medication,
+            medicalHistory,
+            otherNotes,
+            tutorName,
+            tutorLastName,
+            tutorDniNif,
+            tutorPhone,
+            tutorEmail,
+            tutorAddress,
+            tutorPostalCode,
+            tutorMunicipality,
+            isSelfEmployed: false,
+            isCompany: false,
+            receivesReminders: true,
+            createdAt: new Date(),
             updatedAt: new Date(),
-            ...clientData,
           },
         });
+
         createdCount++;
-        if (cleanDni) {
-          existingDnis.add(cleanDni);
-        }
+
+        // Add to in-memory index to prevent intra-file duplicates
+        if (cleanDni) existingDnis.set(cleanDni, createdClient.id);
+        if (cleanPhone && cleanPhone.length >= 7) existingPhones.set(cleanPhone, createdClient.id);
+        if (cleanEmail && cleanEmail.includes("@")) existingEmails.set(cleanEmail, createdClient.id);
+      } catch (rowErr) {
+        console.error(`Error creating client on row ${idx + 1}:`, rowErr);
+        errorCount++;
       }
     }
 
-    const skippedText = skippedCount > 0 ? `, ${skippedCount} omitidos por DNI/NIF duplicado` : "";
+    let message = `Importación completada: ${createdCount} nuevos pacientes añadidos correctamente.`;
+    if (skippedCount > 0) {
+      message += ` ${skippedCount} pacientes omitidos porque ya estaban registrados en la clínica (por documento/DNI).`;
+    }
+    if (errorCount > 0) {
+      message += ` (${errorCount} filas no se pudieron procesar por formato no válido).`;
+    }
 
     return NextResponse.json({
       success: true,
       createdCount,
-      updatedCount,
       skippedCount,
-      message: `Importación completada: ${createdCount} creados, ${updatedCount} actualizados${skippedText}.`,
+      errorCount,
+      totalRows: clients.length,
+      message,
     });
   } catch (error) {
     console.error("Error importing clients:", error);

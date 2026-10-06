@@ -1057,6 +1057,7 @@
 /* Modals overlays & Sign Pad */
 .modalOverlay {
   position: fixed;
+  inset: 0;
   top: 0;
   left: 0;
   right: 0;
@@ -1079,6 +1080,7 @@
   width: 100%;
   border-radius: 16px;
   padding: 28px;
+  margin: auto;
   max-height: 90vh;
   overflow-y: auto;
   background: #ffffff;
@@ -1395,6 +1397,7 @@
   border-radius: 12px;
   width: 460px;
   max-width: 96vw;
+  margin: auto;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -2016,20 +2019,25 @@
 /* Image selection modal/drawer */
 .imageSelectorOverlay {
   position: fixed;
+  inset: 0;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 99999;
 }
 .imageSelectorModal {
   background: #ffffff;
   border-radius: 12px;
   width: 420px;
+  max-width: 95vw;
+  margin: auto;
+  max-height: 90vh;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   overflow: hidden;
   display: flex;
@@ -2102,12 +2110,13 @@
 /* Camera full screen/modal view */
 .cameraCaptureModal {
   position: fixed;
+  inset: 0;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background: #000000;
-  z-index: 2000;
+  z-index: 99999;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2603,7 +2612,7 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.45) !important;
   backdrop-filter: blur(5px) !important;
-  z-index: 10000 !important;
+  z-index: 99999 !important;
   display: flex !important;
   justify-content: flex-end !important;
   align-items: stretch !important;
@@ -3156,6 +3165,7 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
   width: 100%;
   max-width: 900px;
+  margin: auto;
   max-height: 90vh;
   display: flex;
   flex-direction: column;

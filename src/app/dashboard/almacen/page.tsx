@@ -1710,8 +1710,8 @@ export default function AlmacenPage() {
           MODAL 1: PRODUCT CREATION / EDITING
           ========================================================= */}
       {showProductModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} ${styles.modalContentWide}`}>
+        <div className={styles.modalOverlay} onClick={() => setShowProductModal(false)}>
+          <div className={`${styles.modalContent} ${styles.modalContentWide}`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleArea}>
                 <h3 className={styles.modalTitle}>
@@ -1949,8 +1949,8 @@ export default function AlmacenPage() {
           MODAL 2: RECEPCIÓN DE PEDIDO / ENTRADA DE STOCK (ENTRADA)
           ========================================================= */}
       {showEntryModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
+        <div className={styles.modalOverlay} onClick={() => setShowEntryModal(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleArea}>
                 <h3 className={styles.modalTitle}>📥 Entrada de Stock / Recepción</h3>
@@ -2105,8 +2105,8 @@ export default function AlmacenPage() {
           MODAL 3: AJUSTE DE INVENTARIO / RECUENTO FÍSICO (AJUSTE)
           ========================================================= */}
       {showAdjustModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
+        <div className={styles.modalOverlay} onClick={() => setShowAdjustModal(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleArea}>
                 <h3 className={styles.modalTitle}>⚡ Ajustar Existencias</h3>
@@ -2231,8 +2231,8 @@ export default function AlmacenPage() {
           MODAL 4: REGISTRO DE MERMA / ROTURA / VENCIMIENTO (ROTURA_MERMA)
           ========================================================= */}
       {showWasteModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
+        <div className={styles.modalOverlay} onClick={() => setShowWasteModal(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleArea}>
                 <h3 className={styles.modalTitle}>🗑️ Registro de Merma y Desecho Clínico</h3>

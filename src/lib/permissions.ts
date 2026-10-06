@@ -9,7 +9,7 @@ export interface UserPermissions {
 
 export function hasPermission(user: any, section: keyof UserPermissions, option: string): boolean {
   if (!user) return false;
-  if (user.role === "ADMIN") return true;
+  if (user.role === "ADMIN" || user.role === "SUPERADMIN") return true;
   if (!user.permissionsJson) return false;
   try {
     const permissions: UserPermissions = typeof user.permissionsJson === "string"
@@ -35,7 +35,7 @@ export function hasPermission(user: any, section: keyof UserPermissions, option:
 
 export function canDeleteAppointment(user: any): boolean {
   if (!user) return false;
-  if (user.role === "ADMIN") return true;
+  if (user.role === "ADMIN" || user.role === "SUPERADMIN") return true;
   if (hasPermission(user, "agenda", "Sólo lectura")) return false;
   if (hasPermission(user, "agenda", "No eliminar citas")) return false;
   return true;
@@ -43,7 +43,7 @@ export function canDeleteAppointment(user: any): boolean {
 
 export function canCreateOrEditAppointment(user: any): boolean {
   if (!user) return false;
-  if (user.role === "ADMIN") return true;
+  if (user.role === "ADMIN" || user.role === "SUPERADMIN") return true;
   if (hasPermission(user, "agenda", "Sólo lectura")) return false;
   return true;
 }

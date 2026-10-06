@@ -577,11 +577,11 @@ export default function AgendaPage() {
     return "day";
   });
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [zoomLevel, setZoomLevel] = useState<"poco" | "normal" | "grande">(() => {
+  const [zoomLevel, setZoomLevel] = useState<"poco" | "normal" | "grande" | "muy_grande">(() => {
     if (typeof window !== "undefined") {
       const savedZoom = window.localStorage.getItem("agenda_zoom");
-      if (savedZoom === "poco" || savedZoom === "normal" || savedZoom === "grande") {
-        return savedZoom;
+      if (savedZoom === "poco" || savedZoom === "normal" || savedZoom === "grande" || savedZoom === "muy_grande") {
+        return savedZoom as "poco" | "normal" | "grande" | "muy_grande";
       }
     }
     return "normal";
@@ -590,6 +590,7 @@ export default function AgendaPage() {
   const zoomScale = useMemo(() => {
     if (zoomLevel === "poco") return 0.75;
     if (zoomLevel === "grande") return 1.333;
+    if (zoomLevel === "muy_grande") return 2.0;
     return 1.0;
   }, [zoomLevel]);
 
@@ -612,7 +613,7 @@ export default function AgendaPage() {
   }, [view]);
 
   // Submenu Zoom state
-  const [tempZoomLevel, setTempZoomLevel] = useState<"poco" | "normal" | "grande">("normal");
+  const [tempZoomLevel, setTempZoomLevel] = useState<"poco" | "normal" | "grande" | "muy_grande">("normal");
 
   // Vista Settings State
   const [quitarNombreSemanal, setQuitarNombreSemanal] = useState<boolean>(() => {
@@ -3401,7 +3402,7 @@ export default function AgendaPage() {
     }
 
     return (
-      <div className={styles.dayGridContainer} style={{ "--hour-row-height": `${60 * zoomScale}px` } as React.CSSProperties}>
+      <div className={styles.dayGridContainer} data-zoom={zoomLevel} style={{ "--hour-row-height": `${60 * zoomScale}px` } as React.CSSProperties}>
         {/* Hour column on left */}
         <div className={styles.timeColumn} style={{ position: "relative" }}>
           <div className={styles.columnHeaderSpace}>Hora</div>
@@ -3916,7 +3917,7 @@ export default function AgendaPage() {
     const hasToday = now && weekDates.some((d) => d.toDateString() === now.toDateString());
 
     return (
-      <div className={styles.weekGridContainer} style={{ "--hour-row-height": `${60 * zoomScale}px` } as React.CSSProperties}>
+      <div className={styles.weekGridContainer} data-zoom={zoomLevel} style={{ "--hour-row-height": `${60 * zoomScale}px` } as React.CSSProperties}>
         {/* Left Hour Column */}
         <div className={styles.timeColumn} style={{ position: "relative" }}>
           <div className={styles.columnHeaderSpace}>Hora</div>
@@ -9256,12 +9257,13 @@ export default function AgendaPage() {
                     <select
                       className="input select"
                       value={tempZoomLevel}
-                      onChange={(e) => setTempZoomLevel(e.target.value as "poco" | "normal" | "grande")}
+                      onChange={(e) => setTempZoomLevel(e.target.value as "poco" | "normal" | "grande" | "muy_grande")}
                       style={{ width: "100%", padding: "8px 12px" }}
                     >
                       <option value="poco">Pequeño</option>
                       <option value="normal">Mediano</option>
                       <option value="grande">Grande</option>
+                      <option value="muy_grande">Muy grande</option>
                     </select>
                   </div>
 
@@ -9606,9 +9608,9 @@ export default function AgendaPage() {
       )}
 
       {/* 1. CONVERT TIMEBLOCK TO APPOINTMENT MODAL (Image 3) */}
-      {showConvertModal && selectedTimeBlock && (
+      {showConvertModal && selectedTimeBlock && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => setShowConvertModal(false)}>
-          <div className={`${styles.blockModalContent} glass fade-in`} style={{ maxWidth: "460px" }} onClick={(e) => e.stopPropagation()}>
+          <div className={`${styles.blockModalContent} glass fade-in`} style={{ maxWidth: "460px", margin: "auto" }} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 className={styles.blockModalTitle}>Convertir a cita</h2>
               <button onClick={() => setShowConvertModal(false)} className={styles.closeBtn}>
@@ -9679,7 +9681,8 @@ export default function AgendaPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 2. FILTERS SIDEBAR DRAWER (Image 4 and Image 5) */}
@@ -10133,19 +10136,23 @@ export default function AgendaPage() {
         document.body
       )}
 
-      {showServiceWarningModal && createPortal(
+      {showServiceWarningModal && typeof window !== "undefined" && createPortal(
         <div 
           style={{
             position: "fixed",
+            inset: 0,
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
+            width: "100vw",
+            height: "100vh",
             backgroundColor: "rgba(0, 0, 0, 0.4)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            zIndex: 99999,
           }}
           onClick={() => setShowServiceWarningModal(false)}
         >
@@ -10156,6 +10163,9 @@ export default function AgendaPage() {
               boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
               width: "480px",
               maxWidth: "90%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              margin: "auto",
               overflow: "hidden",
               position: "relative",
               borderLeft: "6px solid #d32f2f", // Red bar on the left

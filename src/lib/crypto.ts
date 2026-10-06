@@ -63,32 +63,35 @@ export function encrypt(text: string | null | undefined): string | null {
 
 /**
  * Decrypts a ciphertext string in "iv:ciphertext:tag" format.
+ * Unwraps all nested encryption layers recursively.
  * Returns the decrypted plain text, or the original text if it's not encrypted.
  */
 export function decrypt(cipherText: string | null | undefined): string | null {
   if (!cipherText) return null;
   if (typeof cipherText !== "string") return cipherText;
   
-  if (!isEncrypted(cipherText)) {
-    return cipherText;
+  let current = cipherText;
+  let rounds = 0;
+  while (isEncrypted(current) && rounds < 10) {
+    try {
+      const [ivHex, encryptedHex, tagHex] = current.split(":");
+      
+      const key = getKey();
+      const iv = Buffer.from(ivHex, "hex");
+      const tag = Buffer.from(tagHex, "hex");
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(tag);
+      
+      let decrypted = decipher.update(encryptedHex, "hex", "utf8");
+      decrypted += decipher.final("utf8");
+      current = decrypted;
+      rounds++;
+    } catch (error) {
+      console.error("Decryption failed, fallback to current value:", error);
+      break;
+    }
   }
-  
-  try {
-    const [ivHex, encryptedHex, tagHex] = cipherText.split(":");
-    
-    const key = getKey();
-    const iv = Buffer.from(ivHex, "hex");
-    const tag = Buffer.from(tagHex, "hex");
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
-    decipher.setAuthTag(tag);
-    
-    let decrypted = decipher.update(encryptedHex, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    return decrypted;
-  } catch (error) {
-    console.error("Decryption failed, fallback to original value:", error);
-    return cipherText;
-  }
+  return current;
 }
 
 /**

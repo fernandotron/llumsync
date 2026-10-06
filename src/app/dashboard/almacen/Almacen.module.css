@@ -454,12 +454,18 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 99999;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .modalContent {
@@ -468,8 +474,11 @@
   border-radius: 20px;
   width: 100%;
   max-width: 480px;
+  margin: auto;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.02);
-  overflow: hidden;
   animation: modalSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1075,6 +1084,15 @@
   .tableWrapper table {
     min-width: 750px !important;
     width: 100% !important;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .modalContentWide {
+    max-width: 100% !important;
   }
 }
 

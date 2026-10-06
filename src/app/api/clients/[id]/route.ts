@@ -62,7 +62,7 @@ export async function GET(
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
     }
 
-    if (auth.user.role !== "ADMIN" && !auth.user.clinics.some((c) => c.id === client.clinicId)) {
+    if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPERADMIN" && !auth.user.clinics.some((c) => c.id === client.clinicId)) {
       return NextResponse.json({ error: "Acceso denegado a los datos de esta clínica" }, { status: 403 });
     }
 

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   try {
     const auth = await authenticateApiRequest();
     if ("errorResponse" in auth) return auth.errorResponse;
-    if (auth.user.role !== "ADMIN") {
+    if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPERADMIN") {
       return NextResponse.json({ error: "Acceso denegado. Se requiere rol de Administrador." }, { status: 403 });
     }
 
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
   try {
     const auth = await authenticateApiRequest();
     if ("errorResponse" in auth) return auth.errorResponse;
-    if (auth.user.role !== "ADMIN") {
+    if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPERADMIN") {
       return NextResponse.json({ error: "Acceso denegado. Se requiere rol de Administrador." }, { status: 403 });
     }
 

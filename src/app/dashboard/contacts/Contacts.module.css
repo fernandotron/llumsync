@@ -277,6 +277,7 @@
 /* Modal and wizard styling */
 .modalOverlay {
   position: fixed;
+  inset: 0;
   top: 0;
   left: 0;
   width: 100vw;
@@ -286,7 +287,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 99999;
 }
 
 .modalContent {
@@ -294,6 +295,7 @@
   max-width: 600px;
   border-radius: var(--radius-lg);
   padding: 32px;
+  margin: auto;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -511,6 +513,9 @@
   width: 100%;
   max-width: 400px;
   padding: 24px;
+  margin: auto;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 .permissionsBody {
@@ -583,6 +588,8 @@
   overflow: hidden;
   width: 420px;
   max-width: 95vw;
+  margin: auto;
+  max-height: 90vh;
   animation: fadeInScale 0.18s ease;
 }
 
@@ -699,7 +706,7 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(3px);
-  z-index: 9998;
+  z-index: 99999;
   display: flex;
   justify-content: flex-end;
   align-items: stretch;
@@ -1510,7 +1517,7 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
-  z-index: 1000;
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1524,6 +1531,7 @@
   box-shadow: 0 20px 40px rgba(0,0,0,0.15);
   width: 100%;
   max-width: 680px;
+  margin: auto;
   max-height: 90vh;
   display: flex;
   flex-direction: column;

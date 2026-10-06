@@ -7,7 +7,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "ADMIN" | "DOCTOR" | "THERAPIST" | "RECEPTIONIST";
+  role: "SUPERADMIN" | "ADMIN" | "DOCTOR" | "THERAPIST" | "RECEPTIONIST" | string;
   clinics: Clinic[];
   permissionsJson?: string;
 }

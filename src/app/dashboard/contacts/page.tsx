@@ -796,6 +796,60 @@ export default function ContactsPage() {
     toast.success("Excel (.xlsx) generado y descargado correctamente");
   };
 
+  // Helper to extract values for import preview table regardless of column casing or accents
+  const getImportRowPreview = (row: any, field: "name" | "lastName" | "phone" | "email" | "dni") => {
+    if (!row || typeof row !== "object") return "-";
+    const findVal = (candidates: string[]) => {
+      for (const c of candidates) {
+        if (row[c] !== undefined && row[c] !== null && String(row[c]).trim() !== "") {
+          return String(row[c]).trim();
+        }
+      }
+      const keys = Object.keys(row);
+      for (const c of candidates) {
+        const cleanC = c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        const matchedKey = keys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") === cleanC);
+        if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+          const val = String(row[matchedKey]).trim();
+          if (val !== "") return val;
+        }
+      }
+      return null;
+    };
+
+    if (field === "name") {
+      const fn = findVal(["firstName", "Nombre", "first_name", "firstname", "Primer Nombre", "Nombre Paciente"]);
+      if (fn) return fn;
+      const full = findVal(["Nombre y Apellidos", "Nombre Completo", "Paciente", "Cliente"]);
+      if (full) {
+        if (full.includes(",")) return full.split(",")[1]?.trim() || full;
+        return full.split(/\s+/)[0] || full;
+      }
+      return "-";
+    }
+    if (field === "lastName") {
+      const ln = findVal(["lastName", "Apellidos", "last_name", "lastname", "Primer Apellido", "Apellido", "Apellidos Paciente"]);
+      if (ln) return ln;
+      const full = findVal(["Nombre y Apellidos", "Nombre Completo", "Paciente", "Cliente"]);
+      if (full) {
+        if (full.includes(",")) return full.split(",")[0]?.trim() || full;
+        const tokens = full.split(/\s+/);
+        return tokens.slice(1).join(" ") || "-";
+      }
+      return "-";
+    }
+    if (field === "phone") {
+      return findVal(["phone", "Teléfono", "Telefono", "phone_number", "celular", "Móvil", "Movil", "Tlf", "Tel"]) || "-";
+    }
+    if (field === "email") {
+      return findVal(["email", "Email", "correo", "e-mail", "Correo Electrónico", "Correo"]) || "-";
+    }
+    if (field === "dni") {
+      return findVal(["dniNif", "Dni/nif", "DNI", "NIF", "NIE", "CIF", "Documento", "Nº Documento", "Num Documento", "Identificación"]) || "-";
+    }
+    return "-";
+  };
+
   // Handle import file upload and parsing
   const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2009,7 +2063,7 @@ export default function ContactsPage() {
       </div>
 
       {/* DELETE CONFIRMATION MODAL */}
-      {showDeleteConfirmModal && (
+      {showDeleteConfirmModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => setShowDeleteConfirmModal(false)}>
           <div className={styles.deleteConfirmModal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.deleteConfirmAccent} />
@@ -2044,11 +2098,12 @@ export default function ContactsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* EXCEL / CSV IMPORT MODAL */}
-      {showImportModal && (
+      {showImportModal && typeof window !== "undefined" && createPortal(
         <div className={styles.importModalOverlay} onClick={() => { if (!isImporting) setShowImportModal(false); }}>
           <div className={styles.importModalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.importModalHeader}>
@@ -2126,11 +2181,11 @@ export default function ContactsPage() {
                       <tbody>
                         {importPreview.map((row, idx) => (
                           <tr key={idx}>
-                            <td>{row.firstName || row.Nombre || row.first_name || "-"}</td>
-                            <td>{row.lastName || row.Apellidos || row.last_name || "-"}</td>
-                            <td>{row.phone || row.Teléfono || row.Telefono || "-"}</td>
-                            <td>{row.email || row.Email || row.correo || "-"}</td>
-                            <td>{row.dniNif || row["Dni/nif"] || row.DNI || row.NIF || "-"}</td>
+                            <td>{getImportRowPreview(row, "name")}</td>
+                            <td>{getImportRowPreview(row, "lastName")}</td>
+                            <td>{getImportRowPreview(row, "phone")}</td>
+                            <td>{getImportRowPreview(row, "email")}</td>
+                            <td>{getImportRowPreview(row, "dni")}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2175,11 +2230,12 @@ export default function ContactsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* PERMISSIONS MODAL */}
-      {showPermissionsModal && (
+      {showPermissionsModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
           <div className={`${styles.permissionsModalContent} glass fade-in`}>
             <div className={styles.modalHeader} style={{ borderBottom: "none", paddingBottom: 0 }}>
@@ -2240,13 +2296,14 @@ export default function ContactsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ADD TAGS BULK MODAL */}
-      {showAddTagsModal && (
+      {showAddTagsModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px", overflow: "visible" }}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "450px", overflow: "visible", margin: "auto" }}>
             <div className={styles.modalHeader} style={{ borderBottom: "none", paddingBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ color: "var(--primary)", fontSize: "18px", margin: 0 }}>
                 Añadir Etiquetas ({selectedClients.length} cliente{selectedClients.length > 1 ? "s" : ""})
@@ -2584,7 +2641,8 @@ export default function ContactsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* CREATE CLIENT DRAWER — portal so it covers full viewport */}

@@ -794,8 +794,8 @@ export default function CashRegisterView() {
 
       {/* MODAL: ABRIR CAJA */}
       {showOpenModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+        <div className={styles.modalOverlay} onClick={() => setShowOpenModal(false)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 16px", fontSize: "18px", fontWeight: 800 }}>🔓 Apertura de Caja del Día</h3>
             <form onSubmit={handleOpenCash}>
               <div className="form-group" style={{ marginBottom: "16px" }}>
@@ -837,8 +837,8 @@ export default function CashRegisterView() {
 
       {/* MODAL: REGISTRAR SALIDA / GASTO DE CAJA */}
       {showOutflowModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+        <div className={styles.modalOverlay} onClick={() => setShowOutflowModal(false)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 6px", fontSize: "18px", fontWeight: 800, color: "#dc2626" }}>
               📤 Registrar Salida de Efectivo
             </h3>
@@ -901,8 +901,8 @@ export default function CashRegisterView() {
 
       {/* MODAL: REGISTRAR DEUDA DE CLIENTE */}
       {showAddDebtModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+        <div className={styles.modalOverlay} onClick={() => setShowAddDebtModal(false)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 6px", fontSize: "18px", fontWeight: 800, color: "#d97706" }}>
               📝 Registrar Deuda / Pendiente de Paciente
             </h3>
@@ -979,8 +979,8 @@ export default function CashRegisterView() {
 
       {/* MODAL: ARQUEO Y CIERRE DE CAJA */}
       {showCloseModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox} style={{ maxWidth: "650px" }}>
+        <div className={styles.modalOverlay} onClick={() => setShowCloseModal(false)}>
+          <div className={styles.modalBox} style={{ maxWidth: "650px" }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 6px", fontSize: "18px", fontWeight: 800 }}>🔒 Recuento y Arqueo de Caja</h3>
             <p style={{ margin: "0 0 16px", fontSize: "13px", color: "var(--text-secondary)" }}>
               Introduce la cantidad de billetes y monedas que has contado físicamente en el cajón.
@@ -1064,8 +1064,8 @@ export default function CashRegisterView() {
 
       {/* MODAL: SALDAR DEUDA */}
       {showPayDebtModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
+        <div className={styles.modalOverlay} onClick={() => setShowPayDebtModal(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 800 }}>💳 Saldar Deuda de Paciente</h3>
             <p style={{ margin: "0 0 16px", fontSize: "14px", color: "var(--text-secondary)" }}>
               <strong>{showPayDebtModal.client?.firstName} {showPayDebtModal.client?.lastName}</strong> —{" "}
@@ -1102,8 +1102,8 @@ export default function CashRegisterView() {
 
       {/* MODAL: TICKET DE ARQUEO / INFORME DE CIERRE */}
       {showSessionDetailModal && selectedSessionDetail && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox} style={{ maxWidth: "580px", padding: "26px" }}>
+        <div className={styles.modalOverlay} onClick={() => setShowSessionDetailModal(false)}>
+          <div className={styles.modalBox} style={{ maxWidth: "580px", padding: "26px" }} onClick={(e) => e.stopPropagation()}>
             <div className={styles.printableTicketArea}>
               <div className={styles.ticketHeader}>
                 <h3 className={styles.ticketTitle}>🏥 {activeClinic?.name || "Clínica Médica"}</h3>

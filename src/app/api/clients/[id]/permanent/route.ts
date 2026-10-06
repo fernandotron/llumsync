@@ -12,7 +12,7 @@ export async function DELETE(
 
     const auth = await authenticateApiRequest();
     if ("errorResponse" in auth) return auth.errorResponse;
-    if (auth.user.role !== "ADMIN") {
+    if (auth.user.role !== "ADMIN" && auth.user.role !== "SUPERADMIN") {
       return NextResponse.json(
         { error: "Acceso denegado. Se requiere rol de Administrador para solicitar la supresión de registros." },
         { status: 403 }

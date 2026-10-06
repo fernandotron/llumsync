@@ -10397,8 +10397,8 @@ export default function ClientDetailPage() {
 
       {/* BUDGET CREATION/EDITION MODAL */}
       {showBudgetModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.modalOverlay} style={{ zIndex: 10000 }}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", display: "flex", flexDirection: "column", padding: 0 }}>
+        <div className={styles.modalOverlay} style={{ zIndex: 99999 }}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "800px", width: "90%", maxHeight: "90vh", display: "flex", flexDirection: "column", padding: 0, margin: "auto" }}>
             <div className={styles.modalHeader} style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-color)" }}>
               <h2>{budgetModalTitle}</h2>
               <button onClick={() => setShowBudgetModal(false)} className={styles.closeBtn}>✕</button>
@@ -11433,7 +11433,7 @@ export default function ClientDetailPage() {
       {/* ASSOCIATE VOUCHER MODAL */}
       {showAddVoucherModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => { setShowAddVoucherModal(false); setSelectedVoucherId(""); }}>
-          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px" }}>
+          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px", margin: "auto" }}>
             <div className={styles.modalHeader}>
               <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Asociar Bono a Paciente</h2>
               <button onClick={() => { setShowAddVoucherModal(false); setSelectedVoucherId(""); }} className={styles.closeBtn}>
@@ -11500,7 +11500,7 @@ export default function ClientDetailPage() {
       {/* EDIT CLIENT VOUCHER MODAL */}
       {showEditVoucherModal && editingClientVoucher && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => { setShowEditVoucherModal(false); setEditingClientVoucher(null); }}>
-          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px" }}>
+          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px", margin: "auto" }}>
             <div className={styles.modalHeader}>
               <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Editar Bono de Paciente</h2>
               <button onClick={() => { setShowEditVoucherModal(false); setEditingClientVoucher(null); }} className={styles.closeBtn}>
@@ -11604,7 +11604,7 @@ export default function ClientDetailPage() {
       {/* SHARE CLIENT VOUCHER MODAL */}
       {showShareVoucherModal && sharingClientVoucher && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay} onClick={() => { setShowShareVoucherModal(false); setSharingClientVoucher(null); }}>
-          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+          <div className={`${styles.modalContent} fade-in`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px", margin: "auto" }}>
             <div className={styles.modalHeader}>
               <div>
                 <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Compartir Bono</h2>
@@ -12233,9 +12233,9 @@ export default function ClientDetailPage() {
       )}
 
       {/* SIGNATURE METHOD SELECTION MODAL */}
-      {showSignatureMethodModal && (
+      {showSignatureMethodModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "500px", padding: "24px" }}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "500px", padding: "24px", margin: "auto" }}>
             <div className={styles.modalHeader} style={{ marginBottom: "16px" }}>
               <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>Seleccionar Método de Firma</h2>
               <button 
@@ -12317,13 +12317,14 @@ export default function ClientDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* REMOTE SIGNATURE LINK MODAL */}
-      {showRemoteSignModal && (
+      {showRemoteSignModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "550px", padding: "24px" }}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "550px", padding: "24px", margin: "auto" }}>
             <div className={styles.modalHeader} style={{ marginBottom: "16px" }}>
               <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#10b981" }}>🔗 Enlace de Firma Remota Creado</h2>
               <button 
@@ -12408,13 +12409,14 @@ export default function ClientDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* DELETE SIGNED DOCUMENT CONFIRMATION MODAL */}
-      {docToDelete && (
-        <div className={styles.modalOverlay} style={{ zIndex: 9999 }}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "420px", padding: "24px", textAlign: "center" }}>
+      {docToDelete && typeof window !== "undefined" && createPortal(
+        <div className={styles.modalOverlay} style={{ zIndex: 99999 }}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "420px", padding: "24px", textAlign: "center", margin: "auto" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>🗑️</div>
             <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--danger)", margin: "0 0 8px" }}>¿Eliminar documento firmado?</h2>
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "0 0 24px", lineHeight: "1.5" }}>
@@ -12453,11 +12455,12 @@ export default function ClientDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* COMPARTIR POR CORREO ELECTRÓNICO MODAL */}
-      {showEmailModal && (
+      {showEmailModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
           <div 
             className={`${styles.modalContent} glass fade-in`} 
@@ -12467,7 +12470,8 @@ export default function ClientDetailPage() {
               borderRadius: "12px", 
               boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
               border: "1px solid rgba(255, 255, 255, 0.2)",
-              background: "rgba(255, 255, 255, 0.95)"
+              background: "rgba(255, 255, 255, 0.95)",
+              margin: "auto"
             }}
           >
             <div style={{ marginBottom: "18px" }}>
@@ -12540,13 +12544,14 @@ export default function ClientDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* SIGNATURE CAPTURE MODAL */}
-      {showSignModal && (
+      {showSignModal && typeof window !== "undefined" && createPortal(
         <div className={styles.modalOverlay}>
-          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "600px" }}>
+          <div className={`${styles.modalContent} glass fade-in`} style={{ maxWidth: "600px", margin: "auto" }}>
             <div className={styles.modalHeader}>
               <h2>Firma del Documento Clínico</h2>
               <button 
@@ -12585,11 +12590,12 @@ export default function ClientDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* VIEW SIGNED DOCUMENT DIALOG */}
-      {viewingSignedDoc && (
+      {viewingSignedDoc && typeof window !== "undefined" && createPortal(
         <div 
           className={styles.modalOverlay} 
           onClick={() => {
@@ -12598,6 +12604,7 @@ export default function ClientDetailPage() {
           }}
           style={{ 
             position: "fixed", 
+            inset: 0,
             top: 0, 
             left: 0, 
             right: 0, 
@@ -12610,7 +12617,7 @@ export default function ClientDetailPage() {
             justifyContent: "start",
             overflowY: "auto",
             padding: "40px 20px",
-            zIndex: 9999
+            zIndex: 99999
           }}
         >
           {/* Main Document sheet container */}
@@ -12628,7 +12635,8 @@ export default function ClientDetailPage() {
               position: "relative",
               display: "flex",
               flexDirection: "column",
-              gap: "24px"
+              gap: "24px",
+              margin: "auto"
             }}
           >
             {/* Header controls inside the sheet, top right */}
@@ -12701,13 +12709,14 @@ export default function ClientDetailPage() {
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Root Portal-like HTML Editor Modal */}
-      {showDocHtmlModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
-          <div style={{ background: "white", borderRadius: "12px", width: "90%", maxWidth: "680px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", boxSizing: "border-box" }}>
+      {showDocHtmlModal && typeof window !== "undefined" && createPortal(
+        <div style={{ position: "fixed", inset: 0, top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 99999 }}>
+          <div style={{ background: "white", borderRadius: "12px", width: "90%", maxWidth: "680px", maxHeight: "90vh", overflowY: "auto", margin: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", boxSizing: "border-box" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
               <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, border: "none", padding: 0 }}>Editar Código HTML</h3>
               <button type="button" onClick={() => setShowDocHtmlModal(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--text-secondary)" }}>✕</button>
@@ -12729,9 +12738,10 @@ export default function ClientDetailPage() {
               }} style={{ fontSize: "13px" }}>Insertar</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-      {showImageSourceSelector && (
+      {showImageSourceSelector && typeof window !== "undefined" && createPortal(
         <div className={styles.imageSelectorOverlay} onClick={() => setShowImageSourceSelector(false)}>
           <div className={styles.imageSelectorModal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -12791,10 +12801,11 @@ export default function ClientDetailPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {isCameraActive && (
+      {isCameraActive && typeof window !== "undefined" && createPortal(
         <div className={styles.cameraCaptureModal}>
           <video
             ref={videoRef}
@@ -12817,7 +12828,8 @@ export default function ClientDetailPage() {
               title="Tomar Foto"
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* COMPARADOR SLIDER MODAL */}
@@ -12826,6 +12838,7 @@ export default function ClientDetailPage() {
           onClick={() => setIsComparingOpen(false)}
           style={{
             position: "fixed",
+            inset: 0,
             top: 0,
             left: 0,
             right: 0,
@@ -12850,7 +12863,9 @@ export default function ClientDetailPage() {
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
               overflow: "hidden",
               display: "flex",
-              flexDirection: "column"
+              flexDirection: "column",
+              margin: "auto",
+              maxHeight: "90vh"
             }}
           >
             <div style={{ padding: "16px 24px", borderBottom: "1px solid #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -13131,7 +13146,7 @@ export default function ClientDetailPage() {
       {/* MODAL COBRAR DEUDA */}
       {typeof window !== "undefined" && showPayDebtModal && selectedDebtToPay && createPortal(
         <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          position: "fixed", inset: 0, top: 0, left: 0, right: 0, bottom: 0,
           background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
           display: "flex", alignItems: "center", justifyContent: "center",
           zIndex: 99999, padding: "16px"
@@ -13139,7 +13154,7 @@ export default function ClientDetailPage() {
           <div style={{
             background: "#ffffff", borderRadius: "16px", width: "100%", maxWidth: "460px",
             boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
-            overflow: "hidden"
+            overflow: "hidden", margin: "auto", maxHeight: "90vh"
           }}>
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -13226,7 +13241,7 @@ export default function ClientDetailPage() {
       {/* MODAL REGISTRAR DEUDA */}
       {typeof window !== "undefined" && showCreateDebtModal && createPortal(
         <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          position: "fixed", inset: 0, top: 0, left: 0, right: 0, bottom: 0,
           background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
           display: "flex", alignItems: "center", justifyContent: "center",
           zIndex: 99999, padding: "16px"
@@ -13234,7 +13249,7 @@ export default function ClientDetailPage() {
           <div style={{
             background: "#ffffff", borderRadius: "16px", width: "100%", maxWidth: "460px",
             boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
-            overflow: "hidden"
+            overflow: "hidden", margin: "auto", maxHeight: "90vh"
           }}>
             <form onSubmit={handleCreateDebt}>
               <div style={{

@@ -98,7 +98,11 @@ function SettingsTabNavigator({ setActiveTab }: { setActiveTab: (tab: any) => vo
   useEffect(() => {
     const tabParam = searchParams?.get("tab");
     if (tabParam) {
-      setActiveTab(tabParam as any);
+      if (tabParam === "usuarios") {
+        setActiveTab("users");
+      } else {
+        setActiveTab(tabParam as any);
+      }
     }
   }, [searchParams, setActiveTab]);
   return null;
@@ -110,8 +114,27 @@ export default function SettingsPage() {
   const cConfig = getCountryConfig(activeClinic?.country || "ES");
   const currencySymbol = cConfig.currency;
   const taxLabel = cConfig.taxName;
-  const showGanancias = currentUser?.role === "ADMIN" || hasPermission(currentUser, "contabilidad", "Artículos - Ver Ganancias");
+  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPERADMIN";
+  const showGanancias = isAdmin || hasPermission(currentUser, "contabilidad", "Artículos - Ver Ganancias");
   
+  const cName = activeClinic?.name || "";
+  const hasAlmacenAccess =
+    isAdmin ||
+    hasPermission(currentUser, "clientes", "Artículos") ||
+    hasPermission(currentUser, "contabilidad", "Artículos - Todo") ||
+    hasPermission(currentUser, "contabilidad", "Artículos - Solo artículos relacionados");
+
+  const hasAccountingAccess =
+    isAdmin ||
+    hasPermission(currentUser, "contabilidad", "Artículos - Todo") ||
+    hasPermission(currentUser, "contabilidad", "Artículos - Solo artículos relacionados") ||
+    hasPermission(currentUser, "contabilidad", "Facturas - Todo") ||
+    hasPermission(currentUser, "contabilidad", "Facturas - " + cName) ||
+    hasPermission(currentUser, "contabilidad", "Pagos") ||
+    hasPermission(currentUser, "contabilidad", "Resumen") ||
+    hasPermission(currentUser, "contabilidad", "Ingresos y Gastos") ||
+    hasPermission(currentUser, "contabilidad", "Solo cobrar");
+
   const formatPrice = (val: number | null | undefined) => {
     const amount = val ?? 0;
     if (currencySymbol === "€") {
@@ -355,8 +378,15 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === "notifications") {
       fetchNotificationLogs();
+      fetchReminders();
     }
   }, [activeTab, notificationsSubTab]);
+
+  useEffect(() => {
+    if (activeTab === "backup") {
+      fetchBackupsList();
+    }
+  }, [activeTab, fetchBackupsList]);
 
   // Form states for creating/editing reminders
   const [showReminderForm, setShowReminderForm] = useState(false);
@@ -1501,7 +1531,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === null && typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const tabFromUrl = params.get("tab");
+      let tabFromUrl = params.get("tab");
+      if (tabFromUrl === "usuarios") tabFromUrl = "users";
       if (tabFromUrl) {
         setActiveTab(tabFromUrl as any);
         return;
@@ -1509,35 +1540,56 @@ export default function SettingsPage() {
 
       const handleDefaultTab = () => {
         if (window.innerWidth >= 768) {
-          setActiveTab("clinic");
+          if (isAdmin || hasPermission(currentUser, "configuracion", "Ver configuración")) {
+            setActiveTab("clinic");
+          } else if (hasPermission(currentUser, "configuracion", "Editar su propio horario")) {
+            setActiveTab("users");
+          } else if (hasPermission(currentUser, "configuracion", "Configurar servicios")) {
+            setActiveTab("services");
+          } else if (hasPermission(currentUser, "contabilidad", "Resumen")) {
+            setActiveTab("liquidaciones");
+          } else {
+            setActiveTab("clinic");
+          }
         }
       };
       handleDefaultTab();
       window.addEventListener("resize", handleDefaultTab);
       return () => window.removeEventListener("resize", handleDefaultTab);
     }
-  }, [activeTab]);
+  }, [activeTab, currentUser, isAdmin]);
 
   // Redirect to first allowed tab for non-admins
   useEffect(() => {
     if (!currentUser) return;
-    if (currentUser.role === "ADMIN") return;
+    if (isAdmin) return;
     
     const allowedTabs: string[] = [];
     if (hasPermission(currentUser, "configuracion", "Ver configuración")) allowedTabs.push("clinic");
     if (hasPermission(currentUser, "configuracion", "Configurar servicios")) allowedTabs.push("services");
-    if (hasPermission(currentUser, "configuracion", "Editar su propio horario")) allowedTabs.push("users");
     if (hasPermission(currentUser, "configuracion", "Configurar notificaciones")) allowedTabs.push("notifications");
+    if (hasPermission(currentUser, "configuracion", "Ver configuración") || hasPermission(currentUser, "configuracion", "Editar su propio horario")) allowedTabs.push("users");
+    if (hasPermission(currentUser, "contabilidad", "Resumen")) allowedTabs.push("liquidaciones");
+    if (hasPermission(currentUser, "configuracion", "Configurar servicios")) allowedTabs.push("bonos");
+    if (hasAlmacenAccess) {
+      allowedTabs.push("productos");
+      allowedTabs.push("inventario");
+    }
+    if (hasPermission(currentUser, "contabilidad", "Facturas - Todo")) allowedTabs.push("datosFiscales");
+    if (hasPermission(currentUser, "clientes", "Formularios")) allowedTabs.push("formularios");
+    if (hasPermission(currentUser, "clientes", "Ver documentos")) allowedTabs.push("documents");
+    if (hasPermission(currentUser, "configuracion", "Ver configuración")) allowedTabs.push("sync");
+    if (hasPermission(currentUser, "clientes", "Ver clientes")) allowedTabs.push("import");
     
     if (allowedTabs.length > 0 && activeTab !== null && !allowedTabs.includes(activeTab)) {
       setActiveTab(allowedTabs[0] as any);
     }
     
-    // Also redirect usersSubTab to horario if they are not admin
-    if (usersSubTab === "equipo") {
+    // Also redirect usersSubTab to horario if they cannot manage team
+    if (usersSubTab === "equipo" && !hasPermission(currentUser, "configuracion", "Ver configuración")) {
       setUsersSubTab("horario");
     }
-  }, [currentUser, activeTab, usersSubTab]);
+  }, [currentUser, activeTab, usersSubTab, isAdmin, hasAlmacenAccess]);
 
   // Calculate total price based on price and tax percentage
   useEffect(() => {
@@ -1546,29 +1598,6 @@ export default function SettingsPage() {
     const totalVal = priceVal * (1 + taxVal / 100);
     setServiceFormTotal(totalVal.toFixed(2));
   }, [serviceFormPrice, serviceFormTax]);
-
-  // Tab check from query params
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get("tab");
-      if (tab === "usuarios") {
-        setActiveTab("users");
-      } else if (tab === "import") {
-        setActiveTab("import");
-      } else if (tab === "papelera") {
-        setActiveTab("papelera");
-      } else if (tab === "datosFiscales") {
-        setActiveTab("datosFiscales");
-      } else if (tab === "bonos") {
-        setActiveTab("bonos");
-      } else if (tab === "inventario") {
-        setActiveTab("inventario");
-      } else if (tab === "liquidaciones") {
-        setActiveTab("liquidaciones");
-      }
-    }
-  }, []);
 
   // ==========================================
   // LIQUIDATIONS AND COMMISSIONS HANDLERS
@@ -2771,9 +2800,10 @@ export default function SettingsPage() {
     setSelectedEmployeeTab(null);
     setEditStaffName(user.name || "");
     setEditStaffLastName(user.lastName || "");
-    setEditStaffEmail(user.email || "");
-    setEditStaffRole(user.role || "PROFESIONAL");
-    setEditStaffDniNif(user.dniNif || "");
+    let initialRole = user.role || "DOCTOR";
+    if (initialRole === "PROFESIONAL") initialRole = "DOCTOR";
+    if (initialRole === "RECEPCION") initialRole = "RECEPTIONIST";
+    setEditStaffRole(initialRole);
     setEditStaffPhone(user.phone || "");
     setEditStaffAddress(user.address || "");
     setEditStaffMunicipality(user.municipality || "");
@@ -3518,6 +3548,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
              activeTab === "users" ? "Usuarios y Horarios" :
              activeTab === "liquidaciones" ? "Liquidaciones y Comisiones" :
              activeTab === "bonos" ? "Bonos" :
+             activeTab === "productos" ? "Productos" :
              activeTab === "datosFiscales" ? "Datos Fiscales" :
              activeTab === "formularios" ? "Formularios Personalizados" :
              activeTab === "documents" ? "Plantillas de Documentos" :
@@ -3525,6 +3556,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
              activeTab === "sync" ? "Sincronizar Google" :
              activeTab === "import" ? "Importar Contactos" :
              activeTab === "papelera" ? "Papelera" :
+             activeTab === "backup" ? "Copias de Seguridad" :
              "Información general"}
           </h1>
           <span className={styles.clinicSubtitle}>Configuración • {activeClinic?.name}</span>
@@ -3538,7 +3570,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
           {/* Group 1: Mi Consulta */}
           <div className={styles.sidebarGroup}>
             <span className={styles.sidebarGroupTitle}>{t("myClinic")}</span>
-            {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Ver configuración")) && (
+            {(isAdmin || hasPermission(currentUser, "configuracion", "Ver configuración")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "clinic" ? styles.sidebarItemActive : ""}`}
@@ -3548,7 +3580,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("generalInfo")}</span>
               </button>
             )}
-            {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Configurar servicios")) && (
+            {(isAdmin || hasPermission(currentUser, "configuracion", "Configurar servicios")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "services" ? styles.sidebarItemActive : ""}`}
@@ -3558,7 +3590,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("clinicServices")}</span>
               </button>
             )}
-            {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Configurar notificaciones")) && (
+            {(isAdmin || hasPermission(currentUser, "configuracion", "Configurar notificaciones")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "notifications" ? styles.sidebarItemActive : ""}`}
@@ -3577,7 +3609,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
           {/* Group 2: Personal y Gestión */}
           <div className={styles.sidebarGroup}>
             <span className={styles.sidebarGroupTitle}>{t("staffAndSchedule")}</span>
-            {(currentUser?.role === "ADMIN" || hasPermission(currentUser, "configuracion", "Editar su propio horario")) && (
+            {(isAdmin || hasPermission(currentUser, "configuracion", "Ver configuración") || hasPermission(currentUser, "configuracion", "Editar su propio horario")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "users" ? styles.sidebarItemActive : ""}`}
@@ -3587,12 +3619,12 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("usersAndSchedules")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {(isAdmin || hasPermission(currentUser, "contabilidad", "Resumen")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "liquidaciones" ? styles.sidebarItemActive : ""}`}
                 onClick={() => { 
-                  setActiveTab("liquidaciones");
+                  setActiveTab("liquidaciones"); 
                   fetchLiquidations();
                 }}
               >
@@ -3600,7 +3632,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("commissionsAndPayroll")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {(isAdmin || hasPermission(currentUser, "configuracion", "Configurar servicios")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "bonos" ? styles.sidebarItemActive : ""}`}
@@ -3610,7 +3642,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("bonusSection")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {hasAlmacenAccess && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "productos" ? styles.sidebarItemActive : ""}`}
@@ -3625,8 +3657,8 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
           {/* Group 3: Facturación */}
           <div className={styles.sidebarGroup}>
             <span className={styles.sidebarGroupTitle}>{t("billingSection")}</span>
-            {(currentUser?.role === "ADMIN") && (
-              <button
+            {(isAdmin || hasPermission(currentUser, "contabilidad", "Facturas - Todo")) && (
+              <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "datosFiscales" ? styles.sidebarItemActive : ""}`}
                 onClick={() => {
@@ -3653,7 +3685,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
           {/* Group 4: Configuración Clínica */}
           <div className={styles.sidebarGroup}>
             <span className={styles.sidebarGroupTitle}>{t("clinicConfig")}</span>
-            {currentUser?.role === "ADMIN" && (
+            {(isAdmin || hasPermission(currentUser, "clientes", "Formularios")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "formularios" ? styles.sidebarItemActive : ""}`}
@@ -3663,7 +3695,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("customForms")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {(isAdmin || hasPermission(currentUser, "clientes", "Ver documentos")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "documents" ? styles.sidebarItemActive : ""}`}
@@ -3675,10 +3707,10 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
             )}
           </div>
 
-          {/* Group 4: Herramientas y Sistema */}
+          {/* Group 5: Herramientas y Sistema */}
           <div className={styles.sidebarGroup}>
             <span className={styles.sidebarGroupTitle}>{t("toolsAndSystem")}</span>
-            {currentUser?.role === "ADMIN" && (
+            {hasAlmacenAccess && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "inventario" ? styles.sidebarItemActive : ""}`}
@@ -3692,7 +3724,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("warehouseInventory")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {(isAdmin || hasPermission(currentUser, "configuracion", "Ver configuración")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "sync" ? styles.sidebarItemActive : ""}`}
@@ -3702,7 +3734,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("syncGoogle")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {(isAdmin || hasPermission(currentUser, "clientes", "Ver clientes")) && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "import" ? styles.sidebarItemActive : ""}`}
@@ -3712,12 +3744,12 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("importContacts")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {isAdmin && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "papelera" ? styles.sidebarItemActive : ""}`}
-                onClick={() => {
-                  setActiveTab("papelera");
+                onClick={() => { 
+                  setActiveTab("papelera"); 
                   fetchPapelera();
                 }}
               >
@@ -3725,12 +3757,12 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                 <span>{t("trash")}</span>
               </button>
             )}
-            {currentUser?.role === "ADMIN" && (
+            {isAdmin && (
               <button 
                 type="button"
                 className={`${styles.sidebarItem} ${activeTab === "backup" ? styles.sidebarItemActive : ""}`}
-                onClick={() => {
-                  setActiveTab("backup");
+                onClick={() => { 
+                  setActiveTab("backup"); 
                   fetchBackupsList();
                 }}
               >
@@ -5046,7 +5078,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
           <div>
             {/* Sub-tabs header (Image 1) */}
             <div className={styles.subTabsContainer}>
-              {currentUser?.role === "ADMIN" && (
+              {(isAdmin || hasPermission(currentUser, "configuracion", "Ver configuración")) && (
                 <button
                   type="button"
                   className={`${styles.subTabBtn} ${usersSubTab === "equipo" ? styles.subTabBtnActive : ""}`}
@@ -5227,7 +5259,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                       </tr>
                     </thead>
                     <tbody>
-                      {staff.filter(u => currentUser?.role === "ADMIN" || u.id === currentUser?.id).map((u) => (
+                      {staff.filter(u => isAdmin || hasPermission(currentUser, "configuracion", "Ver configuración") || u.id === currentUser?.id).map((u) => (
                         <tr key={u.id}>
                           {/* Employee cell */}
                           <td className={`${styles.horarioTd} ${styles.horarioTdFirst}`}>
@@ -5640,15 +5672,46 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
               </div>
 
               {/* Popup Modal for HTML Editor */}
-              {showHtmlModal && (
-                <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-                  <div style={{ background: "white", borderRadius: "8px", width: "650px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.2)", boxSizing: "border-box" }}>
+              {showHtmlModal && typeof window !== "undefined" && createPortal(
+                <div 
+                  style={{ 
+                    position: "fixed", 
+                    inset: 0, 
+                    width: "100vw", 
+                    height: "100vh", 
+                    background: "rgba(0,0,0,0.5)", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    zIndex: 99999 
+                  }}
+                  onClick={() => setShowHtmlModal(false)}
+                >
+                  <div 
+                    style={{ 
+                      background: "var(--bg-panel-solid, #ffffff)", 
+                      borderRadius: "8px", 
+                      width: "650px", 
+                      maxWidth: "calc(100vw - 32px)", 
+                      maxHeight: "90vh", 
+                      overflowY: "auto", 
+                      margin: "auto", 
+                      padding: "24px", 
+                      display: "flex", 
+                      flexDirection: "column", 
+                      gap: "16px", 
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.2)", 
+                      boxSizing: "border-box",
+                      border: "1px solid var(--border-color)"
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
                       <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, border: "none", padding: 0 }}>Editar Código HTML</h3>
                       <button type="button" onClick={() => setShowHtmlModal(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--text-secondary)" }}>✕</button>
                     </div>
                     <textarea
-                      style={{ width: "100%", height: "350px", fontFamily: "monospace", fontSize: "13px", padding: "12px", border: "1px solid #cbd5e1", borderRadius: "6px", resize: "vertical", boxSizing: "border-box" }}
+                      style={{ width: "100%", height: "350px", fontFamily: "monospace", fontSize: "13px", padding: "12px", border: "1px solid var(--border-color, #cbd5e1)", borderRadius: "6px", resize: "vertical", boxSizing: "border-box", background: "var(--bg-input, #ffffff)", color: "var(--text-primary)" }}
                       value={htmlModalContent}
                       onChange={(e) => setHtmlModalContent(e.target.value)}
                       placeholder="Escribe o pega aquí tu código HTML..."
@@ -5664,7 +5727,8 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                       }} style={{ fontSize: "13px" }}>Insertar</button>
                     </div>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </form>
           </div>
@@ -7551,11 +7615,11 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
         {/* DETALLES DE LIQUIDACION HISTORICA MODAL */}
         {selectedLiquidationForDetails && typeof window !== "undefined" && createPortal(
           <div
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={() => setSelectedLiquidationForDetails(null)}
           >
             <div
-              style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "700px", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)" }}
+              style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "700px", maxWidth: "calc(100vw - 32px)", maxHeight: "90vh", margin: "auto", overflowY: "auto", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: "1px solid var(--border-color)" }}>
@@ -9863,11 +9927,11 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {/* MODAL ELIMINAR RECORDATORIO/NOTIFICACION */}
       {reminderToDelete && typeof window !== "undefined" && createPortal(
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={() => setReminderToDelete(null)}
         >
           <div
-            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "420px", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)", padding: "24px" }}
+            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "420px", maxWidth: "calc(100vw - 32px)", maxHeight: "90vh", margin: "auto", overflowY: "auto", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)", padding: "24px" }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, marginBottom: "12px", color: "var(--text-primary)" }}>
@@ -9902,11 +9966,11 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {/* MODAL ELIMINAR PRODUCTO DE INVENTARIO */}
       {productToDelete && typeof window !== "undefined" && createPortal(
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={() => setProductToDelete(null)}
         >
           <div
-            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "420px", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)", padding: "24px" }}
+            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "420px", maxWidth: "calc(100vw - 32px)", maxHeight: "90vh", margin: "auto", overflowY: "auto", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)", padding: "24px" }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, marginBottom: "12px", color: "var(--text-primary)" }}>
@@ -9941,11 +10005,11 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {/* MODAL AJUSTE MANUAL RAPIDO DE STOCK */}
       {showStockAdjustModal && typeof window !== "undefined" && createPortal(
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={() => setShowStockAdjustModal(null)}
         >
           <div
-            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "420px", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)", padding: "24px" }}
+            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "420px", maxWidth: "calc(100vw - 32px)", maxHeight: "90vh", margin: "auto", overflowY: "auto", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)", padding: "24px" }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, marginBottom: "12px", color: "var(--text-primary)" }}>
@@ -10005,11 +10069,11 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {/* PAPELERA LOGS MODAL */}
       {showPapeleraLogsModal && typeof window !== "undefined" && createPortal(
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}
+          style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.5)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={() => setShowPapeleraLogsModal(false)}
         >
           <div
-            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "520px", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)" }}
+            style={{ background: "var(--bg-panel-solid)", borderRadius: "12px", width: "520px", maxWidth: "calc(100vw - 32px)", maxHeight: "90vh", margin: "auto", overflowY: "auto", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid var(--border-color)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px", borderBottom: "1px solid var(--border-color)" }}>
@@ -10303,10 +10367,11 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                           onChange={(e) => setNewStaffRole(e.target.value)}
                           required
                         >
+                          <option value="SUPERADMIN">Superadministrador (Acceso Total)</option>
                           <option value="ADMIN">Administrador</option>
                           <option value="DOCTOR">Médico / Doctor</option>
                           <option value="THERAPIST">Fisioterapeuta / Terapeuta</option>
-                          <option value="RECEPTIONIST">Recepcionista</option>
+                          <option value="RECEPTIONIST">Recepción / Gestión de Citas</option>
                         </select>
                       </div>
 
@@ -11008,17 +11073,16 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {selectedEmployee && typeof window !== "undefined" && createPortal(
         <div className={styles.drawerOverlay} onClick={() => { setSelectedEmployee(null); setSelectedEmployeeTab(null); }}>
           <div 
-            className={styles.drawer} 
+            className={`${styles.createStaffDrawer} ${selectedEmployeeTab ? styles.drawerWithActiveTab : ""}`} 
             style={{ 
               width: selectedEmployeeTab ? "880px" : "440px", 
-              transition: "width 0.25s ease",
-              display: "flex",
-              flexDirection: "row"
+              maxWidth: "100vw",
+              transition: "width 0.25s ease"
             }} 
             onClick={(e) => e.stopPropagation()}
           >
             {/* LEFT SIDE: Options menu (Image 1) */}
-            <div style={{ width: "440px", height: "100%", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+            <div className={styles.createStaffLeftMenu}>
               <div className={styles.drawerHeader}>
                 <h2>{selectedEmployee.name} {selectedEmployee.lastName || ""}</h2>
                 <button 
@@ -11100,7 +11164,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
 
             {/* RIGHT SIDE: Sub-menu details form (Image 2) */}
             {selectedEmployeeTab && (
-              <div style={{ width: "440px", height: "100%", display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-color)", flexShrink: 0 }}>
+              <div className={styles.createStaffRightForm}>
                 <div className={styles.drawerHeader}>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <button 
@@ -11176,8 +11240,9 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                         >
                           <option value="SUPERADMIN">Superadministrador (Acceso Total)</option>
                           <option value="ADMIN">Administrador de Clínica</option>
-                          <option value="PROFESIONAL">Profesional Sanitario / Médico</option>
-                          <option value="RECEPCION">Recepción / Gestión de Citas</option>
+                          <option value="DOCTOR">Médico / Profesional Sanitario</option>
+                          <option value="THERAPIST">Fisioterapeuta / Terapeuta</option>
+                          <option value="RECEPTIONIST">Recepción / Gestión de Citas</option>
                         </select>
                       </div>
 
@@ -11778,9 +11843,15 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
         </div>,
         document.body
       )}
-      {showNewCategoryPopup && (
-        <div className={styles.popupOverlay}>
-          <div className={styles.popupContent}>
+      {showNewCategoryPopup && typeof window !== "undefined" && createPortal(
+        <div 
+          className={styles.popupOverlay}
+          onClick={() => {
+            setShowNewCategoryPopup(false);
+            setNewCategoryPopupName("");
+          }}
+        >
+          <div className={styles.popupContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.popupHeader}>Nueva categoría</div>
             <div className={styles.popupBody}>
               <div className="form-group" style={{ marginBottom: 0 }}>
@@ -11825,13 +11896,14 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* DRAWER: Crear formulario */}
       {showCreateClientFormDrawer && typeof window !== "undefined" && createPortal(
         <div className={styles.drawerOverlay} onClick={() => { setShowCreateClientFormDrawer(false); setNewClientFormDrawerName(""); }}>
-          <div className={styles.drawer} style={{ width: "440px" }} onClick={e => e.stopPropagation()}>
+          <div className={styles.drawer} style={{ width: "440px", maxWidth: "100vw" }} onClick={e => e.stopPropagation()}>
             <div className={styles.drawerHeader}>
               <h2>Crear formulario</h2>
               <button 
@@ -11881,7 +11953,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {/* DRAWER: Agregar campo personalizado */}
       {showAddClientFieldDrawer && typeof window !== "undefined" && createPortal(
         <div className={styles.drawerOverlay} onClick={() => setShowAddClientFieldDrawer(false)}>
-          <div className={styles.drawer} style={{ width: "440px" }} onClick={e => e.stopPropagation()}>
+          <div className={styles.drawer} style={{ width: "440px", maxWidth: "100vw" }} onClick={e => e.stopPropagation()}>
             <div className={styles.drawerHeader}>
               <h2>Agregar campo personalizado</h2>
               <button 
@@ -11952,7 +12024,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {/* DRAWER: Agregar campo personalizado (Seguimientos) */}
       {showAddEpisodeFieldDrawer && typeof window !== "undefined" && createPortal(
         <div className={styles.drawerOverlay} onClick={() => setShowAddEpisodeFieldDrawer(false)}>
-          <div className={styles.drawer} style={{ width: "440px" }} onClick={e => e.stopPropagation()}>
+          <div className={styles.drawer} style={{ width: "440px", maxWidth: "100vw" }} onClick={e => e.stopPropagation()}>
             <div className={styles.drawerHeader}>
               <h2>Agregar campo personalizado</h2>
               <button 
@@ -12023,7 +12095,7 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
       {/* DRAWER: Editar campo personalizado (Compartido) */}
       {showEditFieldDrawer && typeof window !== "undefined" && createPortal(
         <div className={styles.drawerOverlay} onClick={() => setShowEditFieldDrawer(false)}>
-          <div className={styles.drawer} style={{ width: "440px" }} onClick={e => e.stopPropagation()}>
+          <div className={styles.drawer} style={{ width: "440px", maxWidth: "100vw" }} onClick={e => e.stopPropagation()}>
             <div className={styles.drawerHeader}>
               <h2>Editar campo personalizado</h2>
               <button 

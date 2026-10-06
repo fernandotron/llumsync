@@ -190,37 +190,51 @@ export default function Sidebar() {
 
   if (!user) return null;
 
+  const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
   const cName = activeClinic?.name || "";
-  const hasAccountingAccess =
-    user.role === "ADMIN" ||
-    hasPermission(user, "contabilidad", "Artículos - Todo") ||
-    hasPermission(user, "contabilidad", "Artículos - Solo artículos relacionados") ||
+
+  const hasCashRegisterAccess =
+    isAdmin ||
+    hasPermission(user, "contabilidad", "Pagos") ||
+    hasPermission(user, "contabilidad", "Solo cobrar") ||
+    hasPermission(user, "contabilidad", "Ingresos y Gastos") ||
+    hasPermission(user, "contabilidad", "Resumen");
+
+  const hasSalesAccess =
+    isAdmin ||
     hasPermission(user, "contabilidad", "Facturas - Todo") ||
     hasPermission(user, "contabilidad", "Facturas - " + cName) ||
+    hasPermission(user, "contabilidad", "Artículos - Todo") ||
+    hasPermission(user, "contabilidad", "Artículos - Solo artículos relacionados") ||
     hasPermission(user, "contabilidad", "Pagos") ||
-    hasPermission(user, "contabilidad", "Resumen") ||
-    hasPermission(user, "contabilidad", "Ingresos y Gastos") ||
     hasPermission(user, "contabilidad", "Solo cobrar");
 
-  const hasContactsAccess = user.role === "ADMIN" || hasPermission(user, "clientes", "Ver clientes");
-  const hasStatsAccess = user.role === "ADMIN" || hasPermission(user, "estadisticas", "Ver Estadisticas");
-  const hasSettingsAccess =
-    user.role === "ADMIN" ||
-    hasPermission(user, "configuracion", "Ver configuración") ||
-    hasPermission(user, "configuracion", "Editar su propio horario");
+  const hasAlmacenAccess =
+    isAdmin ||
+    hasPermission(user, "clientes", "Artículos") ||
+    hasPermission(user, "contabilidad", "Artículos - Todo") ||
+    hasPermission(user, "contabilidad", "Artículos - Solo artículos relacionados");
 
-  // Config sub-groups matching Image 2
+  const hasClubSociosAccess =
+    isAdmin ||
+    hasPermission(user, "clientes", "Ver clientes") ||
+    hasPermission(user, "clientes", "Artículos");
+
+  const hasContactsAccess = isAdmin || hasPermission(user, "clientes", "Ver clientes");
+  const hasStatsAccess = isAdmin || hasPermission(user, "estadisticas", "Ver Estadisticas");
+
+  // Config sub-groups matching specific permissions (hidden if user lacks permission)
   const configSubGroups: ConfigSubGroup[] = [
     {
       groupTitle: "MI CONSULTA",
       items: [
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración")
+        ...(isAdmin || hasPermission(user, "configuracion", "Ver configuración")
           ? [{ id: "cfg-clinic", name: "Información general", path: "/dashboard/settings?tab=clinic", icon: <Icons.Info size={14} /> }]
           : []),
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Configurar servicios")
+        ...(isAdmin || hasPermission(user, "configuracion", "Configurar servicios")
           ? [{ id: "cfg-services", name: "Servicios Clínicos", path: "/dashboard/settings?tab=services", icon: <Icons.CalendarClock size={14} /> }]
           : []),
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Configurar notificaciones")
+        ...(isAdmin || hasPermission(user, "configuracion", "Configurar notificaciones")
           ? [{ id: "cfg-notifications", name: "Notificaciones", path: "/dashboard/settings?tab=notifications", icon: <Icons.Bell size={14} /> }]
           : []),
       ],
@@ -228,13 +242,13 @@ export default function Sidebar() {
     {
       groupTitle: "PERSONAL Y GESTIÓN",
       items: [
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración") || hasPermission(user, "configuracion", "Editar su propio horario")
+        ...(isAdmin || hasPermission(user, "configuracion", "Ver configuración") || hasPermission(user, "configuracion", "Editar su propio horario")
           ? [{ id: "cfg-users", name: "Usuarios y Horarios", path: "/dashboard/settings?tab=users", icon: <Icons.Users size={14} /> }]
           : []),
-        ...(user.role === "ADMIN" || hasPermission(user, "contabilidad", "Resumen")
+        ...(isAdmin || hasPermission(user, "contabilidad", "Resumen")
           ? [{ id: "cfg-liquidaciones", name: "Liquidaciones y Comisiones", path: "/dashboard/settings?tab=liquidaciones", icon: <Icons.DollarCircle size={14} /> }]
           : []),
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Configurar servicios")
+        ...(isAdmin || hasPermission(user, "configuracion", "Configurar servicios")
           ? [{ id: "cfg-bonos", name: "Bonos", path: "/dashboard/settings?tab=bonos", icon: <Icons.Award size={14} /> }]
           : []),
       ],
@@ -242,7 +256,7 @@ export default function Sidebar() {
     {
       groupTitle: "FACTURACIÓN",
       items: [
-        ...(user.role === "ADMIN" || hasPermission(user, "contabilidad", "Facturas - Todo")
+        ...(isAdmin || hasPermission(user, "contabilidad", "Facturas - Todo")
           ? [{ id: "cfg-fiscal", name: "Datos Fiscales", path: "/dashboard/settings?tab=datosFiscales", icon: <Icons.FileText size={14} /> }]
           : []),
       ],
@@ -250,10 +264,10 @@ export default function Sidebar() {
     {
       groupTitle: "CONFIGURACIÓN CLÍNICA",
       items: [
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración")
+        ...(isAdmin || hasPermission(user, "clientes", "Formularios")
           ? [{ id: "cfg-formularios", name: "Formularios Personalizados", path: "/dashboard/settings?tab=formularios", icon: <Icons.FileText size={14} /> }]
           : []),
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración")
+        ...(isAdmin || hasPermission(user, "clientes", "Ver documentos")
           ? [{ id: "cfg-documents", name: "Plantillas Documentos", path: "/dashboard/settings?tab=documents", icon: <Icons.FileText size={14} /> }]
           : []),
       ],
@@ -261,21 +275,30 @@ export default function Sidebar() {
     {
       groupTitle: "HERRAMIENTAS Y SISTEMA",
       items: [
-        ...(hasAccountingAccess
+        ...(hasAlmacenAccess
           ? [{ id: "cfg-inventario", name: "Almacén e Inventario", path: "/dashboard/almacen", icon: <Icons.Package size={14} /> }]
           : []),
-        ...(user.role === "ADMIN" || hasPermission(user, "configuracion", "Ver configuración")
-          ? [{ id: "cfg-sync", name: "Sincronizar Google", path: "/dashboard/settings?tab=sync", icon: <Icons.Sync size={14} /> }]
+        ...(isAdmin || hasPermission(user, "configuracion", "Ver configuración")
+          ? [{ id: "cfg-sync", name: "Sincronizar Google", path: "/dashboard/settings?tab=sync", icon: <Icons.Sync size={16} /> }]
           : []),
-        ...(user.role === "ADMIN" || hasPermission(user, "clientes", "Ver clientes")
+        ...(isAdmin || hasPermission(user, "clientes", "Ver clientes")
           ? [{ id: "cfg-import", name: "Importar Contactos", path: "/dashboard/settings?tab=import", icon: <Icons.Download size={14} /> }]
           : []),
-        ...(user.role === "ADMIN"
+        ...(isAdmin
           ? [{ id: "cfg-papelera", name: "Papelera", path: "/dashboard/settings?tab=papelera", icon: <Icons.Trash size={14} /> }]
+          : []),
+        ...(isAdmin
+          ? [{ id: "cfg-backup", name: "Copias de Seguridad", path: "/dashboard/settings?tab=backup", icon: <Icons.Database size={14} /> }]
           : []),
       ],
     },
   ].filter((group) => group.items.length > 0);
+
+  const hasSettingsAccess =
+    isAdmin ||
+    hasPermission(user, "configuracion", "Ver configuración") ||
+    hasPermission(user, "configuracion", "Editar su propio horario") ||
+    configSubGroups.length > 0;
 
   // Main menu items (Direct links, ONLY Configuración has configSubGroups)
   const menuItems: MenuItem[] = [
@@ -295,7 +318,7 @@ export default function Sidebar() {
           },
         ]
       : []),
-    ...(hasAccountingAccess
+    ...(hasCashRegisterAccess
       ? [
           {
             id: "cashRegister",
@@ -303,18 +326,30 @@ export default function Sidebar() {
             path: "/dashboard/cash-register",
             icon: <Icons.DollarCircle size={18} />,
           },
+        ]
+      : []),
+    ...(hasSalesAccess
+      ? [
           {
             id: "sales",
             name: translate("sales", language),
             path: "/dashboard/sales",
             icon: <Icons.Sales size={18} />,
           },
+        ]
+      : []),
+    ...(hasAlmacenAccess
+      ? [
           {
             id: "almacen",
             name: translate("warehouseInventory", language),
             path: "/dashboard/almacen",
             icon: <Icons.Package size={18} />,
           },
+        ]
+      : []),
+    ...(hasClubSociosAccess
+      ? [
           {
             id: "clubSocios",
             name: "Club de Socios",
