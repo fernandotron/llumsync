@@ -799,19 +799,28 @@ export default function ContactsPage() {
   // Helper to extract values for import preview table regardless of column casing or accents
   const getImportRowPreview = (row: any, field: "name" | "lastName" | "phone" | "email" | "dni") => {
     if (!row || typeof row !== "object") return "-";
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const hex32Regex = /^[0-9a-f]{32}$/i;
+    const EXCLUDED_KEYS = new Set(["id", "_id", "uuid", "uid", "key", "createdat", "updatedat", "clinicid", "clientnumber"]);
+
     const findVal = (candidates: string[]) => {
       for (const c of candidates) {
         if (row[c] !== undefined && row[c] !== null && String(row[c]).trim() !== "") {
-          return String(row[c]).trim();
+          const v = String(row[c]).trim();
+          if (!uuidRegex.test(v)) return v;
         }
       }
       const keys = Object.keys(row);
       for (const c of candidates) {
         const cleanC = c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-        const matchedKey = keys.find(k => k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") === cleanC);
+        if (EXCLUDED_KEYS.has(cleanC)) continue;
+        const matchedKey = keys.find(k => {
+          const cleanK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+          return cleanK === cleanC && !EXCLUDED_KEYS.has(cleanK);
+        });
         if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
           const val = String(row[matchedKey]).trim();
-          if (val !== "") return val;
+          if (val !== "" && !uuidRegex.test(val)) return val;
         }
       }
       return null;
@@ -845,7 +854,9 @@ export default function ContactsPage() {
       return findVal(["email", "Email", "correo", "e-mail", "Correo Electrónico", "Correo"]) || "-";
     }
     if (field === "dni") {
-      return findVal(["dniNif", "Dni/nif", "DNI", "NIF", "NIE", "CIF", "Documento", "Nº Documento", "Num Documento", "Identificación"]) || "-";
+      const d = findVal(["dniNif", "Dni/nif", "DNI", "NIF", "NIE", "CIF", "Documento", "Nº Documento", "Num Documento", "Identificación"]);
+      if (d && (uuidRegex.test(d) || hex32Regex.test(d))) return "-";
+      return d || "-";
     }
     return "-";
   };

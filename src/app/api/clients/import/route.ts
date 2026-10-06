@@ -69,21 +69,33 @@ function parseDate(val: any): Date | null {
   return null;
 }
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const hex32Regex = /^[0-9a-f]{32}$/i;
+
 /**
  * Intelligent helper to extract a field value from an arbitrary spreadsheet row object.
  * Checks:
  * 1. Direct key match (case sensitive)
  * 2. Case-insensitive, accent-insensitive, whitespace/punctuation-stripped key match
- * 3. Substring / contains match
+ * 3. Substring match (key contains candidate, never candidate contains key)
+ * Explicitly ignores system metadata keys like "id", "uuid", etc.
  */
 function extractFieldValue(row: Record<string, any>, candidateKeys: string[]): string | null {
   if (!row || typeof row !== "object") return null;
 
+  // Reserved internal system keys that MUST NEVER be mapped to user profile fields
+  const EXCLUDED_SYSTEM_KEYS = new Set([
+    "id", "_id", "uuid", "uid", "key", "createdat", "updatedat", "deletedat",
+    "clinicid", "clientnumber", "patientid", "idcliente", "idpaciente", "clientid"
+  ]);
+
   // 1. Direct match
   for (const k of candidateKeys) {
+    const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (EXCLUDED_SYSTEM_KEYS.has(cleanK)) continue;
     if (row[k] !== undefined && row[k] !== null) {
       const val = String(row[k]).trim();
-      if (val !== "") return val;
+      if (val !== "" && !uuidRegex.test(val)) return val;
     }
   }
 
@@ -100,7 +112,7 @@ function extractFieldValue(row: Record<string, any>, candidateKeys: string[]): s
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "");
 
-    if (cleanKey && normalizedRow[cleanKey] === undefined) {
+    if (cleanKey && !EXCLUDED_SYSTEM_KEYS.has(cleanKey) && normalizedRow[cleanKey] === undefined) {
       normalizedRow[cleanKey] = val;
     }
   }
@@ -112,12 +124,16 @@ function extractFieldValue(row: Record<string, any>, candidateKeys: string[]): s
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "");
 
+    if (EXCLUDED_SYSTEM_KEYS.has(cleanCandidate)) continue;
+
     if (normalizedRow[cleanCandidate] !== undefined) {
-      return normalizedRow[cleanCandidate];
+      const val = normalizedRow[cleanCandidate];
+      if (!uuidRegex.test(val)) return val;
     }
   }
 
-  // 3. Fallback: partial inclusion
+  // 3. Fallback: ONLY if candidate has at least 4 letters, and the spreadsheet key contains the candidate
+  // e.g. key "nombredelpaciente" contains candidate "nombre". NEVER the reverse!
   for (const candidate of candidateKeys) {
     const cleanCandidate = candidate
       .toLowerCase()
@@ -125,11 +141,11 @@ function extractFieldValue(row: Record<string, any>, candidateKeys: string[]): s
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]/g, "");
 
-    if (cleanCandidate.length < 3) continue;
+    if (cleanCandidate.length < 4 || EXCLUDED_SYSTEM_KEYS.has(cleanCandidate)) continue;
 
     for (const [key, val] of Object.entries(normalizedRow)) {
-      if (key.includes(cleanCandidate) || cleanCandidate.includes(key)) {
-        return val;
+      if (key.length >= 4 && key.includes(cleanCandidate) && !EXCLUDED_SYSTEM_KEYS.has(key)) {
+        if (!uuidRegex.test(val)) return val;
       }
     }
   }
@@ -217,12 +233,19 @@ export async function POST(request: Request) {
       if (!client || typeof client !== "object") continue;
 
       // 1. Extract DNI / Document
-      const dniRaw = extractFieldValue(client, [
+      let dniRaw = extractFieldValue(client, [
         "dniNif", "DNI", "NIF", "NIE", "CIF", "Dni/nif", "DNI/NIF", "Documento",
         "Nº Documento", "Num Documento", "Identificación", "Identificacion",
-        "Pasaporte", "Cedula", "Cédula", "Doc", "Numero Documento", "Num_Documento"
+        "Pasaporte", "Cedula", "Cédula", "Numero Documento", "Num_Documento"
       ]);
-      const cleanDni = normalizeDni(dniRaw);
+      if (dniRaw && (uuidRegex.test(dniRaw) || hex32Regex.test(dniRaw))) {
+        dniRaw = null;
+      }
+      let cleanDni = normalizeDni(dniRaw);
+      if (cleanDni && (uuidRegex.test(cleanDni) || hex32Regex.test(cleanDni))) {
+        cleanDni = "";
+        dniRaw = null;
+      }
 
       // 2. Extract Phone & Email
       const phoneRaw = extractFieldValue(client, [
@@ -278,6 +301,14 @@ export async function POST(request: Request) {
             lastName = tokens.slice(tokens.length - 2).join(" ");
           }
         }
+      }
+
+      // Sanitize against UUID values
+      if (lastName && uuidRegex.test(lastName)) {
+        lastName = "-";
+      }
+      if (firstName && uuidRegex.test(firstName)) {
+        firstName = "Paciente";
       }
 
       // If after parsing we have firstName but no lastName
