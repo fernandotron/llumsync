@@ -2558,52 +2558,63 @@ export default function SettingsPage() {
     if (excelData.length === 0 || !activeClinic) return;
 
     setImporting(true);
-    setImportProgress(10);
-    
+    setImportProgress(2);
+    setImportResult(null);
+
+    const total = excelData.length;
+    const CHUNK_SIZE = 40;
+    let totalCreated = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
+
     try {
-      const res = await fetch("/api/clients/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clients: excelData,
-          clinicId: activeClinic.id
-        })
-      });
-
-      setImportProgress(60);
-
-      const data = await res.json();
-      setImportProgress(100);
-
-      if (res.ok) {
-        setImportResult({
-          success: true,
-          createdCount: data.createdCount,
-          updatedCount: data.updatedCount,
-          message: data.message
+      for (let i = 0; i < total; i += CHUNK_SIZE) {
+        const chunk = excelData.slice(i, i + CHUNK_SIZE);
+        const res = await fetch("/api/clients/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clients: chunk,
+            clinicId: activeClinic.id,
+          }),
         });
-        setExcelData([]);
-        setExcelFileName("");
-      } else {
-        setImportResult({
-          success: false,
-          createdCount: 0,
-          updatedCount: 0,
-          message: data.error || "Ocurrió un error al procesar el archivo."
-        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Error en el lote ${Math.floor(i / CHUNK_SIZE) + 1}`);
+        }
+
+        const data = await res.json();
+        totalCreated += (data.createdCount || 0);
+        totalSkipped += (data.skippedCount || 0);
+        totalErrors += (data.errorCount || 0);
+
+        const currentProcessed = Math.min(i + chunk.length, total);
+        const percentage = Math.round((currentProcessed / total) * 100);
+        setImportProgress(percentage);
       }
-    } catch (err) {
+
+      setImportResult({
+        success: true,
+        createdCount: totalCreated,
+        updatedCount: totalSkipped,
+        message: `Importación completada: ${totalCreated} nuevos pacientes añadidos correctamente.${totalSkipped > 0 ? ` ${totalSkipped} pacientes omitidos por ya estar registrados.` : ""}`,
+      });
+      setExcelData([]);
+      setExcelFileName("");
+    } catch (err: any) {
       console.error(err);
       setImportResult({
         success: false,
         createdCount: 0,
         updatedCount: 0,
-        message: "Error de red al realizar la importación."
+        message: err.message || "Error de red al realizar la importación.",
       });
     } finally {
       setImporting(false);
     }
   };
+
 
   // Create new clinic
   const handleCreateClinic = async (e: React.FormEvent) => {

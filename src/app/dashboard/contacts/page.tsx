@@ -103,7 +103,16 @@ export default function ContactsPage() {
   const [importPreview, setImportPreview] = useState<any[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importStats, setImportStats] = useState<{ total: number; valid: number } | null>(null);
+  const [importProgress, setImportProgress] = useState<{
+    current: number;
+    total: number;
+    percentage: number;
+    created: number;
+    skipped: number;
+    errors: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -899,34 +908,73 @@ export default function ContactsPage() {
     }
 
     setIsImporting(true);
-    try {
-      const res = await fetch("/api/clients/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clinicId: activeClinic.id,
-          clients: importAllRows,
-        }),
-      });
+    const total = importAllRows.length;
+    setImportProgress({
+      current: 0,
+      total,
+      percentage: 0,
+      created: 0,
+      skipped: 0,
+      errors: 0,
+    });
 
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message || `Importados correctamente.`);
+    const CHUNK_SIZE = 40;
+    let totalCreated = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
+
+    try {
+      for (let i = 0; i < total; i += CHUNK_SIZE) {
+        const chunk = importAllRows.slice(i, i + CHUNK_SIZE);
+        const res = await fetch("/api/clients/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clinicId: activeClinic.id,
+            clients: chunk,
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Error en el lote ${Math.floor(i / CHUNK_SIZE) + 1}`);
+        }
+
+        const data = await res.json();
+        totalCreated += (data.createdCount || 0);
+        totalSkipped += (data.skippedCount || 0);
+        totalErrors += (data.errorCount || 0);
+
+        const currentProcessed = Math.min(i + chunk.length, total);
+        const percentage = Math.round((currentProcessed / total) * 100);
+
+        setImportProgress({
+          current: currentProcessed,
+          total,
+          percentage,
+          created: totalCreated,
+          skipped: totalSkipped,
+          errors: totalErrors,
+        });
+      }
+
+      toast.success(`Importación finalizada: ${totalCreated} pacientes nuevos añadidos${totalSkipped > 0 ? `, ${totalSkipped} omitidos por ya existir` : ""}.`);
+      setTimeout(() => {
         setShowImportModal(false);
         setImportAllRows([]);
         setImportPreview([]);
         setImportStats(null);
+        setImportProgress(null);
         fetchClients();
-      } else {
-        toast.error(data.error || "Error al importar los contactos");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error de conexión durante la importación");
+      }, 800);
+    } catch (err: any) {
+      console.error("Error during import:", err);
+      toast.error(err.message || "Error durante la importación");
     } finally {
       setIsImporting(false);
     }
   };
+
 
   // Submit client creation
   const handleCreateClient = async (e: React.FormEvent) => {
@@ -2173,6 +2221,75 @@ export default function ContactsPage() {
                 </div>
               )}
 
+              {/* Progress Bar while importing */}
+              {isImporting && importProgress && (
+                <div style={{
+                  padding: "16px 18px",
+                  background: "#f0fdf4",
+                  borderRadius: "10px",
+                  border: "1px solid #bbf7d0",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                  marginTop: "6px",
+                  marginBottom: "6px",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div className="spinner" style={{ width: "16px", height: "16px", border: "2.5px solid #008fa3", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#166534" }}>
+                        Importando pacientes ({importProgress.current} de {importProgress.total})
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "15px", fontWeight: 800, color: "#008fa3" }}>
+                      {importProgress.percentage}%
+                    </span>
+                  </div>
+
+                  {/* Progress Bar Container */}
+                  <div style={{
+                    width: "100%",
+                    height: "12px",
+                    backgroundColor: "rgba(0, 143, 163, 0.12)",
+                    borderRadius: "999px",
+                    overflow: "hidden",
+                    position: "relative",
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${Math.max(importProgress.percentage, 2)}%`,
+                      background: "linear-gradient(90deg, #008fa3, #10b981)",
+                      borderRadius: "999px",
+                      transition: "width 0.35s ease",
+                    }} />
+                  </div>
+
+                  {/* Live Stats */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "12px",
+                    paddingTop: "2px",
+                  }}>
+                    <span style={{ color: "#16a34a", fontWeight: 600 }}>
+                      ✓ {importProgress.created} nuevos añadidos
+                    </span>
+                    {importProgress.skipped > 0 && (
+                      <span style={{ color: "#d97706", fontWeight: 600 }}>
+                        ⊘ {importProgress.skipped} omitidos (ya existentes)
+                      </span>
+                    )}
+                    {importProgress.errors > 0 && (
+                      <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                        ✕ {importProgress.errors} no procesados
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {importPreview.length > 0 && (
                 <div>
                   <h4 style={{ fontSize: "13px", fontWeight: 700, margin: "0 0 8px 0", color: "var(--text-secondary)" }}>
@@ -2216,6 +2333,7 @@ export default function ContactsPage() {
                   setImportAllRows([]);
                   setImportPreview([]);
                   setImportStats(null);
+                  setImportProgress(null);
                 }}
               >
                 Cancelar
@@ -2230,7 +2348,7 @@ export default function ContactsPage() {
                 {isImporting ? (
                   <>
                     <div className="spinner" style={{ width: "14px", height: "14px", border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                    <span>Importando...</span>
+                    <span>{importProgress ? `Importando (${importProgress.percentage}%)...` : "Importando..."}</span>
                   </>
                 ) : (
                   <>
@@ -2240,6 +2358,7 @@ export default function ContactsPage() {
                 )}
               </button>
             </div>
+
           </div>
         </div>,
         document.body
