@@ -785,10 +785,12 @@ export default function SalesPage() {
   const [checkoutDiscount, setCheckoutDiscount] = useState<{ value: number; type: "percentage" | "fixed"; amount: number } | null>(null);
 
   // Partial payments list
-  const [partialPayments, setPartialPayments] = useState<{ id: string; method: string; amount: number; date: string; clientVoucherId?: string; voucherName?: string; clientBudgetId?: string; budgetName?: string; isSaved?: boolean }[]>([]);
+  const [partialPayments, setPartialPayments] = useState<{ id: string; method: string; amount: number; date: string; rawDate?: string; clientVoucherId?: string; voucherName?: string; clientBudgetId?: string; budgetName?: string; isSaved?: boolean }[]>([]);
 
   // Cobrar input amount
   const [cobrarAmount, setCobrarAmount] = useState("");
+  const [checkoutPaymentDate, setCheckoutPaymentDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const checkoutDateInputRef = useRef<HTMLInputElement>(null);
 
   // Voucher payment states
   const [showVoucherSelectionModal, setShowVoucherSelectionModal] = useState(false);
@@ -1080,6 +1082,7 @@ export default function SalesPage() {
     setCheckoutDiscount(null);
     setCobrarAmount("");
     setIsEditingTaxInline(false);
+    setCheckoutPaymentDate(new Date().toISOString().split("T")[0]);
 
     if (selectedItemForPayment) {
       if (selectedItemForPayment.checkoutGroupId) {
@@ -2070,12 +2073,17 @@ export default function SalesPage() {
         ? (checkoutDiscount ? (checkoutDiscount.type === "percentage" ? (checkoutSubtotal * checkoutDiscount.value / 100) : checkoutDiscount.value) : 0)
         : 0;
 
+      const paymentDateIso = (p as any).rawDate 
+        ? new Date((p as any).rawDate + "T12:00:00").toISOString() 
+        : (checkoutPaymentDate ? new Date(checkoutPaymentDate + "T12:00:00").toISOString() : undefined);
+
       const salePayload = {
         clientId: selectedItemForPayment.clientId || "",
         clinicId: activeClinic?.id || "",
         total: p.amount,
         discount: discountAmt,
         paymentMethod: paymentMethodToSave,
+        date: paymentDateIso,
         items: checkoutItems.map((item) => ({
           id: item.id,
           name: item.detalle,
@@ -6383,9 +6391,57 @@ export default function SalesPage() {
                   <div className={styles.checkoutCard}>
                     <div className="form-group" style={{ marginBottom: "16px" }}>
                       <label className="form-label" style={{ color: "var(--text-muted)", fontSize: "12px" }}>Fecha</label>
-                      <div style={{ display: "flex", alignItems: "center", background: "var(--bg-input)", padding: "8px 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", cursor: "pointer" }}>
-                        <Icons.Calendar size={16} style={{ marginRight: "8px", color: "var(--text-secondary)" }} />
-                        <span style={{ fontSize: "13px", fontWeight: 600 }}>{new Date().toLocaleDateString("es-ES")}</span>
+                      <div 
+                        style={{ 
+                          position: "relative",
+                          display: "flex", 
+                          alignItems: "center", 
+                          background: "var(--bg-input, #f8fafc)", 
+                          padding: "8px 12px", 
+                          borderRadius: "var(--radius-sm, 8px)", 
+                          border: "1px solid var(--border-color, #cbd5e1)", 
+                          cursor: "pointer" 
+                        }}
+                        onClick={() => {
+                          if (checkoutDateInputRef.current) {
+                            if (typeof checkoutDateInputRef.current.showPicker === "function") {
+                              checkoutDateInputRef.current.showPicker();
+                            } else {
+                              checkoutDateInputRef.current.focus();
+                            }
+                          }
+                        }}
+                      >
+                        <Icons.Calendar size={16} style={{ marginRight: "8px", color: "var(--text-secondary)", pointerEvents: "none" }} />
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", pointerEvents: "none", flex: 1 }}>
+                          {(() => {
+                            if (!checkoutPaymentDate) return new Date().toLocaleDateString("es-ES");
+                            const [y, m, d] = checkoutPaymentDate.split("-").map(Number);
+                            if (y && m && d) {
+                              return `${d}/${m}/${y}`;
+                            }
+                            return new Date().toLocaleDateString("es-ES");
+                          })()}
+                        </span>
+                        <input
+                          ref={checkoutDateInputRef}
+                          type="date"
+                          value={checkoutPaymentDate}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              setCheckoutPaymentDate(e.target.value);
+                            }
+                          }}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            opacity: 0,
+                            width: "100%",
+                            height: "100%",
+                            cursor: "pointer",
+                            zIndex: 2,
+                          }}
+                        />
                       </div>
                     </div>
 
@@ -6462,9 +6518,17 @@ export default function SalesPage() {
                               const amt = parseFloat(cobrarAmount) || restante;
                               const actualAmt = Math.min(amt, restante);
                               if (actualAmt <= 0) return;
+                              const pDateObj = checkoutPaymentDate ? new Date(checkoutPaymentDate + "T12:00:00") : new Date();
+                              const formattedPDate = pDateObj.toLocaleDateString("es-ES");
                               setPartialPayments([
                                 ...partialPayments,
-                                { id: `pp-${Date.now()}`, method: m.key, amount: actualAmt, date: new Date().toLocaleDateString("es-ES") }
+                                { 
+                                  id: `pp-${Date.now()}`, 
+                                  method: m.key, 
+                                  amount: actualAmt, 
+                                  date: formattedPDate,
+                                  rawDate: checkoutPaymentDate 
+                                }
                               ]);
                               const newRestante = restante - actualAmt;
                               setCobrarAmount(newRestante > 0 ? newRestante.toFixed(2) : "");
@@ -6491,9 +6555,17 @@ export default function SalesPage() {
                               const amt = parseFloat(cobrarAmount) || restante;
                               const actualAmt = Math.min(amt, restante);
                               if (actualAmt <= 0) return;
+                              const pDateObj = checkoutPaymentDate ? new Date(checkoutPaymentDate + "T12:00:00") : new Date();
+                              const formattedPDate = pDateObj.toLocaleDateString("es-ES");
                               setPartialPayments([
                                 ...partialPayments,
-                                { id: `pp-${Date.now()}`, method: "Otro", amount: actualAmt, date: new Date().toLocaleDateString("es-ES") }
+                                { 
+                                  id: `pp-${Date.now()}`, 
+                                  method: "Otro", 
+                                  amount: actualAmt, 
+                                  date: formattedPDate,
+                                  rawDate: checkoutPaymentDate 
+                                }
                               ]);
                               const newRestante = restante - actualAmt;
                               setCobrarAmount(newRestante > 0 ? newRestante.toFixed(2) : "");
@@ -6513,9 +6585,17 @@ export default function SalesPage() {
                         const actualAmt = Math.min(amt, restante);
                         if (actualAmt <= 0) return;
                         const method = "Efectivo";
+                        const pDateObj = checkoutPaymentDate ? new Date(checkoutPaymentDate + "T12:00:00") : new Date();
+                        const formattedPDate = pDateObj.toLocaleDateString("es-ES");
                         setPartialPayments([
                           ...partialPayments,
-                          { id: `pp-${Date.now()}`, method, amount: actualAmt, date: new Date().toLocaleDateString("es-ES") }
+                          { 
+                            id: `pp-${Date.now()}`, 
+                            method, 
+                            amount: actualAmt, 
+                            date: formattedPDate,
+                            rawDate: checkoutPaymentDate 
+                          }
                         ]);
                         const newRestante = restante - actualAmt;
                         setCobrarAmount(newRestante > 0 ? newRestante.toFixed(2) : "");

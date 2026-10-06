@@ -239,6 +239,7 @@ export async function POST(request: Request) {
         discount: parseFloat(discount || 0),
         paymentMethod: paymentMethod.toUpperCase(),
         itemsJson: JSON.stringify(enrichedItems),
+        ...(body.date || body.createdAt ? { createdAt: new Date(body.date || body.createdAt) } : {}),
       },
       include: {
         client: true,
