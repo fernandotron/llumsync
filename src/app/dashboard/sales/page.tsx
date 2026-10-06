@@ -2659,9 +2659,12 @@ export default function SalesPage() {
 
       // Update related appointment status if this came from one
       if (selectedItemForPayment) {
+        const updatedAppIds = new Set<string>();
         for (const item of checkoutItems) {
           if (item.id.startsWith("db-app-")) {
-            const appId = item.id.replace("db-app-", "");
+            const appId = item.id.replace("db-app-", "").split("-srv-")[0];
+            if (updatedAppIds.has(appId)) continue;
+            updatedAppIds.add(appId);
             try {
               await fetch("/api/appointments", {
                 method: "PUT",
@@ -3306,9 +3309,12 @@ export default function SalesPage() {
     const isPaid = restante <= 0; // Fully paid if remaining balance is 0
 
     // 1. Update appointment status for each checkout item if it came from an appointment
+    const updatedAppIds = new Set<string>();
     for (const item of checkoutItems) {
       if (item.id.startsWith("db-app-")) {
-        const appId = item.id.replace("db-app-", "");
+        const appId = item.id.replace("db-app-", "").split("-srv-")[0];
+        if (updatedAppIds.has(appId)) continue;
+        updatedAppIds.add(appId);
         const appObj = appointments.find(a => a.id === appId);
         const originalStatus = appObj ? appObj.status : "PENDING";
         try {
@@ -3652,23 +3658,37 @@ export default function SalesPage() {
 
         const appDate = new Date(app.start);
 
+        // Check for multiple services or custom price in appointment
+        let parsedServices: any[] = [];
+        if (app.servicesJson) {
+          try {
+            const raw = typeof app.servicesJson === "string" ? JSON.parse(app.servicesJson) : app.servicesJson;
+            if (Array.isArray(raw) && raw.length > 0) {
+              parsedServices = raw;
+            }
+          } catch (e) {}
+        }
+
+        const totalExpectedPrice = parsedServices.length > 0
+          ? parsedServices.reduce((sum, s) => sum + (Number(s.price) || 0), 0)
+          : (app.customPrice !== null && app.customPrice !== undefined ? Number(app.customPrice) : (app.service?.price || 0));
+
         // Find all database sales that belong to this appointment
         const matchingSales = salesHistory.filter((sale) => {
           try {
             const itemsArr = JSON.parse(sale.itemsJson || "[]");
-            return itemsArr.some((i: any) => i.id === `db-app-${app.id}` || i.id === app.id);
+            return itemsArr.some((i: any) => i.id === `db-app-${app.id}` || i.id === app.id || (i.id && i.id.startsWith(`db-app-${app.id}`)));
           } catch (e) {
             return false;
           }
         });
 
         const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
-        const servicePrice = app.service?.price || 0;
 
         let resolvedEstado = "PENDIENTE";
-        if (servicePrice === 0) {
+        if (totalExpectedPrice === 0) {
           resolvedEstado = "GRATUITO";
-        } else if (totalPaid >= servicePrice) {
+        } else if (totalPaid >= totalExpectedPrice) {
           resolvedEstado = "PAGADO";
         } else if (totalPaid > 0) {
           resolvedEstado = "PAGO PARCIAL";
@@ -3690,33 +3710,72 @@ export default function SalesPage() {
         const invoiceNumbers = matchingSales.map(s => s.invoiceNumber).filter(Boolean);
         const resolvedNuV = invoiceNumbers.length > 0 ? invoiceNumbers.join(", ") : "-";
 
-        dbItems.push({
-          id: `db-app-${app.id}`,
-          checkoutGroupId: `app-${app.id}`,
-          refMov: "", // Assigned below
-          nuV: "", // Assigned below
-          fecha: appDate.toLocaleDateString("es-ES"),
-          fechaRaw: appDate,
-          hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")} - ${String(new Date(app.end).getHours()).padStart(2, "0")}:${String(new Date(app.end).getMinutes()).padStart(2, "0")}`,
-          tipo: "Servicio",
-          detalle: app.service?.name || "Tratamiento Clínico",
-          clientNumber: `#${app.client?.clientNumber || 300 + appIdx}`,
-          cliente: `${app.client?.firstName || ""} ${app.client?.lastName || ""}`,
-          clientId: app.client?.id,
-          dni: app.client?.dniNif || "-",
-          empleado: app.user?.name || "Especialista",
-          consulta: activeClinic?.name || "Clifav Central",
-          estado: resolvedEstado,
-          metodoPago: resolvedMetodo,
-          fechaPago: resolvedFechaPago,
-          price: servicePrice,
-          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
-          precio: servicePrice,
-          iva: 0.00,
-          irpf: 0.00,
-          total: servicePrice,
-          pagado: resolvedEstado === "PAGADO" ? servicePrice : totalPaid,
-        });
+        if (parsedServices.length > 0) {
+          parsedServices.forEach((srv, srvIdx) => {
+            const srvPrice = Number(srv.price) || 0;
+            const itemId = srvIdx === 0 ? `db-app-${app.id}` : `db-app-${app.id}-srv-${srvIdx}`;
+            const srvPagado = resolvedEstado === "PAGADO"
+              ? srvPrice
+              : (totalExpectedPrice > 0 ? Math.min(srvPrice, (totalPaid * (srvPrice / totalExpectedPrice))) : 0);
+
+            dbItems.push({
+              id: itemId,
+              checkoutGroupId: `app-${app.id}`,
+              refMov: "", // Assigned below
+              nuV: "", // Assigned below
+              fecha: appDate.toLocaleDateString("es-ES"),
+              fechaRaw: new Date(appDate.getTime() + srvIdx * 1000),
+              hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")} - ${String(new Date(app.end).getHours()).padStart(2, "0")}:${String(new Date(app.end).getMinutes()).padStart(2, "0")}`,
+              tipo: "Servicio",
+              detalle: srv.name || app.service?.name || "Tratamiento Clínico",
+              clientNumber: `#${app.client?.clientNumber || 300 + appIdx}`,
+              cliente: `${app.client?.firstName || ""} ${app.client?.lastName || ""}`,
+              clientId: app.client?.id,
+              dni: app.client?.dniNif || "-",
+              empleado: app.user?.name || "Especialista",
+              consulta: activeClinic?.name || "Clifav Central",
+              estado: resolvedEstado,
+              metodoPago: resolvedMetodo,
+              fechaPago: resolvedFechaPago,
+              price: srvPrice,
+              factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+              precio: srvPrice,
+              iva: srv.tax || 0.00,
+              irpf: 0.00,
+              total: srvPrice,
+              pagado: srvPagado,
+            });
+          });
+        } else {
+          const fallbackPrice = app.customPrice !== null && app.customPrice !== undefined ? Number(app.customPrice) : (app.service?.price || 0);
+          dbItems.push({
+            id: `db-app-${app.id}`,
+            checkoutGroupId: `app-${app.id}`,
+            refMov: "", // Assigned below
+            nuV: "", // Assigned below
+            fecha: appDate.toLocaleDateString("es-ES"),
+            fechaRaw: appDate,
+            hora: `${String(appDate.getHours()).padStart(2, "0")}:${String(appDate.getMinutes()).padStart(2, "0")} - ${String(new Date(app.end).getHours()).padStart(2, "0")}:${String(new Date(app.end).getMinutes()).padStart(2, "0")}`,
+            tipo: "Servicio",
+            detalle: app.service?.name || "Tratamiento Clínico",
+            clientNumber: `#${app.client?.clientNumber || 300 + appIdx}`,
+            cliente: `${app.client?.firstName || ""} ${app.client?.lastName || ""}`,
+            clientId: app.client?.id,
+            dni: app.client?.dniNif || "-",
+            empleado: app.user?.name || "Especialista",
+            consulta: activeClinic?.name || "Clifav Central",
+            estado: resolvedEstado,
+            metodoPago: resolvedMetodo,
+            fechaPago: resolvedFechaPago,
+            price: fallbackPrice,
+            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+            precio: fallbackPrice,
+            iva: 0.00,
+            irpf: 0.00,
+            total: fallbackPrice,
+            pagado: resolvedEstado === "PAGADO" ? fallbackPrice : totalPaid,
+          });
+        }
 
         // Find any added items in matchingSales
         const addedItemsMap = new Map<string, any>();
@@ -3724,7 +3783,7 @@ export default function SalesPage() {
           try {
             const itemsArr = JSON.parse(sale.itemsJson || "[]");
             itemsArr.forEach((item: any) => {
-              if (item.id === `db-app-${app.id}` || item.id === app.id) {
+              if (item.id === `db-app-${app.id}` || item.id === app.id || (item.id && item.id.startsWith(`db-app-${app.id}`))) {
                 return;
               }
               addedItemsMap.set(item.id || item.name, {
@@ -6196,9 +6255,12 @@ export default function SalesPage() {
                           await persistUnsavedPayments("NONE");
 
                           // Update appointment status to COMPLETED
+                          const updatedAppIds = new Set<string>();
                           for (const item of checkoutItems) {
                             if (item.id.startsWith("db-app-")) {
-                              const appId = item.id.replace("db-app-", "");
+                              const appId = item.id.replace("db-app-", "").split("-srv-")[0];
+                              if (updatedAppIds.has(appId)) continue;
+                              updatedAppIds.add(appId);
                               try {
                                 await fetch("/api/appointments", {
                                   method: "PUT",
@@ -6233,9 +6295,12 @@ export default function SalesPage() {
                           await persistUnsavedPayments("NORMAL");
 
                           // Update appointment status to COMPLETED
+                          const updatedAppIds = new Set<string>();
                           for (const item of checkoutItems) {
                             if (item.id.startsWith("db-app-")) {
-                              const appId = item.id.replace("db-app-", "");
+                              const appId = item.id.replace("db-app-", "").split("-srv-")[0];
+                              if (updatedAppIds.has(appId)) continue;
+                              updatedAppIds.add(appId);
                               try {
                                 await fetch("/api/appointments", {
                                   method: "PUT",
@@ -6270,9 +6335,12 @@ export default function SalesPage() {
                           await persistUnsavedPayments("SIMPLIFIED");
 
                           // Update appointment status to COMPLETED
+                          const updatedAppIds = new Set<string>();
                           for (const item of checkoutItems) {
                             if (item.id.startsWith("db-app-")) {
-                              const appId = item.id.replace("db-app-", "");
+                              const appId = item.id.replace("db-app-", "").split("-srv-")[0];
+                              if (updatedAppIds.has(appId)) continue;
+                              updatedAppIds.add(appId);
                               try {
                                 await fetch("/api/appointments", {
                                   method: "PUT",

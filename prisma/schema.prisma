@@ -224,6 +224,8 @@ model Appointment {
   status    String   // "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED", "NOSHOW"
   deletedAt DateTime? // null = activa, fecha = en papelera (soft delete)
   tags      String?
+  customPrice Float?
+  servicesJson String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   photos    ClientPhoto[]

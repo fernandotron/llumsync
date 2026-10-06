@@ -5348,3 +5348,434 @@
 .conflictProceedBtn:hover {
   opacity: 0.9;
 }
+
+/* ===== DOCFAV SERVICE DROPDOWN & MULTI-SERVICE STYLES ===== */
+
+.docfavServiceContainer {
+  position: relative;
+  width: 100%;
+}
+
+.docfavSelectServiceTrigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.docfavSelectServiceTrigger:hover {
+  border-color: #008298;
+  background: #f8fafc;
+}
+
+.docfavServiceDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.14), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+  z-index: 10005;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.docfavSearchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.docfavSearchInput {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #0f172a;
+  width: 100%;
+  font-family: inherit;
+}
+
+.docfavSearchInput::placeholder {
+  color: #94a3b8;
+}
+
+.docfavCategoryAccordion {
+  display: flex;
+  flex-direction: column;
+}
+
+.docfavCategoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.docfavCategoryHeader:hover {
+  color: #115e59;
+}
+
+.docfavCategoryArrow {
+  font-size: 11px;
+  transition: transform 0.2s ease;
+  color: #0f766e;
+}
+
+.docfavServiceItemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.docfavServiceItemRow:hover {
+  background-color: #f1f5f9;
+}
+
+.docfavServiceItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.docfavServiceItemBar {
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.docfavServiceItemName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.docfavServiceItemDuration {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.docfavServiceItemPrice {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Selected Services Display in Appointment */
+.docfavSelectedTopChip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  margin-bottom: 12px;
+}
+
+.docfavSelectedTopChipLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.docfavSelectedTopChipSquare {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.docfavSelectedTopChipText {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.docfavSelectedTopChipClose {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.docfavSelectedTopChipClose:hover {
+  color: #0f172a;
+}
+
+.docfavAddedServicesList {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.docfavAddedServiceCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.docfavAddedServiceLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.docfavAddedServiceBar {
+  width: 4px;
+  height: 38px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.docfavAddedServiceName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.docfavAddedServiceDuration {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.docfavAddedServiceRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.docfavAddedServicePrice {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.docfavTrashBtn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0891b2;
+  transition: all 0.15s ease;
+}
+
+.docfavTrashBtn:hover {
+  border-color: #0891b2;
+  background: #f0fdfa;
+}
+
+.docfavEditBtn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.docfavEditBtn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.docfavAddMoreBtn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.docfavAddMoreBtn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* Sub-view: Editar servicio */
+.docfavEditServiceSubView {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px 24px;
+}
+
+.docfavEditServiceNav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.docfavBackBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  color: #0f172a;
+}
+
+.docfavEditServiceTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 24px;
+}
+
+.docfavEditFieldsRow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.docfavFieldCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.docfavFieldLabel {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.docfavInputReadonly {
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  padding: 0 12px;
+  font-size: 14px;
+  color: #0f172a;
+  cursor: not-allowed;
+}
+
+.docfavPriceInputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.docfavPriceInput {
+  width: 100%;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  padding: 0 32px 0 12px;
+  font-size: 14px;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.docfavPriceInput:focus {
+  border-color: #008298;
+  box-shadow: 0 0 0 3px rgba(0, 130, 152, 0.12);
+}
+
+.docfavPriceSymbol {
+  position: absolute;
+  right: 12px;
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.docfavEditSubViewFooter {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 20px;
+}
+
+.docfavCancelSubViewBtn {
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.docfavCancelSubViewBtn:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.docfavSaveSubViewBtn {
+  border: none;
+  background-color: #008298;
+  border-radius: 8px;
+  padding: 9px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.docfavSaveSubViewBtn:hover {
+  opacity: 0.9;
+}

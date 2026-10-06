@@ -57,6 +57,18 @@ interface Shift {
   endTime: string;
 }
 
+interface FormAppointmentService {
+  serviceId: string;
+  name: string;
+  price: number;
+  originalPrice: number;
+  duration: number; // in minutes
+  tax?: number;
+  color: string;
+  category?: string;
+  isCustom?: boolean;
+}
+
 interface Appointment {
   id: string;
   clientId: string;
@@ -68,6 +80,8 @@ interface Appointment {
   notes?: string;
   status: string;
   tags?: string;
+  customPrice?: number | null;
+  servicesJson?: string | null;
   client: Client;
   user: User;
   service: Service;
@@ -875,6 +889,58 @@ export default function AgendaPage() {
   const [formEndTime, setFormEndTime] = useState("");
   const [googleSyncing, setGoogleSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  // Multi-service and DocFav appointment states
+  const [formAppointmentServices, setFormAppointmentServices] = useState<FormAppointmentService[]>([]);
+  const [editingServiceIndex, setEditingServiceIndex] = useState<number | null>(null);
+  const [tempEditPrice, setTempEditPrice] = useState<number | string>("");
+  const [tempEditDuration, setTempEditDuration] = useState<number>(0);
+  const [tempEditTax, setTempEditTax] = useState<number>(0);
+  const serviceDropdownContainerRef = useRef<HTMLDivElement>(null);
+
+  const formatDocFavDuration = (min: number) => {
+    if (!min || min <= 0) return "0m";
+    if (min % 60 === 0) return `${min / 60}h`;
+    if (min < 60) return `${min}m`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h}h ${m}m`;
+  };
+
+  const formatDocFavPrice = (price: number | string | undefined | null) => {
+    const num = Number(price) || 0;
+    return `${num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  };
+
+  const updateEndTimeFromServices = (services: FormAppointmentService[], startTimeStr: string) => {
+    if (!startTimeStr) return;
+    const totalMin = services.reduce((sum, item) => sum + (Number(item.duration) || 0), 0) || 60;
+    const [h, m] = startTimeStr.split(":").map(Number);
+    const startTotal = h * 60 + m;
+    const endTotal = startTotal + totalMin;
+    const endH = Math.floor(endTotal / 60) % 24;
+    const endM = endTotal % 60;
+    setFormEndTime(`${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`);
+  };
+
+  // Close service dropdown on click outside
+  useEffect(() => {
+    const handleClickOutsideServiceDropdown = (e: MouseEvent) => {
+      if (
+        serviceDropdownContainerRef.current &&
+        !serviceDropdownContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowServiceDropdown(false);
+      }
+      if (
+        serviceEditDropdownRef.current &&
+        !serviceEditDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowServiceEditDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutsideServiceDropdown);
+    return () => document.removeEventListener("mousedown", handleClickOutsideServiceDropdown);
+  }, []);
 
   // Refs and States for inline edit modal fields
   const startTimeRef = useRef<HTMLDivElement>(null);
@@ -936,6 +1002,374 @@ export default function AgendaPage() {
       }
     }
   }, [showEndTimeDropdown]);
+
+  // DocFav Multi-Service Selection & Sub-View Handlers
+  const [serviceSearchQuery, setServiceSearchQuery] = useState("");
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const toggleCategoryCollapse = (catName: string) => {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [catName]: !prev[catName],
+    }));
+  };
+
+  const handleSelectDocFavService = (service: Service) => {
+    const newServiceItem: FormAppointmentService = {
+      serviceId: service.id,
+      name: service.name,
+      price: service.price,
+      originalPrice: service.price,
+      duration: service.duration,
+      tax: (service as any).tax || 0,
+      color: service.color || "#0d9488",
+      category: service.category || "Sin categoría",
+      isCustom: false,
+    };
+    const updated = [...formAppointmentServices, newServiceItem];
+    setFormAppointmentServices(updated);
+    setFormServiceId(updated[0].serviceId);
+    updateEndTimeFromServices(updated, formTime);
+    setShowServiceDropdown(false);
+    setShowServiceEditDropdown(false);
+    setServiceSearchQuery("");
+  };
+
+  const handleAddCustomService = () => {
+    const customService: FormAppointmentService = {
+      serviceId: "custom-" + Date.now(),
+      name: "Personalizado",
+      price: 0,
+      originalPrice: 0,
+      duration: 10,
+      tax: 0,
+      color: "#10b981",
+      category: "Personalizado",
+      isCustom: true,
+    };
+    const updated = [...formAppointmentServices, customService];
+    setFormAppointmentServices(updated);
+    if (!formServiceId) {
+      setFormServiceId(customService.serviceId);
+    }
+    updateEndTimeFromServices(updated, formTime);
+    setShowServiceDropdown(false);
+    setShowServiceEditDropdown(false);
+    setServiceSearchQuery("");
+  };
+
+  const handleRemoveService = (index: number) => {
+    const updated = formAppointmentServices.filter((_, i) => i !== index);
+    setFormAppointmentServices(updated);
+    if (editingServiceIndex === index) {
+      setEditingServiceIndex(null);
+    } else if (editingServiceIndex !== null && editingServiceIndex > index) {
+      setEditingServiceIndex(editingServiceIndex - 1);
+    }
+    if (updated.length > 0) {
+      setFormServiceId(updated[0].serviceId);
+      updateEndTimeFromServices(updated, formTime);
+    } else {
+      setFormServiceId("");
+    }
+  };
+
+  const handleOpenEditService = (index: number) => {
+    const srv = formAppointmentServices[index];
+    if (!srv) return;
+    setEditingServiceIndex(index);
+    setTempEditPrice(srv.price);
+    setTempEditDuration(srv.duration);
+    setTempEditTax(srv.tax || 0);
+  };
+
+  const groupedDocFavServices = useMemo(() => {
+    const groups: Record<string, Service[]> = {};
+    const query = serviceSearchQuery.trim().toLowerCase();
+
+    servicesList.forEach((s) => {
+      if (query && !s.name.toLowerCase().includes(query) && !(s.category && s.category.toLowerCase().includes(query))) {
+        return;
+      }
+      const cat = s.category && s.category.trim() ? s.category.trim() : "Sin categoría";
+      if (!groups[cat]) {
+        groups[cat] = [];
+      }
+      groups[cat].push(s);
+    });
+    return groups;
+  }, [servicesList, serviceSearchQuery]);
+
+  const renderDocfavEditServiceSubView = () => {
+    return (
+      <div className={styles.docfavEditServiceSubView}>
+        <div className={styles.docfavEditServiceNav}>
+          <button
+            type="button"
+            className={styles.docfavBackBtn}
+            onClick={() => setEditingServiceIndex(null)}
+            title="Volver"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <h2 className={styles.docfavEditServiceTitle}>Editar servicio</h2>
+
+        <div className={styles.docfavEditFieldsRow}>
+          <div className={styles.docfavFieldCol}>
+            <label className={styles.docfavFieldLabel}>Duración</label>
+            <input
+              type="text"
+              readOnly
+              value={formatDocFavDuration(tempEditDuration)}
+              className={styles.docfavInputReadonly}
+            />
+          </div>
+
+          <div className={styles.docfavFieldCol}>
+            <label className={styles.docfavFieldLabel}>Precio</label>
+            <div className={styles.docfavPriceInputWrapper}>
+              <input
+                type="number"
+                step="0.01"
+                value={tempEditPrice}
+                onChange={(e) => setTempEditPrice(e.target.value)}
+                className={styles.docfavPriceInput}
+                autoFocus
+              />
+              <span className={styles.docfavPriceSymbol}>€</span>
+            </div>
+          </div>
+
+          <div className={styles.docfavFieldCol}>
+            <label className={styles.docfavFieldLabel}>Impuestos</label>
+            <input
+              type="text"
+              readOnly
+              value={`${tempEditTax || 0}%`}
+              className={styles.docfavInputReadonly}
+            />
+          </div>
+        </div>
+
+        <div className={styles.docfavEditSubViewFooter}>
+          <button
+            type="button"
+            className={styles.docfavCancelSubViewBtn}
+            onClick={() => setEditingServiceIndex(null)}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className={styles.docfavSaveSubViewBtn}
+            onClick={() => {
+              if (editingServiceIndex !== null && formAppointmentServices[editingServiceIndex]) {
+                const updated = [...formAppointmentServices];
+                const newPrice = parseFloat(String(tempEditPrice)) || 0;
+                updated[editingServiceIndex] = {
+                  ...updated[editingServiceIndex],
+                  price: newPrice,
+                };
+                setFormAppointmentServices(updated);
+                setEditingServiceIndex(null);
+              }
+            }}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDocfavServicesSection = (isEditMode: boolean = false) => {
+    const isDropdownOpen = isEditMode ? showServiceEditDropdown : showServiceDropdown;
+    const setIsDropdownOpen = isEditMode ? setShowServiceEditDropdown : setShowServiceDropdown;
+    const containerRef = isEditMode ? serviceEditDropdownRef : serviceDropdownContainerRef;
+
+    return (
+      <div className={styles.docfavServiceContainer} ref={containerRef}>
+        {formAppointmentServices.length === 0 ? (
+          <button
+            type="button"
+            className={styles.docfavSelectServiceTrigger}
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <span>Seleccionar servicio</span>
+          </button>
+        ) : (
+          <>
+            {/* Top Chip with Primary Service */}
+            <div className={styles.docfavSelectedTopChip}>
+              <div className={styles.docfavSelectedTopChipLeft}>
+                <span
+                  className={styles.docfavSelectedTopChipSquare}
+                  style={{ backgroundColor: formAppointmentServices[0].color || "#0d9488" }}
+                />
+                <span className={styles.docfavSelectedTopChipText}>
+                  {formAppointmentServices[0].name}
+                </span>
+              </div>
+              <button
+                type="button"
+                className={styles.docfavSelectedTopChipClose}
+                onClick={() => handleRemoveService(0)}
+                title="Quitar servicio"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Added Services Cards List */}
+            <div className={styles.docfavAddedServicesList}>
+              {formAppointmentServices.map((srv, idx) => (
+                <div key={idx} className={styles.docfavAddedServiceCard}>
+                  <div className={styles.docfavAddedServiceLeft}>
+                    <span
+                      className={styles.docfavAddedServiceBar}
+                      style={{ backgroundColor: srv.color || "#0d9488" }}
+                    />
+                    <div>
+                      <div className={styles.docfavAddedServiceName}>{srv.name}</div>
+                      <div className={styles.docfavAddedServiceDuration}>
+                        {formatDocFavDuration(srv.duration)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.docfavAddedServiceRight}>
+                    <span className={styles.docfavAddedServicePrice}>
+                      {formatDocFavPrice(srv.price)}
+                    </span>
+                    {(formAppointmentServices.length > 1 || srv.isCustom) && (
+                      <button
+                        type="button"
+                        className={styles.docfavTrashBtn}
+                        onClick={() => handleRemoveService(idx)}
+                        title="Eliminar servicio"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.docfavEditBtn}
+                      onClick={() => handleOpenEditService(idx)}
+                    >
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Añadir servicios Button */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+              <button
+                type="button"
+                className={styles.docfavAddMoreBtn}
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                Añadir servicios
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Dropdown Menu */}
+        {isDropdownOpen && (
+          <div className={styles.docfavServiceDropdown}>
+            {/* Search Box */}
+            <div className={styles.docfavSearchBox}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="text"
+                className={styles.docfavSearchInput}
+                placeholder="Buscar"
+                value={serviceSearchQuery}
+                onChange={(e) => setServiceSearchQuery(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {/* Category Accordions */}
+            {Object.entries(groupedDocFavServices).map(([categoryName, srvList]) => {
+              const isCollapsed = !serviceSearchQuery && collapsedCategories[categoryName];
+              return (
+                <div key={categoryName} className={styles.docfavCategoryAccordion}>
+                  <div
+                    className={styles.docfavCategoryHeader}
+                    onClick={() => toggleCategoryCollapse(categoryName)}
+                  >
+                    <span>{categoryName}</span>
+                    <span
+                      className={styles.docfavCategoryArrow}
+                      style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+                    >
+                      ▾
+                    </span>
+                  </div>
+
+                  {!isCollapsed && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      {srvList.map((srv) => (
+                        <div
+                          key={srv.id}
+                          className={styles.docfavServiceItemRow}
+                          onClick={() => handleSelectDocFavService(srv)}
+                        >
+                          <div className={styles.docfavServiceItemLeft}>
+                            <span
+                              className={styles.docfavServiceItemBar}
+                              style={{ backgroundColor: srv.color || "#0d9488" }}
+                            />
+                            <div>
+                              <div className={styles.docfavServiceItemName}>{srv.name}</div>
+                              <div className={styles.docfavServiceItemDuration}>
+                                {formatDocFavDuration(srv.duration)}
+                              </div>
+                            </div>
+                          </div>
+                          <span className={styles.docfavServiceItemPrice}>
+                            {formatDocFavPrice(srv.price)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Personalizado / Custom service option */}
+            <div
+              className={styles.docfavServiceItemRow}
+              onClick={handleAddCustomService}
+              style={{ borderTop: "1px dashed #e2e8f0", marginTop: "4px", color: "#008298" }}
+            >
+              <div className={styles.docfavServiceItemLeft}>
+                <span style={{ fontSize: "16px", fontWeight: "bold" }}>+</span>
+                <span className={styles.docfavServiceItemName} style={{ color: "#008298" }}>
+                  Servicio personalizado
+                </span>
+              </div>
+              <span className={styles.docfavServiceItemDuration}>10m</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // States and refs for label/tag manager
   const [showTagsDropdown, setShowTagsDropdown] = useState(false);
@@ -1441,6 +1875,8 @@ export default function AgendaPage() {
               const now = new Date();
               setFormDate(now.toISOString().split("T")[0]);
               setFormTime(`${String(now.getHours() + 1).padStart(2, "0")}:00`);
+              setFormAppointmentServices([]);
+              setEditingServiceIndex(null);
               setShowCreateModal(true);
               
               // Clean query parameter from URL
@@ -1829,6 +2265,8 @@ export default function AgendaPage() {
     setNewTagName("");
     setShowServiceDropdown(false);
     setShowFormStatusDropdown(false);
+    setFormAppointmentServices([]);
+    setEditingServiceIndex(null);
 
     setShowOptionModal(true);
   };
@@ -1859,6 +2297,42 @@ export default function AgendaPage() {
     const endH = String(endD.getHours()).padStart(2, "0");
     const endM = String(endD.getMinutes()).padStart(2, "0");
     setFormEndTime(`${endH}:${endM}`);
+
+    // Parse appointment services
+    let loadedServices: FormAppointmentService[] = [];
+    if (app.servicesJson) {
+      try {
+        const parsed = JSON.parse(app.servicesJson);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedServices = parsed.map((s: any) => ({
+            serviceId: s.serviceId || app.serviceId,
+            name: s.name,
+            price: Number(s.price) || 0,
+            originalPrice: Number(s.originalPrice) || Number(s.price) || 0,
+            duration: Number(s.duration) || 30,
+            tax: s.tax || 0,
+            color: s.color || "#0d9488",
+            category: s.category || "Sin categoría",
+            isCustom: s.isCustom || false,
+          }));
+        }
+      } catch (e) {}
+    }
+    if (loadedServices.length === 0 && app.service) {
+      const p = app.customPrice !== null && app.customPrice !== undefined ? Number(app.customPrice) : app.service.price;
+      loadedServices = [{
+        serviceId: app.service.id,
+        name: app.service.name,
+        price: p,
+        originalPrice: app.service.price,
+        duration: app.service.duration,
+        tax: (app.service as any).tax || 0,
+        color: app.service.color || "#0d9488",
+        category: app.service.category || "Sin categoría",
+      }];
+    }
+    setFormAppointmentServices(loadedServices);
+    setEditingServiceIndex(null);
     
     // Reset custom view modal states
     setEditModalTab("datos");
@@ -2458,7 +2932,9 @@ export default function AgendaPage() {
         clientIdToUse = newClient.id;
       }
 
-      if (!clientIdToUse || !formUserId || !formServiceId || !formDate || !formTime || !formClinicId) {
+      const primaryServiceId = formAppointmentServices[0]?.serviceId || formServiceId;
+
+      if (!clientIdToUse || !formUserId || !primaryServiceId || !formDate || !formTime || !formClinicId) {
         toast.warning("Por favor, selecciona o crea un paciente y rellena todos los campos.");
         return null;
       }
@@ -2482,7 +2958,8 @@ export default function AgendaPage() {
       }
 
       const startDateTime = new Date(`${formDate}T${formTime}`);
-      const duration = selectedService ? selectedService.duration : 45;
+      const totalServicesDuration = formAppointmentServices.reduce((sum, s) => sum + (Number(s.duration) || 0), 0);
+      const duration = totalServicesDuration > 0 ? totalServicesDuration : (selectedService ? selectedService.duration : 45);
 
       if (checkIfOutsideShift(formUserId, formDate, formTime, duration)) {
         const confirmSave = window.confirm(
@@ -2503,15 +2980,22 @@ export default function AgendaPage() {
         endDateTime = new Date(startDateTime.getTime() + duration * 60000);
       }
 
+      const customPrice = formAppointmentServices.length > 0
+        ? formAppointmentServices.reduce((acc, s) => acc + (Number(s.price) || 0), 0)
+        : null;
+      const servicesJson = formAppointmentServices.length > 0 ? JSON.stringify(formAppointmentServices) : null;
+
       const payload: any = {
         clientId: clientIdToUse,
         userId: formUserId,
-        serviceId: formServiceId,
+        serviceId: primaryServiceId,
         clinicId: formClinicId,
         start: startDateTime.toISOString(),
         end: endDateTime.toISOString(),
         notes: formNotes,
         status: formStatus || "CONFIRMED",
+        customPrice: customPrice,
+        servicesJson: servicesJson,
         actorName: currentUser ? currentUser.name : "Sistema",
         actorId: currentUser?.id,
       };
@@ -2606,9 +3090,10 @@ export default function AgendaPage() {
       toast.success("No tienes permisos para modificar citas (Sólo lectura).");
       return;
     }
-    if (!selectedAppointment || !formUserId || !formServiceId || !formDate || !formTime || !formEndTime) return;
+    const primaryServiceId = formAppointmentServices[0]?.serviceId || formServiceId;
+    if (!selectedAppointment || !formUserId || !primaryServiceId || !formDate || !formTime || !formEndTime) return;
 
-    const selectedService = servicesList.find((s) => s.id === formServiceId);
+    const selectedService = servicesList.find((s) => s.id === primaryServiceId);
     if (!forceProceed && selectedService?.allowedUserIds) {
       const allowed = selectedService.allowedUserIds.split(",");
       if (!allowed.includes(formUserId)) {
@@ -2642,15 +3127,22 @@ export default function AgendaPage() {
 
     const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
 
+    const customPrice = formAppointmentServices.length > 0
+      ? formAppointmentServices.reduce((acc, s) => acc + (Number(s.price) || 0), 0)
+      : null;
+    const servicesJson = formAppointmentServices.length > 0 ? JSON.stringify(formAppointmentServices) : null;
+
     const payload: any = {
       id: selectedAppointment.id,
       userId: formUserId,
-      serviceId: formServiceId,
+      serviceId: primaryServiceId,
       clinicId: formClinicId,
       start: startDateTime.toISOString(),
       end: endDateTime.toISOString(),
       status: formStatus,
       notes: formNotes,
+      customPrice: customPrice,
+      servicesJson: servicesJson,
       actorName: currentUser ? currentUser.name : "Sistema",
       actorId: currentUser?.id,
     };
@@ -2679,7 +3171,7 @@ export default function AgendaPage() {
       triggerAutoSync();
 
       if (shouldRedirectToCaja) {
-        window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${formServiceId}&appointmentId=${selectedAppointment.id}`;
+        window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${primaryServiceId}&appointmentId=${selectedAppointment.id}`;
       }
     } else {
       const errorData = await res.json().catch(() => ({}));
@@ -2702,7 +3194,7 @@ export default function AgendaPage() {
               triggerAutoSync();
               toast.success("Cita actualizada con sobrecita / solapamiento.");
               if (shouldRedirectToCaja) {
-                window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${formServiceId}&appointmentId=${selectedAppointment.id}`;
+                window.location.href = `/dashboard/sales?clientId=${selectedAppointment.clientId}&serviceId=${primaryServiceId}&appointmentId=${selectedAppointment.id}`;
               }
             } else {
               toast.error("Error al forzar la sobrecita.");
@@ -5067,6 +5559,8 @@ export default function AgendaPage() {
                           setNewTagName("");
                           setShowServiceDropdown(false);
                           setShowFormStatusDropdown(false);
+                          setFormAppointmentServices([]);
+                          setEditingServiceIndex(null);
 
                           setShowCreateModal(true);
                         }}
@@ -5096,11 +5590,14 @@ export default function AgendaPage() {
 
       {/* CREATE APPOINTMENT DRAWER */}
       {showCreateModal && typeof window !== "undefined" && createPortal(
-        <div className={styles.drawerOverlay} onClick={() => setShowCreateModal(false)}>
+        <div className={styles.drawerOverlay} onClick={() => { if (editingServiceIndex === null) setShowCreateModal(false); }}>
           <div className={styles.agendaDrawer} onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleCreateAppointment} style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-              {/* Drawer Header */}
-              <div className={styles.drawerHeader} style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "16px" }}>
+            {editingServiceIndex !== null ? (
+              renderDocfavEditServiceSubView()
+            ) : (
+              <form onSubmit={handleCreateAppointment} style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+                {/* Drawer Header */}
+                <div className={styles.drawerHeader} style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "16px" }}>
                 <div className={styles.drawerHeaderTopRow} style={{ marginBottom: "8px" }}>
                   {/* Interactive Date Picker Button */}
                   <div style={{ position: "relative" }} ref={createCalRef}>
@@ -5325,14 +5822,18 @@ export default function AgendaPage() {
                                 data-selected={isSelected ? "true" : "false"}
                                 onClick={() => {
                                   setFormTime(t);
-                                  const selectedService = servicesList.find((s) => s.id === formServiceId);
-                                  const duration = selectedService ? selectedService.duration : 60;
-                                  const [hours, minutes] = t.split(":").map(Number);
-                                  const startDate = new Date();
-                                  startDate.setHours(hours, minutes, 0);
-                                  const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
-                                  const endStr = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
-                                  setFormEndTime(endStr);
+                                  if (formAppointmentServices.length > 0) {
+                                    updateEndTimeFromServices(formAppointmentServices, t);
+                                  } else {
+                                    const selectedService = servicesList.find((s) => s.id === formServiceId);
+                                    const duration = selectedService ? selectedService.duration : 60;
+                                    const [hours, minutes] = t.split(":").map(Number);
+                                    const startDate = new Date();
+                                    startDate.setHours(hours, minutes, 0);
+                                    const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
+                                    const endStr = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+                                    setFormEndTime(endStr);
+                                  }
                                   setShowCreateStartTimeDropdown(false);
                                 }}
                                 style={{
@@ -5839,88 +6340,10 @@ export default function AgendaPage() {
                   )}
                 </div>
 
-                {/* Servicio Section */}
+                {/* DocFav Multi-Service Selection */}
                 <div className="form-group" style={{ marginBottom: "14px" }}>
                   <label className="form-label" style={{ fontWeight: 700, fontSize: "12px", color: "#475569", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: "4px", display: "block" }}>Servicio</label>
-                  <div className={styles.serviceDropdownContainer}>
-                    {(() => {
-                      const selectedService = servicesList.find(s => s.id === formServiceId);
-                      return (
-                        <button
-                          type="button"
-                          className={styles.serviceDropdownBtn}
-                          style={{ padding: "8px 12px", fontSize: "13px", height: "38px" }}
-                          onClick={() => setShowServiceDropdown(!showServiceDropdown)}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            {selectedService && (
-                              <span
-                                className={styles.colorDot}
-                                style={{ backgroundColor: selectedService.color, width: "10px", height: "10px" }}
-                              />
-                            )}
-                            <span>
-                              {selectedService
-                                ? `${selectedService.name} (${selectedService.duration} min${showPrices ? (currencySymbol === "€" ? ` - ${selectedService.price}€` : ` - ${currencySymbol}${selectedService.price}`) : ""})`
-                                : "Seleccionar servicio"}
-                            </span>
-                          </div>
-                          <span>▾</span>
-                        </button>
-                      );
-                    })()}
-                    {showServiceDropdown && (
-                      <div className={styles.serviceDropdownMenu}>
-                        {filteredServicesForDropdown.map((s) => (
-                          <div
-                            key={s.id}
-                            className={styles.serviceItem}
-                            onClick={() => {
-                              setFormServiceId(s.id);
-                              if (formTime) {
-                                const [h, m] = formTime.split(":").map(Number);
-                                const startDate = new Date();
-                                startDate.setHours(h, m, 0);
-                                const endDate = new Date(startDate.getTime() + s.duration * 60 * 1000);
-                                const endStr = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
-                                setFormEndTime(endStr);
-                              }
-                              setShowServiceDropdown(false);
-                            }}
-                          >
-                            <span
-                              className={styles.colorDot}
-                              style={{ backgroundColor: s.color }}
-                            />
-                            <span>
-                              {s.name} ({s.duration} min{showPrices ? (currencySymbol === "€" ? ` - ${s.price}€` : ` - ${currencySymbol}${s.price}`) : ""})
-                            </span>
-                          </div>
-                        ))}
-                        
-                        {/* Option to create a new service */}
-                        <div
-                          className={styles.serviceItem}
-                          onClick={() => {
-                            window.location.href = "/dashboard/settings?tab=services";
-                          }}
-                          style={{
-                            borderTop: filteredServicesForDropdown.length > 0 ? "1px dashed var(--border-color)" : "none",
-                            color: "var(--primary)",
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            padding: "9px 12px",
-                            cursor: "pointer"
-                          }}
-                        >
-                          <span style={{ fontSize: "15px", fontWeight: "bold" }}>+</span>
-                          <span>Añadir Servicio</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {renderDocfavServicesSection(false)}
                   {matchingVoucher && (
                     <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", borderRadius: "9px", border: "1px solid #7dd3fc" }}>
                       <input
@@ -6046,8 +6469,9 @@ export default function AgendaPage() {
               </div>
 
             </form>
-          </div>
-        </div>,
+          )}
+        </div>
+      </div>,
         document.body
       )}
 
@@ -6520,7 +6944,10 @@ export default function AgendaPage() {
             style={isEditingApp ? { width: "900px", maxWidth: "95vw" } : {}}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+            {isEditingApp && editingServiceIndex !== null ? (
+              renderDocfavEditServiceSubView()
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
                 {/* Header: Title and Tabs */}
                 <div className={styles.drawerHeader} style={isEditingApp ? { borderBottom: "none", paddingBottom: 0, paddingTop: "12px" } : {}}>
                   <div className={styles.drawerHeaderTopRow} style={isEditingApp ? { marginBottom: "8px" } : {}}>
@@ -7402,209 +7829,10 @@ export default function AgendaPage() {
                                 </div>
                               </div>
 
-                              {/* Service dropdown select */}
-                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }} ref={serviceEditDropdownRef}>
+                              {/* DocFav Multi-Service Selection */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                                 <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>Servicio</label>
-                                <div style={{ position: "relative" }}>
-                                  {(() => {
-                                    const currentService = servicesList.find(s => s.id === formServiceId);
-                                    return currentService ? (
-                                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                        <div 
-                                          style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: "8px",
-                                            border: "1px solid var(--border-color)",
-                                            backgroundColor: "var(--bg-panel-solid)",
-                                            padding: "8px 12px",
-                                            borderRadius: "6px",
-                                            fontSize: "13px",
-                                            width: "100%",
-                                            justifyContent: "space-between"
-                                          }}
-                                        >
-                                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                            <span style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: currentService.color || "var(--primary)" }} />
-                                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{currentService.name}</span>
-                                          </div>
-                                          <span 
-                                            style={{ cursor: "pointer", color: "var(--text-secondary)", fontWeight: "bold" }}
-                                            onClick={() => setFormServiceId("")}
-                                          >
-                                            ✕
-                                          </span>
-                                        </div>
-                                        <div 
-                                          style={{
-                                            borderLeft: `4px solid ${currentService.color || "var(--primary)"}`,
-                                            backgroundColor: "var(--bg-input, #f7fafc)",
-                                            padding: "12px",
-                                            borderRadius: "0 6px 6px 0",
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center"
-                                          }}
-                                        >
-                                          <div>
-                                            <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{currentService.name}</div>
-                                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{currentService.duration} min</div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <button 
-                                        type="button" 
-                                        style={{
-                                          width: "100%",
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          background: "var(--bg-input)",
-                                          border: "1px solid var(--border-color)",
-                                          borderRadius: "6px",
-                                          color: "var(--text-muted)",
-                                          fontSize: "13px",
-                                          padding: "8px 12px",
-                                          textAlign: "left",
-                                          cursor: "pointer"
-                                        }}
-                                        onClick={() => setShowServiceEditDropdown(true)}
-                                      >
-                                        <span>Seleccionar servicio...</span>
-                                        <span>▾</span>
-                                      </button>
-                                    );
-                                  })()}
-                                  {showServiceEditDropdown && (
-                                    <div 
-                                      style={{
-                                        position: "absolute",
-                                        top: "100%",
-                                        left: 0,
-                                        right: 0,
-                                        backgroundColor: "var(--bg-panel-solid, #ffffff)",
-                                        border: "1px solid var(--border-color)",
-                                        borderRadius: "8px",
-                                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                                        zIndex: 180,
-                                        maxHeight: "300px",
-                                        overflowY: "auto",
-                                        marginTop: "4px",
-                                        padding: "8px"
-                                      }}
-                                    >
-                                      <input 
-                                        type="text"
-                                        placeholder="🔍 Buscar servicio..."
-                                        value={searchServiceQuery}
-                                        onChange={(e) => setSearchServiceQuery(e.target.value)}
-                                        style={{
-                                          width: "100%",
-                                          padding: "8px 10px",
-                                          fontSize: "13px",
-                                          border: "1px solid var(--border-color)",
-                                          borderRadius: "6px",
-                                          marginBottom: "8px",
-                                          outline: "none",
-                                          backgroundColor: "var(--bg-input)",
-                                          color: "var(--text-primary)"
-                                        }}
-                                      />
-                                      {(() => {
-                                        const categories: Record<string, any> = {};
-                                        servicesList.forEach(s => {
-                                          if (searchServiceQuery && !s.name.toLowerCase().includes(searchServiceQuery.toLowerCase())) {
-                                            return;
-                                          }
-                                          const cat = s.category || "General";
-                                          if (!categories[cat]) categories[cat] = [];
-                                          categories[cat].push(s);
-                                        });
-
-                                        const catKeys = Object.keys(categories);
-                                        if (catKeys.length === 0) {
-                                          return <div style={{ padding: "8px", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>No se encontraron servicios</div>;
-                                        }
-
-                                        return catKeys.map(cat => {
-                                          const isExpanded = expandedCategories[cat] !== false;
-                                          const catServices = categories[cat];
-                                          const catColor = catServices[0]?.color || "var(--primary)";
-
-                                          return (
-                                            <div key={cat} style={{ marginBottom: "8px" }}>
-                                              <div 
-                                                onClick={() => setExpandedCategories(prev => ({ ...prev, [cat]: !isExpanded }))}
-                                                style={{
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  gap: "6px",
-                                                  padding: "6px 4px",
-                                                  cursor: "pointer",
-                                                  fontWeight: 700,
-                                                  fontSize: "12px",
-                                                  color: "var(--text-primary)",
-                                                  borderBottom: "1px solid var(--border-color)",
-                                                  userSelect: "none"
-                                                }}
-                                              >
-                                                <span style={{ fontSize: "10px", transition: "transform 0.2s", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-                                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: catColor }} />
-                                                <span>{cat}</span>
-                                                <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-muted)" }}>{catServices.length}</span>
-                                              </div>
-                                              {isExpanded && (
-                                                <div style={{ paddingLeft: "8px", marginTop: "4px" }}>
-                                                  {catServices.map((s: any) => {
-                                                    const isSelected = formServiceId === s.id;
-                                                    return (
-                                                      <div
-                                                        key={s.id}
-                                                        onClick={() => {
-                                                          setFormServiceId(s.id);
-                                                          const [startH, startM] = formTime.split(":").map(Number);
-                                                          const startMinutesTotal = startH * 60 + startM;
-                                                          const endMinutesTotal = startMinutesTotal + s.duration;
-                                                          const endH = Math.floor(endMinutesTotal / 60) % 24;
-                                                          const endM = endMinutesTotal % 60;
-                                                          setFormEndTime(`${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`);
-                                                          setShowServiceEditDropdown(false);
-                                                        }}
-                                                        style={{
-                                                          display: "flex",
-                                                          justifyContent: "space-between",
-                                                          alignItems: "center",
-                                                          padding: "8px",
-                                                          fontSize: "13px",
-                                                          cursor: "pointer",
-                                                          borderRadius: "4px",
-                                                          borderLeft: `3px solid ${s.color || "var(--primary)"}`,
-                                                          marginBottom: "2px",
-                                                          backgroundColor: isSelected ? "var(--bg-input-hover)" : "transparent",
-                                                          color: "var(--text-primary)"
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bg-input)"}
-                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isSelected ? "var(--bg-input-hover)" : "transparent"}
-                                                      >
-                                                        <span style={{ fontWeight: isSelected ? 700 : 500 }}>{s.name}</span>
-                                                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
-                                                          <span>{formatDuration(s.duration)}</span>
-                                                          <span>•</span>
-                                                          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{formatPrice(s.price)}</span>
-                                                          {isSelected && <span style={{ color: "var(--primary)" }}>✓</span>}
-                                                        </div>
-                                                      </div>
-                                                    );
-                                                  })}
-                                                </div>
-                                              )}
-                                            </div>
-                                          );
-                                        });
-                                      })()}
-                                    </div>
-                                  )}
-                                </div>
+                                {renderDocfavServicesSection(true)}
                               </div>
 
                               {/* Clinic Dropdown */}
@@ -7673,13 +7901,43 @@ export default function AgendaPage() {
                                 )}
                               </div>
 
-                              <div className={styles.detailServiceName}>
-                                {selectedAppointment.service.name}
-                              </div>
-
-                              <div className={styles.detailPrice}>
-                                {showPrices ? (currencySymbol === "€" ? `${selectedAppointment.service.price.toFixed(2).replace(".", ",")} €` : `${currencySymbol}${selectedAppointment.service.price.toFixed(2)}`) : "—"}
-                              </div>
+                              {(() => {
+                                let displayServices: any[] = [];
+                                if (selectedAppointment.servicesJson) {
+                                  try {
+                                    const parsed = JSON.parse(selectedAppointment.servicesJson);
+                                    if (Array.isArray(parsed) && parsed.length > 0) displayServices = parsed;
+                                  } catch (e) {}
+                                }
+                                if (displayServices.length > 0) {
+                                  return (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "8px 0" }}>
+                                      {displayServices.map((s, sIdx) => (
+                                        <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `3px solid ${s.color || '#0d9488'}`, paddingLeft: "8px" }}>
+                                          <div>
+                                            <div style={{ fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>{s.name}</div>
+                                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{formatDocFavDuration(s.duration)}</div>
+                                          </div>
+                                          <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>
+                                            {showPrices ? formatDocFavPrice(s.price) : "—"}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                }
+                                const displayPrice = selectedAppointment.customPrice !== null && selectedAppointment.customPrice !== undefined ? selectedAppointment.customPrice : selectedAppointment.service.price;
+                                return (
+                                  <>
+                                    <div className={styles.detailServiceName}>
+                                      {selectedAppointment.service.name}
+                                    </div>
+                                    <div className={styles.detailPrice}>
+                                      {showPrices ? formatDocFavPrice(displayPrice) : "—"}
+                                    </div>
+                                  </>
+                                );
+                              })()}
 
                               <div style={{ marginTop: "4px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                                 {(() => {
@@ -7693,7 +7951,7 @@ export default function AgendaPage() {
                                   });
 
                                   const totalPaid = matchingSales.reduce((sum, s) => sum + s.total, 0);
-                                  const servicePrice = selectedAppointment.service?.price || 0;
+                                  const servicePrice = selectedAppointment.customPrice !== null && selectedAppointment.customPrice !== undefined ? selectedAppointment.customPrice : (selectedAppointment.service?.price || 0);
 
                                   const getPaymentMethodTextLocal = (method: string) => {
                                     const m = method.toUpperCase();
@@ -8596,6 +8854,7 @@ export default function AgendaPage() {
                   )}
                 </div>
             </div>
+          )}
           </div>
         </div>,
         document.body
@@ -9971,7 +10230,8 @@ export default function AgendaPage() {
                                   onClick={() => {
                                     setActiveWaitlistEntryForAppointment(entry);
                                     setFormClientId(entry.clientId);
-                                    setFormServiceId(entry.serviceId || servicesList[0]?.id || "");
+                                    const wServiceId = entry.serviceId || servicesList[0]?.id || "";
+                                    setFormServiceId(wServiceId);
                                     setFormUserId(entry.userId || staffList[0]?.id || "");
                                     setFormNotes(`Cita asignada desde Lista de Espera.\nPreferencia: ${dayPref} (${timePref}).\nNotas: ${entry.notes || ""}`);
                                     
@@ -9979,6 +10239,26 @@ export default function AgendaPage() {
                                     setFormDate(todayStr);
                                     setFormTime("09:00");
                                     
+                                    const matchSrv = servicesList.find(s => s.id === wServiceId);
+                                    if (matchSrv) {
+                                      const initialSrv: FormAppointmentService = {
+                                        serviceId: matchSrv.id,
+                                        name: matchSrv.name,
+                                        price: matchSrv.price,
+                                        originalPrice: matchSrv.price,
+                                        duration: matchSrv.duration,
+                                        tax: (matchSrv as any).tax || 0,
+                                        color: matchSrv.color || "#0d9488",
+                                        category: matchSrv.category || "Sin categoría",
+                                        isCustom: false,
+                                      };
+                                      setFormAppointmentServices([initialSrv]);
+                                      updateEndTimeFromServices([initialSrv], "09:00");
+                                    } else {
+                                      setFormAppointmentServices([]);
+                                    }
+                                    setEditingServiceIndex(null);
+
                                     setShowWaitlistSidebar(false);
                                     setShowCreateModal(true);
                                   }}

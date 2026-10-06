@@ -196,7 +196,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { clientId, userId, serviceId, clinicId, start, end, notes, status, actorName, actorId, tags } = body;
+    const { clientId, userId, serviceId, clinicId, start, end, notes, status, actorName, actorId, tags, customPrice, servicesJson } = body;
 
     if (!clientId || !userId || !serviceId || !clinicId || !start || !end) {
       return NextResponse.json({ error: "Faltan datos obligatorios para la cita" }, { status: 400 });
@@ -277,6 +277,8 @@ export async function POST(request: Request) {
         notes,
         status: status || "PENDING",
         tags,
+        customPrice: customPrice !== undefined && customPrice !== null ? Number(customPrice) : null,
+        servicesJson: servicesJson !== undefined ? (typeof servicesJson === "string" ? servicesJson : JSON.stringify(servicesJson)) : null,
       },
       include: { client: true, user: true, service: true },
     });
@@ -320,7 +322,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, status, notes, start, end, userId, serviceId, clinicId, actorName, actorId, tags } = body;
+    const { id, status, notes, start, end, userId, serviceId, clinicId, actorName, actorId, tags, customPrice, servicesJson } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Falta ID de cita a actualizar" }, { status: 400 });
@@ -386,6 +388,8 @@ export async function PUT(request: Request) {
     if (serviceId) updateData.serviceId = serviceId;
     if (clinicId) updateData.clinicId = clinicId;
     if (tags !== undefined) updateData.tags = tags;
+    if (customPrice !== undefined) updateData.customPrice = customPrice !== null ? Number(customPrice) : null;
+    if (servicesJson !== undefined) updateData.servicesJson = typeof servicesJson === "string" ? servicesJson : JSON.stringify(servicesJson);
 
     const appointment = await prisma.appointment.update({
       where: { id },
