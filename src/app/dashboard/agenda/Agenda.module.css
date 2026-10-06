@@ -5678,7 +5678,7 @@
 
 .docfavEditFieldsRow {
   display: grid;
-  grid-template-columns: 1fr 1.2fr 1fr;
+  grid-template-columns: 100px 1.6fr 1fr;
   gap: 16px;
   margin-bottom: 30px;
 }
@@ -5718,11 +5718,19 @@
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background-color: #ffffff;
-  padding: 0 32px 0 12px;
+  padding: 0 28px 0 12px;
   font-size: 14px;
   color: #0f172a;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.docfavPriceInput::-webkit-outer-spin-button,
+.docfavPriceInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .docfavPriceInput:focus {

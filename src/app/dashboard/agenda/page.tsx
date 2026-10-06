@@ -1134,10 +1134,15 @@ export default function AgendaPage() {
             <label className={styles.docfavFieldLabel}>Precio</label>
             <div className={styles.docfavPriceInputWrapper}>
               <input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={tempEditPrice}
-                onChange={(e) => setTempEditPrice(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^[0-9]*[.,]?[0-9]*$/.test(val) || val === "") {
+                    setTempEditPrice(val);
+                  }
+                }}
                 className={styles.docfavPriceInput}
                 autoFocus
               />
@@ -1170,7 +1175,8 @@ export default function AgendaPage() {
             onClick={() => {
               if (editingServiceIndex !== null && formAppointmentServices[editingServiceIndex]) {
                 const updated = [...formAppointmentServices];
-                const newPrice = parseFloat(String(tempEditPrice)) || 0;
+                const cleanPriceStr = String(tempEditPrice).replace(",", ".");
+                const newPrice = parseFloat(cleanPriceStr) || 0;
                 updated[editingServiceIndex] = {
                   ...updated[editingServiceIndex],
                   price: newPrice,
