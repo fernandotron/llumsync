@@ -451,12 +451,15 @@ export default function SettingsPage() {
   const [papeleraCitas, setPapeleraCitas] = useState<any[]>([]);
   const [papeleraClientes, setPapeleraClientes] = useState<any[]>([]);
   const [papeleraPresupuestos, setPapeleraPresupuestos] = useState<any[]>([]);
+  const [selectedPapeleraIds, setSelectedPapeleraIds] = useState<string[]>([]);
+  const [bulkPapeleraLoading, setBulkPapeleraLoading] = useState(false);
 
   const [loadingPapelera, setLoadingPapelera] = useState(false);
   const [papeleraLogsAppId, setPapeleraLogsAppId] = useState<string | null>(null);
   const [papeleraLogs, setPapeleraLogs] = useState<any[]>([]);
   const [loadingPapeleraLogs, setLoadingPapeleraLogs] = useState(false);
   const [showPapeleraLogsModal, setShowPapeleraLogsModal] = useState(false);
+
 
   // Excel Import states
   const [importing, setImporting] = useState(false);
@@ -1477,6 +1480,7 @@ export default function SettingsPage() {
   const fetchPapelera = useCallback(() => {
     if (!activeClinic?.id) return;
     setLoadingPapelera(true);
+    setSelectedPapeleraIds([]);
     Promise.all([
       fetch(`/api/papelera/citas?clinicId=${activeClinic.id}`).then(r => r.json()),
       fetch(`/api/papelera/clientes?clinicId=${activeClinic.id}`).then(r => r.json()),
@@ -1491,11 +1495,86 @@ export default function SettingsPage() {
       .finally(() => setLoadingPapelera(false));
   }, [activeClinic?.id]);
 
+  const handleBulkRestorePapelera = async () => {
+    if (selectedPapeleraIds.length === 0) return;
+    setBulkPapeleraLoading(true);
+    try {
+      const actorName = currentUser ? currentUser.name : "Sistema";
+      const actorId = currentUser?.id || "";
+      const res = await fetch(`/api/papelera/${papeleraTab}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "restore",
+          ids: selectedPapeleraIds,
+          userName: actorName,
+          userId: actorId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || `${selectedPapeleraIds.length} elemento(s) restaurado(s) correctamente.`);
+        if (papeleraTab === "citas") {
+          setPapeleraCitas(prev => prev.filter(c => !selectedPapeleraIds.includes(c.id)));
+        } else if (papeleraTab === "clientes") {
+          setPapeleraClientes(prev => prev.filter(c => !selectedPapeleraIds.includes(c.id)));
+        } else {
+          setPapeleraPresupuestos(prev => prev.filter(b => !selectedPapeleraIds.includes(b.id)));
+        }
+        setSelectedPapeleraIds([]);
+      } else {
+        toast.error(data.error || "Error al restaurar elementos");
+      }
+    } catch (err) {
+      console.error("Error in bulk restore:", err);
+      toast.error("Error al restaurar elementos");
+    } finally {
+      setBulkPapeleraLoading(false);
+    }
+  };
+
+  const handleBulkPermanentDeletePapelera = async () => {
+    if (selectedPapeleraIds.length === 0) return;
+    const count = selectedPapeleraIds.length;
+    if (!confirm(`¿Eliminar definitivamente los ${count} elementos seleccionados de la papelera? Esta acción NO se puede deshacer.`)) return;
+    setBulkPapeleraLoading(true);
+    try {
+      const res = await fetch(`/api/papelera/${papeleraTab}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "permanent",
+          ids: selectedPapeleraIds,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.info(data.message || `${count} elemento(s) eliminado(s) permanentemente.`);
+        if (papeleraTab === "citas") {
+          setPapeleraCitas(prev => prev.filter(c => !selectedPapeleraIds.includes(c.id)));
+        } else if (papeleraTab === "clientes") {
+          setPapeleraClientes(prev => prev.filter(c => !selectedPapeleraIds.includes(c.id)));
+        } else {
+          setPapeleraPresupuestos(prev => prev.filter(b => !selectedPapeleraIds.includes(b.id)));
+        }
+        setSelectedPapeleraIds([]);
+      } else {
+        toast.error(data.error || "Error al eliminar permanentemente");
+      }
+    } catch (err) {
+      console.error("Error in bulk permanent delete:", err);
+      toast.error("Error al eliminar permanentemente");
+    } finally {
+      setBulkPapeleraLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "papelera" && activeClinic?.id) {
       fetchPapelera();
     }
   }, [activeTab, activeClinic?.id, fetchPapelera]);
+
 
   const fetchCommProducts = useCallback(async () => {
     if (!activeClinic?.id) return;
@@ -7720,12 +7799,15 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
             </p>
 
             {/* Sub-tabs */}
-            <div style={{ display: "flex", gap: "4px", marginBottom: "24px", borderBottom: "1px solid var(--border-color)", paddingBottom: "0" }}>
+            <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "1px solid var(--border-color)", paddingBottom: "0" }}>
               {(["citas", "clientes", "presupuestos"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setPapeleraTab(t)}
+                  onClick={() => {
+                    setPapeleraTab(t);
+                    setSelectedPapeleraIds([]);
+                  }}
                   style={{
                     padding: "8px 20px", fontSize: "13px", fontWeight: papeleraTab === t ? 600 : 400,
                     color: papeleraTab === t ? "var(--primary)" : "var(--text-secondary)",
@@ -7735,10 +7817,134 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                   }}
                 >
                   {t === "presupuestos" ? "Presupuestos" : t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === "citas" && papeleraCitas.length > 0 && (
+                    <span style={{ marginLeft: 6, fontSize: "11px", padding: "1px 6px", background: "var(--hover-bg, #f1f5f9)", borderRadius: "10px", color: "var(--text-secondary)" }}>{papeleraCitas.length}</span>
+                  )}
+                  {t === "clientes" && papeleraClientes.length > 0 && (
+                    <span style={{ marginLeft: 6, fontSize: "11px", padding: "1px 6px", background: "var(--hover-bg, #f1f5f9)", borderRadius: "10px", color: "var(--text-secondary)" }}>{papeleraClientes.length}</span>
+                  )}
+                  {t === "presupuestos" && papeleraPresupuestos.length > 0 && (
+                    <span style={{ marginLeft: 6, fontSize: "11px", padding: "1px 6px", background: "var(--hover-bg, #f1f5f9)", borderRadius: "10px", color: "var(--text-secondary)" }}>{papeleraPresupuestos.length}</span>
+                  )}
                 </button>
               ))}
             </div>
 
+            {/* Bulk Actions Toolbar */}
+            {selectedPapeleraIds.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                  padding: "12px 18px",
+                  background: "rgba(16, 185, 129, 0.08)",
+                  border: "1px solid rgba(16, 185, 129, 0.25)",
+                  borderRadius: "10px",
+                  marginBottom: "18px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>
+                    ✓ {selectedPapeleraIds.length} {selectedPapeleraIds.length === 1 ? "seleccionado" : "seleccionados"} de {
+                      papeleraTab === "citas" ? papeleraCitas.length :
+                      papeleraTab === "clientes" ? papeleraClientes.length :
+                      papeleraPresupuestos.length
+                    }
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentItems =
+                        papeleraTab === "citas" ? papeleraCitas :
+                        papeleraTab === "clientes" ? papeleraClientes :
+                        papeleraPresupuestos;
+                      if (selectedPapeleraIds.length === currentItems.length) {
+                        setSelectedPapeleraIds([]);
+                      } else {
+                        setSelectedPapeleraIds(currentItems.map(i => i.id));
+                      }
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--primary)",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      padding: 0,
+                    }}
+                  >
+                    {selectedPapeleraIds.length === (papeleraTab === "citas" ? papeleraCitas.length : papeleraTab === "clientes" ? papeleraClientes.length : papeleraPresupuestos.length)
+                      ? "Deseleccionar todos"
+                      : "Seleccionar todos"}
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button
+                    type="button"
+                    disabled={bulkPapeleraLoading}
+                    onClick={handleBulkRestorePapelera}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#fff",
+                      background: "#10b981",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: bulkPapeleraLoading ? "not-allowed" : "pointer",
+                      opacity: bulkPapeleraLoading ? 0.7 : 1,
+                    }}
+                  >
+                    ♻️ {bulkPapeleraLoading ? "Restaurando..." : `Restaurar seleccionados (${selectedPapeleraIds.length})`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={bulkPapeleraLoading}
+                    onClick={handleBulkPermanentDeletePapelera}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#fff",
+                      background: "#ef4444",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: bulkPapeleraLoading ? "not-allowed" : "pointer",
+                      opacity: bulkPapeleraLoading ? 0.7 : 1,
+                    }}
+                  >
+                    🗑️ {bulkPapeleraLoading ? "Eliminando..." : `Eliminar definitivo (${selectedPapeleraIds.length})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPapeleraIds([])}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      color: "var(--text-secondary)",
+                      background: "transparent",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
 
             {loadingPapelera ? (
               <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "32px 0", color: "var(--text-secondary)", fontSize: "14px" }}>
@@ -7756,6 +7962,20 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <thead>
                       <tr style={{ borderBottom: "2px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", fontSize: "11px", letterSpacing: "0.05em" }}>
+                        <th style={{ padding: "10px 12px", width: "40px", textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            style={{ cursor: "pointer", width: 16, height: 16 }}
+                            checked={papeleraCitas.length > 0 && selectedPapeleraIds.length === papeleraCitas.length}
+                            onChange={() => {
+                              if (selectedPapeleraIds.length === papeleraCitas.length) {
+                                setSelectedPapeleraIds([]);
+                              } else {
+                                setSelectedPapeleraIds(papeleraCitas.map(c => c.id));
+                              }
+                            }}
+                          />
+                        </th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Fecha Cita</th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Fecha Eliminación</th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Cliente</th>
@@ -7765,76 +7985,99 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                       </tr>
                     </thead>
                     <tbody>
-                      {papeleraCitas.map((cita: any) => (
-                        <tr key={cita.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                          <td style={{ padding: "12px", color: "var(--text-primary)" }}>
-                            {new Date(cita.start).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                            {" "}
-                            {new Date(cita.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                            {" - "}
-                            {new Date(cita.end).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                          </td>
-                          <td style={{ padding: "12px", color: "#ef4444", fontSize: "12px" }}>
-                            {cita.deletedAt ? new Date(cita.deletedAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"}
-                          </td>
-                          <td style={{ padding: "12px", color: "var(--primary)", fontWeight: 500 }}>
-                            {cita.client?.firstName} {cita.client?.lastName}
-                          </td>
-                          <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
-                            {cita.user?.name} {cita.user?.lastName || ""}
-                          </td>
-                          <td style={{ padding: "12px", color: "var(--text-primary)" }}>
-                            {cita.service?.name || "-"}
-                          </td>
-                          <td style={{ padding: "12px" }}>
-                            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  const actorName = currentUser ? currentUser.name : "Sistema";
-                                  const actorId = currentUser?.id || "";
-                                  await fetch(`/api/appointments/${cita.id}/restore`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ userName: actorName, userId: actorId })
-                                  });
-                                  setPapeleraCitas(prev => prev.filter(c => c.id !== cita.id));
+                      {papeleraCitas.map((cita: any) => {
+                        const isSelected = selectedPapeleraIds.includes(cita.id);
+                        return (
+                          <tr
+                            key={cita.id}
+                            style={{
+                              borderBottom: "1px solid var(--border-color)",
+                              background: isSelected ? "rgba(16, 185, 129, 0.05)" : "transparent",
+                            }}
+                          >
+                            <td style={{ padding: "12px", width: "40px", textAlign: "center" }}>
+                              <input
+                                type="checkbox"
+                                style={{ cursor: "pointer", width: 16, height: 16 }}
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedPapeleraIds(prev =>
+                                    prev.includes(cita.id) ? prev.filter(x => x !== cita.id) : [...prev, cita.id]
+                                  );
                                 }}
-                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
-                              >
-                                ♻️ Restaurar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if (!confirm("¿Eliminar esta cita definitivamente? Esta acción no se puede deshacer.")) return;
-                                  await fetch(`/api/appointments/${cita.id}/permanent`, { method: "DELETE" });
-                                  setPapeleraCitas(prev => prev.filter(c => c.id !== cita.id));
-                                }}
-                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
-                              >
-                                🗑️ Definitivo
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setPapeleraLogsAppId(cita.id);
-                                  setShowPapeleraLogsModal(true);
-                                  setLoadingPapeleraLogs(true);
-                                  setPapeleraLogs([]);
-                                  const res = await fetch(`/api/appointments/${cita.id}/logs`);
-                                  const data = await res.json();
-                                  setPapeleraLogs(Array.isArray(data) ? data : []);
-                                  setLoadingPapeleraLogs(false);
-                                }}
-                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(99,102,241,0.1)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
-                              >
-                                📋 Logs
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                              />
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--text-primary)" }}>
+                              {new Date(cita.start).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                              {" "}
+                              {new Date(cita.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                              {" - "}
+                              {new Date(cita.end).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                            <td style={{ padding: "12px", color: "#ef4444", fontSize: "12px" }}>
+                              {cita.deletedAt ? new Date(cita.deletedAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"}
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--primary)", fontWeight: 500 }}>
+                              {cita.client?.firstName} {cita.client?.lastName}
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
+                              {cita.user?.name} {cita.user?.lastName || ""}
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--text-primary)" }}>
+                              {cita.service?.name || "-"}
+                            </td>
+                            <td style={{ padding: "12px" }}>
+                              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const actorName = currentUser ? currentUser.name : "Sistema";
+                                    const actorId = currentUser?.id || "";
+                                    await fetch(`/api/appointments/${cita.id}/restore`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ userName: actorName, userId: actorId })
+                                    });
+                                    setPapeleraCitas(prev => prev.filter(c => c.id !== cita.id));
+                                    setSelectedPapeleraIds(prev => prev.filter(id => id !== cita.id));
+                                  }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                >
+                                  ♻️ Restaurar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm("¿Eliminar esta cita definitivamente? Esta acción no se puede deshacer.")) return;
+                                    await fetch(`/api/appointments/${cita.id}/permanent`, { method: "DELETE" });
+                                    setPapeleraCitas(prev => prev.filter(c => c.id !== cita.id));
+                                    setSelectedPapeleraIds(prev => prev.filter(id => id !== cita.id));
+                                  }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                >
+                                  🗑️ Definitivo
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setPapeleraLogsAppId(cita.id);
+                                    setShowPapeleraLogsModal(true);
+                                    setLoadingPapeleraLogs(true);
+                                    setPapeleraLogs([]);
+                                    const res = await fetch(`/api/appointments/${cita.id}/logs`);
+                                    const data = await res.json();
+                                    setPapeleraLogs(Array.isArray(data) ? data : []);
+                                    setLoadingPapeleraLogs(false);
+                                  }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(99,102,241,0.1)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                >
+                                  📋 Logs
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -7850,6 +8093,20 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <thead>
                       <tr style={{ borderBottom: "2px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", fontSize: "11px", letterSpacing: "0.05em" }}>
+                        <th style={{ padding: "10px 12px", width: "40px", textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            style={{ cursor: "pointer", width: 16, height: 16 }}
+                            checked={papeleraClientes.length > 0 && selectedPapeleraIds.length === papeleraClientes.length}
+                            onChange={() => {
+                              if (selectedPapeleraIds.length === papeleraClientes.length) {
+                                setSelectedPapeleraIds([]);
+                              } else {
+                                setSelectedPapeleraIds(papeleraClientes.map(c => c.id));
+                              }
+                            }}
+                          />
+                        </th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Nombre</th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Email</th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Teléfono</th>
@@ -7858,43 +8115,66 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                       </tr>
                     </thead>
                     <tbody>
-                      {papeleraClientes.map((cli: any) => (
-                        <tr key={cli.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                          <td style={{ padding: "12px", color: "var(--primary)", fontWeight: 500 }}>
-                            {cli.firstName} {cli.lastName}
-                          </td>
-                          <td style={{ padding: "12px", color: "var(--text-secondary)" }}>{cli.email || "-"}</td>
-                          <td style={{ padding: "12px", color: "var(--text-secondary)" }}>{cli.phone || "-"}</td>
-                          <td style={{ padding: "12px", color: "#ef4444", fontSize: "12px" }}>
-                            {cli.deletedAt ? new Date(cli.deletedAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"}
-                          </td>
-                          <td style={{ padding: "12px" }}>
-                            <div style={{ display: "flex", gap: "6px" }}>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  await fetch(`/api/clients/${cli.id}/restore`, { method: "POST" });
-                                  setPapeleraClientes(prev => prev.filter(c => c.id !== cli.id));
+                      {papeleraClientes.map((cli: any) => {
+                        const isSelected = selectedPapeleraIds.includes(cli.id);
+                        return (
+                          <tr
+                            key={cli.id}
+                            style={{
+                              borderBottom: "1px solid var(--border-color)",
+                              background: isSelected ? "rgba(16, 185, 129, 0.05)" : "transparent",
+                            }}
+                          >
+                            <td style={{ padding: "12px", width: "40px", textAlign: "center" }}>
+                              <input
+                                type="checkbox"
+                                style={{ cursor: "pointer", width: 16, height: 16 }}
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedPapeleraIds(prev =>
+                                    prev.includes(cli.id) ? prev.filter(x => x !== cli.id) : [...prev, cli.id]
+                                  );
                                 }}
-                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
-                              >
-                                ♻️ Restaurar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if (!confirm("¿Eliminar este cliente definitivamente? Se borrarán todos sus datos.")) return;
-                                  await fetch(`/api/clients/${cli.id}/permanent`, { method: "DELETE" });
-                                  setPapeleraClientes(prev => prev.filter(c => c.id !== cli.id));
-                                }}
-                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
-                              >
-                                🗑️ Definitivo
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                              />
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--primary)", fontWeight: 500 }}>
+                              {cli.firstName} {cli.lastName}
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--text-secondary)" }}>{cli.email || "-"}</td>
+                            <td style={{ padding: "12px", color: "var(--text-secondary)" }}>{cli.phone || "-"}</td>
+                            <td style={{ padding: "12px", color: "#ef4444", fontSize: "12px" }}>
+                              {cli.deletedAt ? new Date(cli.deletedAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"}
+                            </td>
+                            <td style={{ padding: "12px" }}>
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await fetch(`/api/clients/${cli.id}/restore`, { method: "POST" });
+                                    setPapeleraClientes(prev => prev.filter(c => c.id !== cli.id));
+                                    setSelectedPapeleraIds(prev => prev.filter(id => id !== cli.id));
+                                  }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                >
+                                  ♻️ Restaurar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm("¿Eliminar este cliente definitivamente? Se borrarán todos sus datos.")) return;
+                                    await fetch(`/api/clients/${cli.id}/permanent`, { method: "DELETE" });
+                                    setPapeleraClientes(prev => prev.filter(c => c.id !== cli.id));
+                                    setSelectedPapeleraIds(prev => prev.filter(id => id !== cli.id));
+                                  }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                >
+                                  🗑️ Definitivo
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -7910,6 +8190,20 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <thead>
                       <tr style={{ borderBottom: "2px solid var(--border-color)", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", fontSize: "11px", letterSpacing: "0.05em" }}>
+                        <th style={{ padding: "10px 12px", width: "40px", textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            style={{ cursor: "pointer", width: 16, height: 16 }}
+                            checked={papeleraPresupuestos.length > 0 && selectedPapeleraIds.length === papeleraPresupuestos.length}
+                            onChange={() => {
+                              if (selectedPapeleraIds.length === papeleraPresupuestos.length) {
+                                setSelectedPapeleraIds([]);
+                              } else {
+                                setSelectedPapeleraIds(papeleraPresupuestos.map(b => b.id));
+                              }
+                            }}
+                          />
+                        </th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Nº Presupuesto</th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Concepto</th>
                         <th style={{ padding: "10px 12px", textAlign: "left" }}>Total</th>
@@ -7918,45 +8212,68 @@ El paciente puede ejercer sus derechos de acceso, rectificación y supresión di
                       </tr>
                     </thead>
                     <tbody>
-                      {papeleraPresupuestos.map((b: any) => (
-                        <tr key={b.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                          <td style={{ padding: "12px", fontWeight: "bold" }}>
-                            PRE-{b.budgetNumber}
-                          </td>
-                          <td style={{ padding: "12px", color: "var(--text-secondary)" }}>{b.title}</td>
-                          <td style={{ padding: "12px", color: "var(--text-primary)", fontWeight: 600 }}>{b.total.toFixed(2)}€</td>
-                          <td style={{ padding: "12px", color: "#ef4444", fontSize: "12px" }}>
-                            {b.deletedAt ? new Date(b.deletedAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"}
-                          </td>
-                          <td style={{ padding: "12px" }}>
-                            <div style={{ display: "flex", gap: "6px" }}>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  await fetch(`/api/budgets/${b.id}/restore`, { method: "POST" });
-                                  setPapeleraPresupuestos(prev => prev.filter(x => x.id !== b.id));
-                                  toast.success("Presupuesto restaurado con éxito.");
+                      {papeleraPresupuestos.map((b: any) => {
+                        const isSelected = selectedPapeleraIds.includes(b.id);
+                        return (
+                          <tr
+                            key={b.id}
+                            style={{
+                              borderBottom: "1px solid var(--border-color)",
+                              background: isSelected ? "rgba(16, 185, 129, 0.05)" : "transparent",
+                            }}
+                          >
+                            <td style={{ padding: "12px", width: "40px", textAlign: "center" }}>
+                              <input
+                                type="checkbox"
+                                style={{ cursor: "pointer", width: 16, height: 16 }}
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedPapeleraIds(prev =>
+                                    prev.includes(b.id) ? prev.filter(x => x !== b.id) : [...prev, b.id]
+                                  );
                                 }}
-                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
-                              >
-                                ♻️ Restaurar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if (!confirm("¿Eliminar este presupuesto definitivamente? Esta acción no se puede deshacer.")) return;
-                                  await fetch(`/api/budgets/${b.id}/permanent`, { method: "DELETE" });
-                                  setPapeleraPresupuestos(prev => prev.filter(x => x.id !== b.id));
-                                  toast.info("Presupuesto eliminado permanentemente.");
-                                }}
-                                style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
-                              >
-                                🗑️ Definitivo
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                              />
+                            </td>
+                            <td style={{ padding: "12px", fontWeight: "bold" }}>
+                              PRE-{b.budgetNumber}
+                            </td>
+                            <td style={{ padding: "12px", color: "var(--text-secondary)" }}>{b.title}</td>
+                            <td style={{ padding: "12px", color: "var(--text-primary)", fontWeight: 600 }}>{b.total.toFixed(2)}€</td>
+                            <td style={{ padding: "12px", color: "#ef4444", fontSize: "12px" }}>
+                              {b.deletedAt ? new Date(b.deletedAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"}
+                            </td>
+                            <td style={{ padding: "12px" }}>
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await fetch(`/api/budgets/${b.id}/restore`, { method: "POST" });
+                                    setPapeleraPresupuestos(prev => prev.filter(x => x.id !== b.id));
+                                    setSelectedPapeleraIds(prev => prev.filter(id => id !== b.id));
+                                    toast.success("Presupuesto restaurado con éxito.");
+                                  }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                >
+                                  ♻️ Restaurar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm("¿Eliminar este presupuesto definitivamente? Esta acción no se puede deshacer.")) return;
+                                    await fetch(`/api/budgets/${b.id}/permanent`, { method: "DELETE" });
+                                    setPapeleraPresupuestos(prev => prev.filter(x => x.id !== b.id));
+                                    setSelectedPapeleraIds(prev => prev.filter(id => id !== b.id));
+                                    toast.info("Presupuesto eliminado permanentemente.");
+                                  }}
+                                  style={{ padding: "4px 10px", fontSize: "12px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", cursor: "pointer", fontWeight: 500 }}
+                                >
+                                  🗑️ Definitivo
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

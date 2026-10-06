@@ -201,6 +201,7 @@ export async function POST(request: Request) {
     const existingPhones = new Map<string, string>(); // cleanPhone -> client.id
     const existingEmails = new Map<string, string>(); // cleanEmail -> client.id
     const existingClientNames = new Map<string, string>(); // client.id -> cleanFullName
+    const existingNamesSet = new Set<string>(); // cleanFullName -> exists
 
     for (const c of existingClients) {
       if (c.dniNif) {
@@ -222,7 +223,11 @@ export async function POST(request: Request) {
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]/g, "");
       existingClientNames.set(c.id, normName);
+      if (normName && normName.length >= 3 && normName !== "paciente") {
+        existingNamesSet.add(normName);
+      }
     }
+
 
     let createdCount = 0;
     let skippedCount = 0;
@@ -340,17 +345,18 @@ export async function POST(request: Request) {
         }
       }
 
+      const incomingName = `${firstName} ${lastName}`
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "");
+
       // Secondary check: If no DNI, match by Phone + Name or Email + Name
       if (!isDuplicate && cleanPhone && cleanPhone.length >= 7) {
         const existingId = existingPhones.get(cleanPhone);
         if (existingId) {
           const existingName = existingClientNames.get(existingId);
-          const incomingName = `${firstName} ${lastName}`
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]/g, "");
-          if (existingName && incomingName && (existingName.includes(incomingName) || incomingName.includes(existingName))) {
+          if (existingName && incomingName && (existingName === incomingName || existingName.includes(incomingName) || incomingName.includes(existingName))) {
             isDuplicate = true;
           }
         }
@@ -360,16 +366,26 @@ export async function POST(request: Request) {
         const existingId = existingEmails.get(cleanEmail);
         if (existingId) {
           const existingName = existingClientNames.get(existingId);
-          const incomingName = `${firstName} ${lastName}`
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]/g, "");
-          if (existingName && incomingName && (existingName.includes(incomingName) || incomingName.includes(existingName))) {
+          if (existingName && incomingName && (existingName === incomingName || existingName.includes(incomingName) || incomingName.includes(existingName))) {
             isDuplicate = true;
           }
         }
       }
+
+      // Tertiary check: Match by full name if both firstName and lastName are valid and non-empty (even without phone or DNI)
+      if (!isDuplicate && firstName && lastName && lastName !== "-" && incomingName.length >= 4) {
+        if (existingNamesSet.has(incomingName)) {
+          isDuplicate = true;
+        }
+      }
+
+      // Also match if firstName alone (when lastName is "-") matches an existing record with identical single name without contact info
+      if (!isDuplicate && firstName && lastName === "-" && !cleanPhone && !cleanDni && !cleanEmail && incomingName.length >= 4) {
+        if (existingNamesSet.has(incomingName)) {
+          isDuplicate = true;
+        }
+      }
+
 
       // If patient already exists, skip to prevent duplicates
       if (isDuplicate) {
@@ -466,6 +482,11 @@ export async function POST(request: Request) {
         if (cleanDni) existingDnis.set(cleanDni, createdClient.id);
         if (cleanPhone && cleanPhone.length >= 7) existingPhones.set(cleanPhone, createdClient.id);
         if (cleanEmail && cleanEmail.includes("@")) existingEmails.set(cleanEmail, createdClient.id);
+        if (incomingName) {
+          existingClientNames.set(createdClient.id, incomingName);
+          existingNamesSet.add(incomingName);
+        }
+
       } catch (rowErr) {
         console.error(`Error creating client on row ${idx + 1}:`, rowErr);
         errorCount++;
