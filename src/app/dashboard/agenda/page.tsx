@@ -3902,7 +3902,7 @@ export default function AgendaPage() {
     return (
       <div className={styles.dayGridContainer} data-zoom={zoomLevel} style={{ "--hour-row-height": `${60 * zoomScale}px` } as React.CSSProperties}>
         {/* Hour column on left */}
-        <div className={styles.timeColumn} style={{ position: "relative" }}>
+        <div className={styles.timeColumn}>
           <div className={styles.columnHeaderSpace}>Hora</div>
           {hours.map((hour) => (
             <div key={hour} className={styles.hourCell}>
@@ -4417,7 +4417,7 @@ export default function AgendaPage() {
     return (
       <div className={styles.weekGridContainer} data-zoom={zoomLevel} style={{ "--hour-row-height": `${60 * zoomScale}px` } as React.CSSProperties}>
         {/* Left Hour Column */}
-        <div className={styles.timeColumn} style={{ position: "relative" }}>
+        <div className={styles.timeColumn}>
           <div className={styles.columnHeaderSpace}>Hora</div>
           <div className={styles.weekStaffSubheaderSpace} />
           {hours.map((hour) => (
