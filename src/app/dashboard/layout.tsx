@@ -58,11 +58,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main
         className={styles.mainContent}
         style={{
-          marginLeft: sidebarCollapsed ? "78px" : "260px",
-          padding: "32px",
+          marginLeft: sidebarCollapsed ? "68px" : "260px",
+          padding: "16px 20px 32px 20px",
+          width: sidebarCollapsed ? "calc(100% - 68px)" : "calc(100% - 260px)",
+          maxWidth: sidebarCollapsed ? "calc(100% - 68px)" : "calc(100% - 260px)",
+          boxSizing: "border-box",
         }}
       >
-        <div className="fade-in">{children}</div>
+        <div className="fade-in" style={{ width: "100%", maxWidth: "100%" }}>{children}</div>
       </main>
       <Chatbot />
     </div>

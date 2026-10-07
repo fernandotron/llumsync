@@ -7616,8 +7616,8 @@ export default function SalesPage() {
 
             {/* Header Right Actions */}
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", padding: "5px 10px", borderRadius: "8px", fontSize: "11.5px", fontWeight: 600, color: "var(--text-primary)", boxShadow: "0 1px 4px rgba(0,0,0,0.02)" }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", padding: "0 12px", height: "32px", borderRadius: "8px", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", boxShadow: "0 1px 4px rgba(0,0,0,0.02)", boxSizing: "border-box" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 <span>{new Date().toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" })}</span>
               </div>
             </div>
@@ -7641,7 +7641,7 @@ export default function SalesPage() {
             const pendientesCount = artList.filter(i => i.estado === "PENDIENTE").length;
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginBottom: "14px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px", marginBottom: "14px", width: "100%", boxSizing: "border-box" }}>
                 {/* Ingresos Totales */}
                 <div
                   style={{
@@ -7656,11 +7656,11 @@ export default function SalesPage() {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(14,165,233,0.25)" }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(14,165,233,0.25)" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ingresos Totales</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ingresos Totales</div>
                     <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {formatPrice(totalVolumen)}
                     </div>
@@ -7684,11 +7684,11 @@ export default function SalesPage() {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(16,185,129,0.25)" }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(16,185,129,0.25)" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Cobrado</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Cobrado</div>
                     <div style={{ fontSize: "16px", fontWeight: 800, color: "#059669", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {formatPrice(totalPagado)}
                     </div>
@@ -7712,11 +7712,11 @@ export default function SalesPage() {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(245,158,11,0.25)" }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(245,158,11,0.25)" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Pendiente</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Pendiente</div>
                     <div style={{ fontSize: "16px", fontWeight: 800, color: totalPendiente > 0 ? "#d97706" : "var(--text-primary)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {formatPrice(totalPendiente)}
                     </div>
@@ -7740,12 +7740,12 @@ export default function SalesPage() {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(139,92,246,0.25)" }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(139,92,246,0.25)" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Método + Usado</div>
-                    <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Método + Usado</div>
+                    <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {topMethod}
                     </div>
                     <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 500 }}>
@@ -7792,7 +7792,7 @@ export default function SalesPage() {
       </div>
 
       {/* MAIN SALES DASHBOARD VIEWPORT */}
-      <div className="glass" style={{ padding: "14px 16px", borderRadius: "10px" }}>
+      <div className="glass" style={{ padding: "14px 16px", borderRadius: "10px", width: "100%", boxSizing: "border-box" }}>
         {/* SUB-TABS (Facturas only) */}
         {activeTab === "facturas" && (
           <div className={styles.subTabsHeader}>
@@ -8656,7 +8656,7 @@ export default function SalesPage() {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", fontSize: "13px", borderRadius: "8px", borderColor: "var(--border-color)", background: "#ffffff", color: "var(--text-primary)" }}
+                  style={{ display: "flex", alignItems: "center", gap: "6px", height: "32px", padding: "0 12px", fontSize: "12px", fontWeight: 600, borderRadius: "8px", borderColor: "var(--border-color)", background: "#ffffff", color: "var(--text-primary)" }}
                   onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
                 >
                   <span>Opciones</span>
@@ -9228,9 +9228,10 @@ export default function SalesPage() {
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "6px",
-                      padding: "8px 14px",
-                      fontSize: "13px",
-                      fontWeight: 500,
+                      height: "32px",
+                      padding: "0 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
                       borderRadius: "8px",
                       border: "1px solid var(--border-color)",
                       background: "#ffffff",
@@ -9965,7 +9966,7 @@ export default function SalesPage() {
                                       }
                                     }
                                   }}
-                                  style={{ padding: "3px 8px", fontSize: "11px", background: "var(--bg-input)", border: "1px solid var(--border-color)", borderRadius: "4px", cursor: "pointer" }}
+                                  style={{ height: "28px", padding: "0 10px", fontSize: "11.5px", fontWeight: 600, background: "var(--bg-input)", border: "1px solid var(--border-color)", borderRadius: "6px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                                 >
                                   🔄 Estado
                                 </button>
@@ -10035,7 +10036,7 @@ export default function SalesPage() {
                                     `);
                                     printWindow.document.close();
                                   }}
-                                  style={{ padding: "3px 8px", fontSize: "11px", background: "rgba(99,102,241,0.12)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "4px", cursor: "pointer" }}
+                                  style={{ height: "28px", padding: "0 10px", fontSize: "11.5px", fontWeight: 600, background: "rgba(99,102,241,0.12)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "6px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "4px" }}
                                 >
                                   🖨️ PDF
                                 </button>
