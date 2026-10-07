@@ -87,4 +87,25 @@ Para optimizar el mantenimiento, escalabilidad y precisión en cada módulo clí
   - Legibilidad clínica móvil: formato enriquecido de tarjetas de cita (paciente, servicio, horario) legible sin requerir eventos *hover* de ratón.
   - Cumplimiento de áreas seguras (*safe-area-insets*) en iOS y Android.
 
+### 10. `mobile_agenda_agent`
+* **Rol:** Especialista en Agenda y Calendario Móvil.
+* **Ámbito:** `src/app/dashboard/agenda/Agenda.module.css`, vista diaria y semanal móvil.
+* **Responsabilidades:** Columna de horas pegada a la izquierda compacta (46px), tarjetas de citas con horario visible sin solapamiento bajo columnas fijas y vista diaria 100% full-width.
+
+### 11. `mobile_contacts_agent`
+* **Rol:** Especialista en Contactos y Formularios Móviles de Pacientes.
+* **Ámbito:** `src/app/dashboard/contacts/Contacts.module.css`, `ClientDetail.module.css`.
+* **Responsabilidades:** Modales y cajones "Editar cliente" y "Otros datos" apilados a 1 columna (sin inputs aplastados de teléfono/email), toolbar táctil y scroll de tabla seguro.
+
+### 12. `mobile_cash_agent`
+* **Rol:** Especialista en TPV, Caja y Arqueo Móvil.
+* **Ámbito:** `src/components/CashRegisterView.module.css`, `DailyRegisterView.module.css`.
+* **Responsabilidades:** Cuadrícula de métricas en 2 columnas, modales de apertura/cierre de caja con cuadrícula de billetes táctil y Libro Diario de consultas optimizado para móviles.
+
+### 13. `mobile_inventory_agent`
+* **Rol:** Especialista en Almacén, Lotes y Stock Móvil.
+* **Ámbito:** `src/app/dashboard/almacen/Almacen.module.css`, catálogo y trazabilidad.
+* **Responsabilidades:** Barra de pestañas (Catálogo, Lotes, Movimientos) con scroll táctil sin cortes, métricas KPI en 2 columnas y modales de producto/lotes adaptados a pantallas táctiles.
+
+
 

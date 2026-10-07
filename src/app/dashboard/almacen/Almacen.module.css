@@ -1041,25 +1041,73 @@
    MOBILE VIEWPORT OPTIMIZATIONS (width < 768px)
    ========================================== */
 @media (max-width: 768px) {
+  .headerArea {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
   .headerToolbar {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 14px !important;
   }
 
+  /* Horizontal touch-scroll tab bar for Catálogo, Lotes, Movimientos */
+  .tabControls {
+    display: flex !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    width: 100% !important;
+    gap: 6px !important;
+    padding: 4px !important;
+    box-sizing: border-box !important;
+  }
+
+  .tabControls::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .tabButton {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+  }
+
   .headerActions {
     flex-wrap: wrap !important;
     width: 100% !important;
+    gap: 8px !important;
   }
 
   .headerActions button {
     flex: 1 1 calc(50% - 6px) !important;
     justify-content: center !important;
+    min-height: 42px !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
   }
 
+  /* Balanced 2-column KPI grid on all phone screens */
   .kpiGrid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px !important;
+  }
+
+  .kpiCard {
+    padding: 14px 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .kpiValue {
+    font-size: 19px !important;
+  }
+
+  .kpiTitle {
+    font-size: 10.5px !important;
   }
 
   .filterBar {
@@ -1074,11 +1122,18 @@
     flex-wrap: nowrap !important;
     padding-bottom: 4px !important;
     -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    width: 100% !important;
+  }
+
+  .categoryTabs::-webkit-scrollbar {
+    display: none !important;
   }
 
   .tableWrapper {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
   }
 
   .tableWrapper table {
@@ -1086,20 +1141,42 @@
     width: 100% !important;
   }
 
+  .modalOverlay {
+    position: fixed !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    background: rgba(15, 23, 42, 0.55) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 99999 !important;
+  }
+
+  .modalContent,
+  .modalContentWide {
+    width: 100% !important;
+    max-width: 100vw !important;
+    border-radius: 20px 20px 0 0 !important;
+    border-top: 1px solid var(--border-color) !important;
+    max-height: 92vh !important;
+    padding: 20px 16px !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.25) !important;
+    animation: slideUpAlmacen 0.25s ease !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  @keyframes slideUpAlmacen {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
   .formRow {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
-
-  .modalContentWide {
-    max-width: 100% !important;
-  }
 }
 
-@media (max-width: 480px) {
-  .kpiGrid {
-    grid-template-columns: 1fr !important;
-  }
-}
 
 
