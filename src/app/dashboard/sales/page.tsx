@@ -174,6 +174,38 @@ const IconShield = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+const IconSparkles = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+    <path d="M5 3v4M3 5h4M19 17v4M17 19h4"/>
+  </svg>
+);
+
+const IconTax = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="5" x2="5" y2="19"/>
+    <circle cx="6.5" cy="6.5" r="2.5"/>
+    <circle cx="17.5" cy="17.5" r="2.5"/>
+  </svg>
+);
+
+const IconClock = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+
+const IconFileInvoice = ({ size = 16 }: { size?: number }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10 9 9 9 8 9"/>
+  </svg>
+);
+
 interface ArticleItem {
   id: string;
   checkoutGroupId?: string;
@@ -9366,26 +9398,23 @@ export default function SalesPage() {
                 {activeSubTab === "recibidas" && (
                   <button
                     type="button"
+                    className="btn btn-primary"
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: "6px",
+                      gap: "7px",
                       height: "32px",
                       padding: "0 14px",
                       fontSize: "12px",
-                      fontWeight: 700,
+                      fontWeight: 600,
                       borderRadius: "8px",
-                      backgroundColor: "#0ea5e9",
-                      color: "#ffffff",
-                      border: "none",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
-                      boxShadow: "0 2px 6px rgba(14, 165, 233, 0.3)",
                     }}
                     onClick={() => setShowUploadInvoiceModal(true)}
-                    title="Subir PDF o imagen de factura con escaneo automático por IA"
+                    title="Subir PDF o foto de factura con escaneo y extracción automática con Inteligencia Artificial"
                   >
-                    <span style={{ fontSize: "14px" }}>✨</span>
+                    <IconSparkles size={15} />
                     <span>Subir Factura (IA)</span>
                   </button>
                 )}
@@ -9456,13 +9485,19 @@ export default function SalesPage() {
                         <span className={styles.metricCardTitle}>
                           {activeSubTab === "recibidas" ? "Total Facturas Recibidas" : "Total Facturado"}
                         </span>
-                        <div className={styles.metricCardIcon} style={{ background: "rgba(14, 165, 233, 0.1)", color: "#0ea5e9" }}>
+                        <div
+                          className={styles.metricCardIcon}
+                          style={{
+                            background: activeSubTab === "recibidas" ? "rgba(15, 118, 110, 0.12)" : "rgba(14, 165, 233, 0.1)",
+                            color: activeSubTab === "recibidas" ? "var(--primary, #0f766e)" : "#0ea5e9",
+                          }}
+                        >
                           <IconEuro size={16} />
                         </div>
                       </div>
                       <div className={styles.metricCardValue}>{formatPrice(fStats.total)}</div>
                       <div className={styles.metricCardSub}>
-                        {activeSubTab === "recibidas" ? `${fStats.count} facturas recibidas` : `${fStats.count} facturas emitidas`}
+                        {activeSubTab === "recibidas" ? `${fStats.count} facturas registradas` : `${fStats.count} facturas emitidas`}
                       </div>
                     </div>
 
@@ -9471,8 +9506,14 @@ export default function SalesPage() {
                         <span className={styles.metricCardTitle}>
                           {activeSubTab === "recibidas" ? "Base Deducible" : "Cobrado en Efectivo"}
                         </span>
-                        <div className={styles.metricCardIcon} style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
-                          <IconBanknote size={16} />
+                        <div
+                          className={styles.metricCardIcon}
+                          style={{
+                            background: activeSubTab === "recibidas" ? "rgba(2, 132, 199, 0.12)" : "rgba(16, 185, 129, 0.1)",
+                            color: activeSubTab === "recibidas" ? "#0284c7" : "#10b981",
+                          }}
+                        >
+                          {activeSubTab === "recibidas" ? <IconFileInvoice size={16} /> : <IconBanknote size={16} />}
                         </div>
                       </div>
                       <div className={styles.metricCardValue}>
@@ -9488,8 +9529,14 @@ export default function SalesPage() {
                         <span className={styles.metricCardTitle}>
                           {activeSubTab === "recibidas" ? "IVA Soportado" : "Cobrado en Tarjeta"}
                         </span>
-                        <div className={styles.metricCardIcon} style={{ background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
-                          <IconCreditCard size={16} />
+                        <div
+                          className={styles.metricCardIcon}
+                          style={{
+                            background: "rgba(99, 102, 241, 0.12)",
+                            color: "#6366f1",
+                          }}
+                        >
+                          {activeSubTab === "recibidas" ? <IconTax size={16} /> : <IconCreditCard size={16} />}
                         </div>
                       </div>
                       <div className={styles.metricCardValue}>
@@ -9505,15 +9552,21 @@ export default function SalesPage() {
                         <span className={styles.metricCardTitle}>
                           {activeSubTab === "recibidas" ? "Retenciones IRPF" : "Transferencias / Bizum"}
                         </span>
-                        <div className={styles.metricCardIcon} style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
-                          <IconBizum size={16} />
+                        <div
+                          className={styles.metricCardIcon}
+                          style={{
+                            background: activeSubTab === "recibidas" ? "rgba(239, 68, 68, 0.12)" : "rgba(245, 158, 11, 0.1)",
+                            color: activeSubTab === "recibidas" ? "#dc2626" : "#f59e0b",
+                          }}
+                        >
+                          {activeSubTab === "recibidas" ? <IconShield size={16} /> : <IconBizum size={16} />}
                         </div>
                       </div>
                       <div className={styles.metricCardValue}>
                         {activeSubTab === "recibidas" ? formatPrice(fStats.retencion) : formatPrice(fStats.transferBizum)}
                       </div>
                       <div className={styles.metricCardSub}>
-                        {activeSubTab === "recibidas" ? "Retenido Mod. 111 / 115" : "Cuenta corriente / Bizum"}
+                        {activeSubTab === "recibidas" ? "A declarar Mod. 111 / 115" : "Cuenta corriente / Bizum"}
                       </div>
                     </div>
 
@@ -9522,15 +9575,21 @@ export default function SalesPage() {
                         <span className={styles.metricCardTitle}>
                           {activeSubTab === "recibidas" ? "Pendiente de Pago" : "Ticket Medio"}
                         </span>
-                        <div className={styles.metricCardIcon} style={{ background: "rgba(139, 92, 246, 0.1)", color: "#8b5cf6" }}>
-                          <IconReceipt size={16} />
+                        <div
+                          className={styles.metricCardIcon}
+                          style={{
+                            background: activeSubTab === "recibidas" ? "rgba(245, 158, 11, 0.12)" : "rgba(139, 92, 246, 0.1)",
+                            color: activeSubTab === "recibidas" ? "#d97706" : "#8b5cf6",
+                          }}
+                        >
+                          {activeSubTab === "recibidas" ? <IconClock size={16} /> : <IconReceipt size={16} />}
                         </div>
                       </div>
                       <div className={styles.metricCardValue}>
                         {activeSubTab === "recibidas" ? formatPrice(fStats.pendingSum) : formatPrice(fStats.ticketMedio)}
                       </div>
                       <div className={styles.metricCardSub}>
-                        {activeSubTab === "recibidas" ? `${fStats.pendingCount} pendientes` : "Promedio por factura"}
+                        {activeSubTab === "recibidas" ? `${fStats.pendingCount} facturas pendientes` : "Promedio por factura"}
                       </div>
                     </div>
                   </div>

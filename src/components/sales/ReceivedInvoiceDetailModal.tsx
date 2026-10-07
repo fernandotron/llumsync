@@ -128,8 +128,8 @@ export const ReceivedInvoiceDetailModal: React.FC<ReceivedInvoiceDetailModalProp
                 width: "40px",
                 height: "40px",
                 borderRadius: "10px",
-                backgroundColor: "rgba(14, 165, 233, 0.12)",
-                color: "#0284c7",
+                backgroundColor: "rgba(15, 118, 110, 0.1)",
+                color: "var(--primary, #0f766e)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -162,18 +162,32 @@ export const ReceivedInvoiceDetailModal: React.FC<ReceivedInvoiceDetailModalProp
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             style={{
-              background: "none",
-              border: "none",
-              fontSize: "22px",
+              width: "30px",
+              height: "30px",
+              borderRadius: "50%",
+              border: "1px solid #e2e8f0",
+              background: "transparent",
               cursor: "pointer",
-              color: "#94a3b8",
-              padding: "4px",
-              lineHeight: 1,
+              color: "#64748b",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.15s ease",
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#f1f5f9";
+              e.currentTarget.style.color = "#0f172a";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "#64748b";
+            }}
+            title="Cerrar"
           >
-            ✕
+            <Icons.Plus size={16} style={{ transform: "rotate(45deg)" }} />
           </button>
         </div>
 
@@ -203,13 +217,13 @@ export const ReceivedInvoiceDetailModal: React.FC<ReceivedInvoiceDetailModalProp
                   <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>
                     DOCUMENTO ORIGINAL
                   </span>
-                  <a
+                    <a
                     href={fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
                       fontSize: "12px",
-                      color: "#0284c7",
+                      color: "var(--primary, #0f766e)",
                       textDecoration: "none",
                       fontWeight: 600,
                       display: "inline-flex",
@@ -293,7 +307,7 @@ export const ReceivedInvoiceDetailModal: React.FC<ReceivedInvoiceDetailModalProp
                     <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", fontWeight: 600 }}>
                       Categoría
                     </span>
-                    <div style={{ fontSize: "13px", color: "#0284c7", fontWeight: 600, marginTop: "2px" }}>
+                    <div style={{ fontSize: "13px", color: "var(--primary, #0f766e)", fontWeight: 600, marginTop: "2px" }}>
                       {invoice.category.replace(/_/g, " ")}
                     </div>
                   </div>
@@ -353,7 +367,7 @@ export const ReceivedInvoiceDetailModal: React.FC<ReceivedInvoiceDetailModalProp
                   }}
                 >
                   <span>Total Factura:</span>
-                  <span style={{ color: "#0ea5e9" }}>{tot.toFixed(2)} €</span>
+                  <span style={{ color: "var(--primary, #0f766e)" }}>{tot.toFixed(2)} €</span>
                 </div>
               </div>
             </div>
@@ -413,12 +427,9 @@ export const ReceivedInvoiceDetailModal: React.FC<ReceivedInvoiceDetailModalProp
             )}
             <button
               onClick={onClose}
+              className="btn btn-primary"
               style={{
                 padding: "8px 18px",
-                borderRadius: "8px",
-                border: "none",
-                backgroundColor: "#0ea5e9",
-                color: "#ffffff",
                 fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
