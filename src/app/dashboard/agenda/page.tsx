@@ -7329,17 +7329,16 @@ export default function AgendaPage() {
                           )}
 
                           {!isEditingApp && (
-                            <>
+                            <div className={styles.patientActionRow}>
                               <button 
-                                type="button"
+                                type="button" 
                                 onClick={() => handleSendWhatsAppReminder(selectedAppointment)} 
                                 className={styles.whatsappBtn}
-                                style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", border: "none", background: "var(--bg-input)", color: "var(--text-primary)", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600 }}
                               >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
-                                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.5 8.5 0 0 1-7.6-4.7 8.38 8.38 0 0 1-.9-3.8z" />
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                                  <path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.476-.15-.677.15-.201.3-.777.978-.953 1.179-.176.2-.351.226-.652.075-.301-.15-1.27-.468-2.42-1.493-.894-.798-1.498-1.783-1.674-2.084-.176-.3-.019-.463.132-.613.136-.135.301-.35.451-.526.151-.176.201-.301.301-.501.101-.2.05-.376-.025-.526-.075-.15-.677-1.633-.928-2.235-.244-.587-.492-.507-.677-.517-.175-.009-.376-.01-.577-.01-.201 0-.526.075-.802.376-.276.3-1.053 1.028-1.053 2.508s1.078 2.909 1.229 3.11c.15.201 2.122 3.24 5.141 4.544.718.31 1.279.496 1.716.634.721.229 1.377.197 1.895.12.577-.087 1.78-.727 2.03-1.43.25-.702.25-1.304.175-1.43-.075-.125-.276-.201-.577-.351zM12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.982-1.408A9.957 9.957 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/>
                                 </svg>
-                                Whatsapp
+                                <span>WhatsApp</span>
                               </button>
 
                               {/* Switch Toggle */}
@@ -7367,7 +7366,7 @@ export default function AgendaPage() {
                                   <Icons.Settings size={14} />
                                 </button>
                               </div>
-                            </>
+                            </div>
                           )}
                         </div>
 
@@ -7889,20 +7888,29 @@ export default function AgendaPage() {
                             </div>
                           ) : (
                             <>
-                              <div className={styles.detailDateTime}>
-                                {(() => {
-                                  const startD = new Date(selectedAppointment.start);
-                                  const endD = new Date(selectedAppointment.end);
-                                  const months = ["Ene.", "Feb.", "Mar.", "Abr.", "May.", "Jun.", "Jul.", "Ago.", "Sep.", "Oct.", "Nov.", "Dic."];
-                                  return `${months[startD.getMonth()]} ${startD.getDate()} ${String(startD.getHours()).padStart(2, "0")}:${String(startD.getMinutes()).padStart(2, "0")} - ${String(endD.getHours()).padStart(2, "0")}:${String(endD.getMinutes()).padStart(2, "0")}`;
-                                })()}
+                              <div className={styles.detailDateTime} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "rgba(0,130,152,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <Icons.Calendar size={15} style={{ color: "#008298" }} />
+                                </div>
+                                <span>
+                                  {(() => {
+                                    const startD = new Date(selectedAppointment.start);
+                                    const endD = new Date(selectedAppointment.end);
+                                    const months = ["Ene.", "Feb.", "Mar.", "Abr.", "May.", "Jun.", "Jul.", "Ago.", "Sep.", "Oct.", "Nov.", "Dic."];
+                                    return `${months[startD.getMonth()]} ${startD.getDate()} · ${String(startD.getHours()).padStart(2, "0")}:${String(startD.getMinutes()).padStart(2, "0")} - ${String(endD.getHours()).padStart(2, "0")}:${String(endD.getMinutes()).padStart(2, "0")}`;
+                                  })()}
+                                </span>
                               </div>
 
-                              <div className={styles.detailClinicName}>
-                                {selectedAppointment.clinic?.name || activeClinic?.name || "Clifav Central"}
+                              <div className={styles.detailClinicName} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <Icons.MapPin size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                                  <span>{selectedAppointment.clinic?.name || activeClinic?.name || "Clifav Central"}</span>
+                                </div>
                                 {selectedAppointment.user && (
-                                  <div style={{ marginTop: "2px", color: "var(--text-secondary)" }}>
-                                    {selectedAppointment.user.name} {selectedAppointment.user.lastName || ""}
+                                  <div style={{ color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <Icons.User size={13} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                                    <span>{selectedAppointment.user.name} {selectedAppointment.user.lastName || ""}</span>
                                   </div>
                                 )}
                               </div>
@@ -7917,14 +7925,14 @@ export default function AgendaPage() {
                                 }
                                 if (displayServices.length > 0) {
                                   return (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "8px 0" }}>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "6px 0", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
                                       {displayServices.map((s, sIdx) => (
-                                        <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `3px solid ${s.color || '#0d9488'}`, paddingLeft: "8px" }}>
-                                          <div>
-                                            <div style={{ fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>{s.name}</div>
-                                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{formatDocFavDuration(s.duration)}</div>
+                                        <div key={sIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderLeft: `3px solid ${s.color || '#0d9488'}`, paddingLeft: "10px" }}>
+                                          <div style={{ minWidth: 0, flex: 1, paddingRight: "8px" }}>
+                                            <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{s.name}</div>
+                                            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{formatDocFavDuration(s.duration)}</div>
                                           </div>
-                                          <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>
+                                          <div style={{ fontWeight: 800, fontSize: "15px", color: "var(--text-primary)", whiteSpace: "nowrap", flexShrink: 0, marginLeft: "12px" }}>
                                             {showPrices ? formatDocFavPrice(s.price) : "—"}
                                           </div>
                                         </div>
@@ -7934,14 +7942,14 @@ export default function AgendaPage() {
                                 }
                                 const displayPrice = selectedAppointment.customPrice !== null && selectedAppointment.customPrice !== undefined ? selectedAppointment.customPrice : selectedAppointment.service.price;
                                 return (
-                                  <>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", margin: "6px 0", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px" }}>
                                     <div className={styles.detailServiceName}>
                                       {selectedAppointment.service.name}
                                     </div>
-                                    <div className={styles.detailPrice}>
+                                    <div className={styles.detailPrice} style={{ whiteSpace: "nowrap" }}>
                                       {showPrices ? formatDocFavPrice(displayPrice) : "—"}
                                     </div>
-                                  </>
+                                  </div>
                                 );
                               })()}
 
@@ -8002,8 +8010,11 @@ export default function AgendaPage() {
                           )}
 
                           {/* Internal note note text field */}
-                          <div style={{ marginTop: "20px", background: "#f8fafc", border: "1px solid #e2e8f0", borderLeft: "4px solid #008298", padding: "12px 14px", borderRadius: "0 10px 10px 0" }}>
-                            <label style={{ fontWeight: 700, color: "#008298", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>Nota interna</label>
+                          <div style={{ marginTop: "14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderLeft: "4px solid #008298", padding: "12px 14px", borderRadius: "0 10px 10px 0" }}>
+                            <label style={{ fontWeight: 700, color: "#008298", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                              <Icons.FileText size={13} />
+                              Nota interna
+                            </label>
                             {isEditingApp ? (
                               <textarea
                                 className="input"
