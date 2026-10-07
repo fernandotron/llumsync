@@ -1047,7 +1047,12 @@ export default function SalesPage() {
     }
     try {
       const XLSX = await import("xlsx");
-      const exportData = salesHistory.map((sale) => {
+      const realInvoices = salesHistory.filter((s) => s.invoiceNumber && !s.invoiceNumber.startsWith("TKT-") && !s.invoiceNumber.startsWith("TKT"));
+      if (realInvoices.length === 0) {
+        toast.error("No hay facturas registradas en el período seleccionado.");
+        return;
+      }
+      const exportData = realInvoices.map((sale) => {
         const clientName = sale.client ? `${sale.client.firstName} ${sale.client.lastName}`.trim() : "Cliente Varios";
         const taxRate = 21;
         const baseImponible = sale.total / (1 + taxRate / 100);
@@ -3633,7 +3638,7 @@ export default function SalesPage() {
             metodoPago: getPaymentMethodText(sale.paymentMethod),
             fechaPago: saleDate.toLocaleDateString("es-ES"),
             price: item.price * item.quantity,
-            factura: sale.invoiceNumber && sale.invoiceNumber !== "-" ? "Si" : "",
+            factura: sale.invoiceNumber && sale.invoiceNumber !== "-" && !sale.invoiceNumber.startsWith("TKT-") ? "Si" : "",
             precio: item.price * item.quantity,
             iva: 0.00,
             irpf: 0.00,
@@ -3746,7 +3751,7 @@ export default function SalesPage() {
               metodoPago: resolvedMetodo,
               fechaPago: resolvedFechaPago,
               price: srvPrice,
-              factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+              factura: resolvedNuV && resolvedNuV !== "-" && !resolvedNuV.startsWith("TKT-") ? "Si" : "",
               precio: srvPrice,
               iva: srv.tax || 0.00,
               irpf: 0.00,
@@ -3776,7 +3781,7 @@ export default function SalesPage() {
             metodoPago: resolvedMetodo,
             fechaPago: resolvedFechaPago,
             price: fallbackPrice,
-            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+            factura: resolvedNuV && resolvedNuV !== "-" && !resolvedNuV.startsWith("TKT-") ? "Si" : "",
             precio: fallbackPrice,
             iva: 0.00,
             irpf: 0.00,
@@ -3826,7 +3831,7 @@ export default function SalesPage() {
             metodoPago: resolvedMetodo,
             fechaPago: resolvedFechaPago,
             price: addedItem.price * (addedItem.quantity || 1),
-            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+            factura: resolvedNuV && resolvedNuV !== "-" && !resolvedNuV.startsWith("TKT-") ? "Si" : "",
             precio: addedItem.price * (addedItem.quantity || 1),
             iva: 0.00,
             irpf: 0.00,
@@ -3898,7 +3903,7 @@ export default function SalesPage() {
           metodoPago: resolvedMetodo,
           fechaPago: resolvedFechaPago,
           price: voucherPrice,
-          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+          factura: resolvedNuV && resolvedNuV !== "-" && !resolvedNuV.startsWith("TKT-") ? "Si" : "",
           precio: voucherPrice,
           iva: 0.00,
           irpf: 0.00,
@@ -3947,7 +3952,7 @@ export default function SalesPage() {
             metodoPago: resolvedMetodo,
             fechaPago: resolvedFechaPago,
             price: addedItem.price * (addedItem.quantity || 1),
-            factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+            factura: resolvedNuV && resolvedNuV !== "-" && !resolvedNuV.startsWith("TKT-") ? "Si" : "",
             precio: addedItem.price * (addedItem.quantity || 1),
             iva: 0.00,
             irpf: 0.00,
@@ -4016,7 +4021,7 @@ export default function SalesPage() {
           metodoPago: resolvedMetodo,
           fechaPago: resolvedFechaPago,
           price: cp.price || 0,
-          factura: resolvedNuV && resolvedNuV !== "-" ? "Si" : "",
+          factura: resolvedNuV && resolvedNuV !== "-" && !resolvedNuV.startsWith("TKT-") ? "Si" : "",
           precio: cp.price || 0,
           iva: parseFloat(vatAmount.toFixed(2)),
           irpf: 0.00,
@@ -4272,25 +4277,38 @@ export default function SalesPage() {
         // Any sale in history has an invoiceNumber
         if (!sale.invoiceNumber) return;
 
-        const saleDate = new Date(sale.createdAt);
-        const isRectificativa = (sale as any).isRectificativa ||
-          sale.invoiceNumber.startsWith("REC") ||
-          sale.invoiceNumber.startsWith("R-") ||
-          sale.invoiceNumber.startsWith("A-") ||
-          sale.total < 0;
-        const isSimplificada = (sale as any).invoiceType === "SIMPLIFICADA" ||
-          sale.invoiceNumber.startsWith("SIMP-") ||
-          sale.invoiceNumber.startsWith("TIC-");
-
-        // Calculate itemized taxes from JSON if present
-        let baseImponible = 0;
-        let iva = 0;
         let parsedItems: any[] = [];
         try {
           parsedItems = JSON.parse(sale.itemsJson || "[]");
         } catch (e) {
           parsedItems = [];
         }
+
+        // Los tickets de cobro/pago de caja (TKT-...) van en la pestaña PAGOS, NO en FACTURAS
+        const isTicket =
+          sale.invoiceNumber.startsWith("TKT-") ||
+          sale.invoiceNumber.startsWith("TKT") ||
+          (sale as any).invoiceType === "TICKET" ||
+          (sale as any).invoiceType === "NONE" ||
+          (parsedItems.length > 0 && (parsedItems[0]?.invoiceType === "TICKET" || parsedItems[0]?.invoiceType === "NONE"));
+
+        if (isTicket) return;
+
+        const saleDate = new Date(sale.createdAt);
+        const isRectificativa = (sale as any).isRectificativa ||
+          (sale as any).invoiceType === "RECTIFICATIVA" ||
+          sale.invoiceNumber.startsWith("REC") ||
+          sale.invoiceNumber.startsWith("R-") ||
+          sale.invoiceNumber.startsWith("RS-") ||
+          sale.invoiceNumber.startsWith("A-") ||
+          sale.total < 0;
+        const isSimplificada = (sale as any).invoiceType === "SIMPLIFICADA" ||
+          (sale as any).invoiceType === "SIMPLIFIED" ||
+          sale.invoiceNumber.startsWith("SIMP-");
+
+        // Calculate itemized taxes from JSON if present
+        let baseImponible = 0;
+        let iva = 0;
 
         if (Array.isArray(parsedItems) && parsedItems.length > 0) {
           parsedItems.forEach((it) => {
