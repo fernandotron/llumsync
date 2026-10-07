@@ -4475,8 +4475,27 @@ export default function SalesPage() {
     const isMockClinic = activeClinic && (activeClinic.id === "1941b619-8ead-4388-91f4-aedd9100a7e9" || activeClinic.id === "6fe5ca72-4169-48da-94a2-79196efbe581");
     let items = isMockClinic ? [...MOCK_PAGOS] : [];
 
-    // Merge db sales
+    // Merge db sales (únicamente tickets de pago de caja, NO facturas emitidas)
     salesHistory.forEach((sale) => {
+      if (!sale.invoiceNumber) return;
+
+      let parsedItems: any[] = [];
+      try {
+        parsedItems = JSON.parse(sale.itemsJson || "[]");
+      } catch (e) {
+        parsedItems = [];
+      }
+
+      // En pagos van únicamente los tickets de pagos (TKT-...), NO las facturas emitidas (SIMP-, INV-, R-)
+      const isTicket =
+        sale.invoiceNumber.startsWith("TKT-") ||
+        sale.invoiceNumber.startsWith("TKT") ||
+        (sale as any).invoiceType === "TICKET" ||
+        (sale as any).invoiceType === "NONE" ||
+        (parsedItems.length > 0 && (parsedItems[0]?.invoiceType === "TICKET" || parsedItems[0]?.invoiceType === "NONE"));
+
+      if (!isTicket) return;
+
       const saleDate = new Date(sale.createdAt);
       items.push({
         id: `db-pay-sale-${sale.id}`,
