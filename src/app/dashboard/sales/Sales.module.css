@@ -265,9 +265,65 @@
 /* Invoices logs table list */
 .tableWrapper {
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow-x: auto;
   border: 1px solid var(--border-color);
   background: var(--bg-panel-solid);
+  scrollbar-width: thin;
+}
+
+.tableWrapper::-webkit-scrollbar {
+  height: 5px;
+}
+.tableWrapper::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.tableWrapper table,
+.tableWrapper :global(.table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px !important;
+}
+
+.tableWrapper th,
+.tableWrapper :global(.table th) {
+  background: var(--bg-input) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+  padding: 6px 8px !important;
+  font-size: 10.5px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.3px !important;
+  white-space: nowrap !important;
+}
+
+.tableWrapper td,
+.tableWrapper :global(.table td) {
+  padding: 4px 8px !important;
+  font-size: 11.5px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
+  line-height: 1.25 !important;
+}
+
+.tableWrapper tr:hover td,
+.tableWrapper :global(.table tr:hover td) {
+  background: var(--primary-light) !important;
+}
+
+.tableWrapper input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  vertical-align: middle;
 }
 
 .loadingState, .emptyState {
@@ -444,16 +500,16 @@
 
 .tabsHeader {
   display: flex;
-  gap: 24px;
+  gap: 16px;
   border-bottom: 2px solid var(--border-color);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .tabBtn {
   background: transparent;
   border: none;
-  padding: 10px 4px;
-  font-size: 14px;
+  padding: 6px 2px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
   cursor: pointer;
@@ -515,20 +571,20 @@
 .filterBar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
 .filterBtn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
-  padding: 8px 14px;
+  padding: 5px 10px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
@@ -543,12 +599,12 @@
 .dateRangeTag {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #e0f2fe; /* Light sky blue background */
   color: #0369a1; /* Dark sky blue text */
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 14px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -565,13 +621,14 @@
 }
 
 .searchInput {
-  padding: 8px 14px;
+  padding: 5px 10px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text-primary);
-  font-size: 13px;
-  width: 220px;
+  font-size: 11.5px;
+  width: 190px;
+  height: 28px;
 }
 
 /* Stats metrics row */
@@ -801,11 +858,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 24px;
-  font-size: 13px;
+  margin-top: 12px;
+  font-size: 11.5px;
   color: var(--text-secondary);
   border-top: 1px solid var(--border-color);
-  padding-top: 20px;
+  padding-top: 10px;
 }
 
 .paginationBtnRow {
@@ -1138,8 +1195,8 @@
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s;
@@ -3391,19 +3448,19 @@
 -------------------------------------------------------------------------- */
 .metricsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .metricCard {
   background: var(--bg-panel-solid, #ffffff);
   border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-radius: 10px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -3416,21 +3473,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .metricCardTitle {
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   color: var(--text-secondary, #64748b);
 }
 
 .metricCardIcon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3439,16 +3496,16 @@
 }
 
 .metricCardValue {
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 750;
   color: var(--text-primary, #0f172a);
   line-height: 1.2;
 }
 
 .metricCardSub {
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--text-secondary, #64748b);
-  margin-top: 4px;
+  margin-top: 2px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -3458,13 +3515,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 20px;
-  padding: 12px 18px;
+  gap: 12px;
+  padding: 6px 12px;
   background: var(--bg-input, #f8fafc);
   border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 12px;
-  margin-bottom: 20px;
-  font-size: 12.5px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 11px;
 }
 
 .taxSummaryItem {

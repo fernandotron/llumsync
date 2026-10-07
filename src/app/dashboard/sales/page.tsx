@@ -7590,34 +7590,34 @@ export default function SalesPage() {
       ) : (
         <>
           {/* Top dashboard header panel */}
-          <header className={styles.toolbar} style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
+          <header className={styles.toolbar} style={{ marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "10px" }}>
             <div>
               {/* Breadcrumb / Category Badge */}
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-input)", border: "1px solid var(--border-color)", padding: "4px 12px", borderRadius: "20px", marginBottom: "8px" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-input)", border: "1px solid var(--border-color)", padding: "2px 8px", borderRadius: "14px", marginBottom: "4px" }}>
                 <span>Gestión Interna</span>
                 <span style={{ opacity: 0.4 }}>/</span>
                 <span style={{ color: "var(--primary)", fontWeight: 700 }}>Ventas & Cobros</span>
               </div>
 
               {/* Main Title */}
-              <h1 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em" }}>
+              <h1 style={{ fontSize: "19px", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em" }}>
                 Gestión de Ventas
               </h1>
 
               {/* Subtitle / Clinic Pill */}
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
-                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                <span style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "4px" }}>
                   <span>📍</span> {activeClinic?.name || "Clifav Central"}
                 </span>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", display: "inline-block" }}></span>
-                <span style={{ fontSize: "12px", color: "#10b981", fontWeight: 600 }}>Caja activa</span>
+                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#10b981", display: "inline-block" }}></span>
+                <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>Caja activa</span>
               </div>
             </div>
 
             {/* Header Right Actions */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-panel-solid)", border: "1px solid var(--border-color)", padding: "5px 10px", borderRadius: "8px", fontSize: "11.5px", fontWeight: 600, color: "var(--text-primary)", boxShadow: "0 1px 4px rgba(0,0,0,0.02)" }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 <span>{new Date().toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" })}</span>
               </div>
             </div>
@@ -7641,38 +7641,30 @@ export default function SalesPage() {
             const pendientesCount = artList.filter(i => i.estado === "PENDIENTE").length;
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginBottom: "14px" }}>
                 {/* Ingresos Totales */}
                 <div
                   style={{
                     background: "var(--bg-panel-solid)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "16px",
-                    padding: "18px 20px",
+                    borderRadius: "10px",
+                    padding: "10px 14px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "16px",
-                    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
-                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-3px)";
-                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(14, 165, 233, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "";
-                    e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                    gap: "10px",
+                    boxShadow: "0 2px 8px -2px rgba(0, 0, 0, 0.03)",
+                    transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(14,165,233,0.3)" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #0ea5e9, #0284c7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(14,165,233,0.25)" }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Ingresos Totales</div>
-                    <div style={{ fontSize: "21px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ingresos Totales</div>
+                    <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {formatPrice(totalVolumen)}
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 500 }}>
                       {artList.length} artículo{artList.length !== 1 ? "s" : ""}
                     </div>
                   </div>
@@ -7683,32 +7675,24 @@ export default function SalesPage() {
                   style={{
                     background: "var(--bg-panel-solid)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "16px",
-                    padding: "18px 20px",
+                    borderRadius: "10px",
+                    padding: "10px 14px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "16px",
-                    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
-                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-3px)";
-                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(16, 185, 129, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "";
-                    e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                    gap: "10px",
+                    boxShadow: "0 2px 8px -2px rgba(0, 0, 0, 0.03)",
+                    transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(16,185,129,0.25)" }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Total Cobrado</div>
-                    <div style={{ fontSize: "21px", fontWeight: 800, color: "#059669", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Cobrado</div>
+                    <div style={{ fontSize: "16px", fontWeight: 800, color: "#059669", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {formatPrice(totalPagado)}
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 500 }}>
                       {cobradosCount} cobrados {artList.length > 0 ? `(${Math.round((cobradosCount / artList.length) * 100)}%)` : ""}
                     </div>
                   </div>
@@ -7719,32 +7703,24 @@ export default function SalesPage() {
                   style={{
                     background: "var(--bg-panel-solid)",
                     border: totalPendiente > 0 ? "1px solid rgba(245, 158, 11, 0.35)" : "1px solid var(--border-color)",
-                    borderRadius: "16px",
-                    padding: "18px 20px",
+                    borderRadius: "10px",
+                    padding: "10px 14px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "16px",
-                    boxShadow: totalPendiente > 0 ? "0 4px 16px -2px rgba(245, 158, 11, 0.08)" : "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
-                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-3px)";
-                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(245, 158, 11, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "";
-                    e.currentTarget.style.boxShadow = totalPendiente > 0 ? "0 4px 16px -2px rgba(245, 158, 11, 0.08)" : "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                    gap: "10px",
+                    boxShadow: totalPendiente > 0 ? "0 2px 8px -2px rgba(245, 158, 11, 0.08)" : "0 2px 8px -2px rgba(0, 0, 0, 0.03)",
+                    transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(245,158,11,0.3)" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #f59e0b, #d97706)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(245,158,11,0.25)" }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Pendiente</div>
-                    <div style={{ fontSize: "21px", fontWeight: 800, color: totalPendiente > 0 ? "#d97706" : "var(--text-primary)", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Pendiente</div>
+                    <div style={{ fontSize: "16px", fontWeight: 800, color: totalPendiente > 0 ? "#d97706" : "var(--text-primary)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {formatPrice(totalPendiente)}
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 500 }}>
                       {pendientesCount} sin cobrar
                     </div>
                   </div>
@@ -7755,32 +7731,24 @@ export default function SalesPage() {
                   style={{
                     background: "var(--bg-panel-solid)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "16px",
-                    padding: "18px 20px",
+                    borderRadius: "10px",
+                    padding: "10px 14px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "16px",
-                    boxShadow: "0 4px 16px -2px rgba(0, 0, 0, 0.04)",
-                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-3px)";
-                    e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(139, 92, 246, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "";
-                    e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(0, 0, 0, 0.04)";
+                    gap: "10px",
+                    boxShadow: "0 2px 8px -2px rgba(0, 0, 0, 0.03)",
+                    transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(139,92,246,0.3)" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(139,92,246,0.25)" }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Método + Usado</div>
-                    <div style={{ fontSize: "17px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "2px 0 1px" }}>
+                    <div style={{ fontSize: "9.5px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Método + Usado</div>
+                    <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {topMethod}
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 500 }}>
                       {topMethodCount} operaciones
                     </div>
                   </div>
@@ -7824,7 +7792,7 @@ export default function SalesPage() {
       </div>
 
       {/* MAIN SALES DASHBOARD VIEWPORT */}
-      <div className="glass" style={{ padding: "24px", borderRadius: "12px" }}>
+      <div className="glass" style={{ padding: "14px 16px", borderRadius: "10px" }}>
         {/* SUB-TABS (Facturas only) */}
         {activeTab === "facturas" && (
           <div className={styles.subTabsHeader}>
@@ -8856,24 +8824,24 @@ export default function SalesPage() {
             {(() => {
               const stats = calculateArticlesStats();
               return (
-                <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "24px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
                   {/* Volumen de negocio Card */}
                   <div style={{
                     background: "linear-gradient(135deg, rgba(14, 165, 233, 0.06) 0%, rgba(14, 165, 233, 0.12) 100%)",
                     border: "1px solid rgba(14, 165, 233, 0.25)",
-                    borderRadius: "12px",
-                    padding: "16px 20px",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
-                    flex: "1 1 180px",
-                    minWidth: "160px",
-                    boxShadow: "0 4px 6px -1px rgba(14, 165, 233, 0.05), 0 2px 4px -1px rgba(14, 165, 233, 0.03)",
+                    gap: "2px",
+                    flex: "1 1 130px",
+                    minWidth: "120px",
+                    boxShadow: "0 2px 4px -1px rgba(14, 165, 233, 0.05)",
                   }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.4px" }}>
                       {t("businessVolume")}
                     </span>
-                    <span style={{ fontSize: "20px", fontWeight: "800", color: "#0ea5e9" }}>
+                    <span style={{ fontSize: "14px", fontWeight: "800", color: "#0ea5e9" }}>
                       {formatPrice(stats.volumenNegocio)}
                     </span>
                   </div>
@@ -8882,20 +8850,20 @@ export default function SalesPage() {
                   <div style={{
                     background: "var(--card-bg, #ffffff)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "12px",
-                    padding: "16px 20px",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
-                    flex: "1 1 180px",
-                    minWidth: "160px",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                    gap: "2px",
+                    flex: "1 1 130px",
+                    minWidth: "120px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.01)",
                   }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.4px" }}>
                       {t("appointments")}
                     </span>
-                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
-                      {formatPrice(stats.citasSum)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.citasCount})</span>
+                    <span style={{ fontSize: "13.5px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(stats.citasSum)} <span style={{ fontSize: "10.5px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.citasCount})</span>
                     </span>
                   </div>
 
@@ -8903,20 +8871,20 @@ export default function SalesPage() {
                   <div style={{
                     background: "var(--card-bg, #ffffff)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "12px",
-                    padding: "16px 20px",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
-                    flex: "1 1 180px",
-                    minWidth: "160px",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                    gap: "2px",
+                    flex: "1 1 130px",
+                    minWidth: "120px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.01)",
                   }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.4px" }}>
                       {t("vouchers")}
                     </span>
-                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
-                      {formatPrice(stats.bonosSum)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.bonosCount})</span>
+                    <span style={{ fontSize: "13.5px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(stats.bonosSum)} <span style={{ fontSize: "10.5px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.bonosCount})</span>
                     </span>
                   </div>
 
@@ -8924,20 +8892,20 @@ export default function SalesPage() {
                   <div style={{
                     background: "var(--card-bg, #ffffff)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "12px",
-                    padding: "16px 20px",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
-                    flex: "1 1 180px",
-                    minWidth: "160px",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                    gap: "2px",
+                    flex: "1 1 130px",
+                    minWidth: "120px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.01)",
                   }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.4px" }}>
                       {t("products")}
                     </span>
-                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
-                      {formatPrice(stats.productosSum)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.productosCount})</span>
+                    <span style={{ fontSize: "13.5px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(stats.productosSum)} <span style={{ fontSize: "10.5px", color: "var(--text-muted)", fontWeight: "normal" }}>({stats.productosCount})</span>
                     </span>
                   </div>
 
@@ -8945,20 +8913,20 @@ export default function SalesPage() {
                   <div style={{
                     background: "var(--card-bg, #ffffff)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "12px",
-                    padding: "16px 20px",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
-                    flex: "1 1 180px",
-                    minWidth: "160px",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                    gap: "2px",
+                    flex: "1 1 130px",
+                    minWidth: "120px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.01)",
                   }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.4px" }}>
                       {t("subscriptions")}
                     </span>
-                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
-                      {formatPrice(0)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>(0)</span>
+                    <span style={{ fontSize: "13.5px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(0)} <span style={{ fontSize: "10.5px", color: "var(--text-muted)", fontWeight: "normal" }}>(0)</span>
                     </span>
                   </div>
 
@@ -8966,20 +8934,20 @@ export default function SalesPage() {
                   <div style={{
                     background: "var(--card-bg, #ffffff)",
                     border: "1px solid var(--border-color)",
-                    borderRadius: "12px",
-                    padding: "16px 20px",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
-                    flex: "1 1 180px",
-                    minWidth: "160px",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.01)",
+                    gap: "2px",
+                    flex: "1 1 130px",
+                    minWidth: "120px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.01)",
                   }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "600", letterSpacing: "0.5px" }}>
+                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.4px" }}>
                       {t("budgets")}
                     </span>
-                    <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>
-                      {formatPrice(0)} <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "normal" }}>(0)</span>
+                    <span style={{ fontSize: "13.5px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {formatPrice(0)} <span style={{ fontSize: "10.5px", color: "var(--text-muted)", fontWeight: "normal" }}>(0)</span>
                     </span>
                   </div>
                 </div>
@@ -9900,33 +9868,33 @@ export default function SalesPage() {
           return (
             <div>
               {/* Summary Cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-                <div style={{ background: "var(--bg-input)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", textTransform: "uppercase", fontWeight: 700 }}>Total Emitido</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)", marginTop: "4px" }}>{formatPrice(totalPresupuestado)}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>{filteredBudgets.length} presupuestos</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px", marginBottom: "12px" }}>
+                <div style={{ background: "var(--bg-input)", padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+                  <div style={{ fontSize: "9.5px", color: "var(--text-secondary)", textTransform: "uppercase", fontWeight: 700 }}>Total Emitido</div>
+                  <div style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }}>{formatPrice(totalPresupuestado)}</div>
+                  <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", marginTop: "2px" }}>{filteredBudgets.length} presupuestos</div>
                 </div>
 
-                <div style={{ background: "rgba(16,185,129,0.06)", padding: "16px", borderRadius: "8px", border: "1px solid rgba(16,185,129,0.2)" }}>
-                  <div style={{ fontSize: "11px", color: "#10b981", textTransform: "uppercase", fontWeight: 700 }}>Aceptados</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#10b981", marginTop: "4px" }}>{formatPrice(totalAceptado)}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                <div style={{ background: "rgba(16,185,129,0.06)", padding: "8px 12px", borderRadius: "8px", border: "1px solid rgba(16,185,129,0.2)" }}>
+                  <div style={{ fontSize: "9.5px", color: "#10b981", textTransform: "uppercase", fontWeight: 700 }}>Aceptados</div>
+                  <div style={{ fontSize: "15px", fontWeight: 800, color: "#10b981", marginTop: "2px" }}>{formatPrice(totalAceptado)}</div>
+                  <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", marginTop: "2px" }}>
                     {totalPresupuestado > 0 ? ((totalAceptado / totalPresupuestado) * 100).toFixed(0) : 0}% del total
                   </div>
                 </div>
 
-                <div style={{ background: "rgba(245,158,11,0.06)", padding: "16px", borderRadius: "8px", border: "1px solid rgba(245,158,11,0.2)" }}>
-                  <div style={{ fontSize: "11px", color: "#f59e0b", textTransform: "uppercase", fontWeight: 700 }}>Pendientes</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#f59e0b", marginTop: "4px" }}>{formatPrice(totalPendiente)}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                <div style={{ background: "rgba(245,158,11,0.06)", padding: "8px 12px", borderRadius: "8px", border: "1px solid rgba(245,158,11,0.2)" }}>
+                  <div style={{ fontSize: "9.5px", color: "#f59e0b", textTransform: "uppercase", fontWeight: 700 }}>Pendientes</div>
+                  <div style={{ fontSize: "15px", fontWeight: 800, color: "#f59e0b", marginTop: "2px" }}>{formatPrice(totalPendiente)}</div>
+                  <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", marginTop: "2px" }}>
                     {totalPresupuestado > 0 ? ((totalPendiente / totalPresupuestado) * 100).toFixed(0) : 0}% del total
                   </div>
                 </div>
 
-                <div style={{ background: "rgba(239,68,68,0.06)", padding: "16px", borderRadius: "8px", border: "1px solid rgba(239,68,68,0.2)" }}>
-                  <div style={{ fontSize: "11px", color: "#ef4444", textTransform: "uppercase", fontWeight: 700 }}>Rechazados</div>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#ef4444", marginTop: "4px" }}>{formatPrice(totalRechazado)}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                <div style={{ background: "rgba(239,68,68,0.06)", padding: "8px 12px", borderRadius: "8px", border: "1px solid rgba(239,68,68,0.2)" }}>
+                  <div style={{ fontSize: "9.5px", color: "#ef4444", textTransform: "uppercase", fontWeight: 700 }}>Rechazados</div>
+                  <div style={{ fontSize: "15px", fontWeight: 800, color: "#ef4444", marginTop: "2px" }}>{formatPrice(totalRechazado)}</div>
+                  <div style={{ fontSize: "10.5px", color: "var(--text-secondary)", marginTop: "2px" }}>
                     {totalPresupuestado > 0 ? ((totalRechazado / totalPresupuestado) * 100).toFixed(0) : 0}% del total
                   </div>
                 </div>
@@ -9937,14 +9905,14 @@ export default function SalesPage() {
                 <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-input)", color: "var(--text-secondary)" }}>
-                      <th style={{ padding: "12px", textAlign: "left" }}>Nº Presupuesto</th>
-                      <th style={{ padding: "12px", textAlign: "left" }}>Paciente</th>
-                      <th style={{ padding: "12px", textAlign: "left" }}>Concepto</th>
-                      <th style={{ padding: "12px", textAlign: "left" }}>Fecha</th>
-                      <th style={{ padding: "12px", textAlign: "left" }}>Total</th>
-                      <th style={{ padding: "12px", textAlign: "left" }}>Saldo Restante</th>
-                      <th style={{ padding: "12px", textAlign: "left" }}>Estado</th>
-                      <th style={{ padding: "12px", textAlign: "center" }}>Acciones</th>
+                      <th style={{ textAlign: "left" }}>Nº Presupuesto</th>
+                      <th style={{ textAlign: "left" }}>Paciente</th>
+                      <th style={{ textAlign: "left" }}>Concepto</th>
+                      <th style={{ textAlign: "left" }}>Fecha</th>
+                      <th style={{ textAlign: "left" }}>Total</th>
+                      <th style={{ textAlign: "left" }}>Saldo Restante</th>
+                      <th style={{ textAlign: "left" }}>Estado</th>
+                      <th style={{ textAlign: "center" }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -9959,15 +9927,15 @@ export default function SalesPage() {
                         const patientName = b.client ? `${b.client.firstName} ${b.client.lastName || ""}`.trim() : "Paciente Eliminado";
                         return (
                           <tr key={b.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
-                            <td style={{ padding: "12px" }}><strong>PRE-{b.budgetNumber}</strong></td>
-                            <td style={{ padding: "12px" }}>{patientName}</td>
-                            <td style={{ padding: "12px" }}>{b.title}</td>
-                            <td style={{ padding: "12px" }}>{new Date(b.createdAt).toLocaleDateString("es-ES")}</td>
-                            <td style={{ padding: "12px", fontWeight: "bold" }}>{formatPrice(b.total)}</td>
-                            <td style={{ padding: "12px", color: b.remainingAmount > 0 ? "#10b981" : "var(--text-secondary)" }}>
+                            <td><strong>PRE-{b.budgetNumber}</strong></td>
+                            <td>{patientName}</td>
+                            <td>{b.title}</td>
+                            <td>{new Date(b.createdAt).toLocaleDateString("es-ES")}</td>
+                            <td style={{ fontWeight: "bold" }}>{formatPrice(b.total)}</td>
+                            <td style={{ color: b.remainingAmount > 0 ? "#10b981" : "var(--text-secondary)" }}>
                               {b.status === "ACCEPTED" ? formatPrice(b.remainingAmount) : "-"}
                             </td>
-                            <td style={{ padding: "12px" }}>
+                            <td>
                               <span style={{
                                 padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 600,
                                 background: b.status === "ACCEPTED" ? "rgba(16,185,129,0.12)" : b.status === "REJECTED" ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)",
