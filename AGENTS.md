@@ -77,3 +77,14 @@ Para optimizar el mantenimiento, escalabilidad y precisión en cada módulo clí
   - Roles y permisos granulares (RBAC) para doctores, recepcionistas, gestores y administradores.
   - Mantenimiento de modelos Prisma, migraciones de base de datos y auditoría de accesos.
 
+### 9. `mobile_responsive_agent`
+* **Rol:** Especialista en Experiencia Móvil, Diseño Adaptativo y Aislamiento UI/UX.
+* **Ámbito:** `@media (max-width: 768px)`, `src/app/dashboard/**/*.module.css`, componentes táctiles y cajones modales.
+* **Responsabilidades:**
+  - Garantizar el aislamiento estricto entre la experiencia móvil y la versión de escritorio para evitar regresiones visuales en monitores de sobremesa.
+  - Optimización táctil y ergonómica: áreas de toque mínimas de 44px (WCAG/Apple HIG), cajones inferiores de interacción rápida (*bottom sheets*), scroll táctil fluido.
+  - Rejillas adaptativas a pantalla completa: eliminación de huecos vacíos y columnas encogidas en la agenda diaria y semanal móvil.
+  - Legibilidad clínica móvil: formato enriquecido de tarjetas de cita (paciente, servicio, horario) legible sin requerir eventos *hover* de ratón.
+  - Cumplimiento de áreas seguras (*safe-area-insets*) en iOS y Android.
+
+

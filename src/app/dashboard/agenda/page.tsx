@@ -4108,7 +4108,7 @@ export default function AgendaPage() {
                         onTouchCancel={handleTouchEndApp}
                       >
                         <div className={styles.appCardHeader}>
-                          <div className={styles.appClient} style={{ margin: 0, padding: 0, minWidth: 0, flex: 1, display: "flex", alignItems: "center", flexWrap: "wrap", gap: "3px" }}>
+                          <div className={styles.appClient} style={{ margin: 0, padding: 0, minWidth: 0, flex: 1, display: "flex", alignItems: "center", flexWrap: "nowrap", overflow: "hidden", textOverflow: "ellipsis", gap: "4px" }}>
                             {app.tags && app.tags.split(",").filter(Boolean).map(tagStr => {
                               const [tagName, tagColor] = tagStr.split(":");
                               return (
@@ -4126,7 +4126,7 @@ export default function AgendaPage() {
                                 />
                               );
                             })}
-                            <span>{app.client.firstName} {app.client.lastName}</span>
+                            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{app.client.firstName} {app.client.lastName}</span>
                             {(app.client.allergies || app.client.medicalHistory) && (
                               <span 
                                 title={`ALERTA MÉDICA: ${[app.client.allergies ? `Alergias: ${app.client.allergies}` : null, app.client.medicalHistory ? `Antecedentes: ${app.client.medicalHistory}` : null].filter(Boolean).join(" · ")}`}
@@ -4142,6 +4142,7 @@ export default function AgendaPage() {
                                   fontWeight: "bold",
                                   lineHeight: "14px",
                                   marginLeft: "3px",
+                                  flexShrink: 0,
                                   cursor: "help"
                                 }}
                               >

@@ -5164,26 +5164,168 @@
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    flex: 1 !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
   .staffColumn {
-    flex: 0 0 190px !important; /* Do not shrink column */
-    min-width: 190px !important;
+    flex: 1 0 100% !important;
+    min-width: 250px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
     border-right: 1px solid var(--border-color) !important;
+    position: relative !important;
+  }
+
+  .staffColumn:last-child {
+    border-right: none !important;
   }
 
   .staffColumnHeader {
-    padding: 8px 4px !important;
+    padding: 8px 12px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
   }
 
   /* Hide long names, only show avatars or short initials */
   .staffMiniName {
-    font-size: 11px !important;
-    max-width: 80px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    max-width: 200px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
+  }
+
+  /* ===== MOBILE APPOINTMENT CARDS ENHANCEMENT ===== */
+  .appointmentCard {
+    touch-action: none !important;
+    border-radius: 8px !important;
+    border-left-width: 4px !important;
+    box-shadow: 0 1.5px 5px rgba(0, 0, 0, 0.08) !important;
+    min-height: 24px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  }
+
+  .appointmentCard:active {
+    transform: scale(0.98) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .appCardHeader {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 6px !important;
+  }
+
+  .appClient {
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    color: var(--text-main, #0f172a) !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden !important;
+  }
+
+  .appClient span {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Micro card (e.g. 15-20 min appointments): sleek horizontal layout */
+  .microCard {
+    padding: 2px 8px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  .microCard .appCardHeader {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .microCard .appTime {
+    display: inline-block !important;
+    flex-shrink: 0 !important;
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    color: #0284c7 !important;
+    margin-left: 4px !important;
+  }
+
+  /* Mini card (e.g. 25-40 min appointments): clean multi-line layout */
+  .miniCard {
+    padding: 4px 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: 2px !important;
+  }
+
+  .miniCard .appTime {
+    display: block !important;
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    color: #0284c7 !important;
+    line-height: 1.2 !important;
+  }
+
+  .miniCard:not(:hover) .appService,
+  .miniCard .appService {
+    display: block !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Standard card (45+ min appointments) */
+  .appointmentCard:not(.microCard):not(.miniCard) {
+    padding: 6px 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 3px !important;
+  }
+
+  .appointmentCard:not(.microCard):not(.miniCard) .appClient {
+    font-size: 12.5px !important;
+  }
+
+  .appointmentCard:not(.microCard):not(.miniCard) .appTime {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    color: #0284c7 !important;
+  }
+
+  .appointmentCard:not(.microCard):not(.miniCard) .appService {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+  }
+
+  .statusDot {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
   }
 
   /* ===== APPOINTMENT DRAWER & MODAL MOBILE OPTIMIZATION ===== */
