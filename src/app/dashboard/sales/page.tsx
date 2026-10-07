@@ -11,6 +11,8 @@ import styles from "./Sales.module.css";
 import { translate } from "@/lib/translations";
 import { getCountryConfig } from "@/lib/countries";
 import { toast } from "@/components/ToastContainer";
+import { ReceivedInvoiceUploadModal } from "@/components/sales/ReceivedInvoiceUploadModal";
+import { ReceivedInvoiceDetailModal } from "@/components/sales/ReceivedInvoiceDetailModal";
 
 interface Client {
   id: string;
@@ -667,6 +669,9 @@ export default function SalesPage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [clientProducts, setClientProducts] = useState<any[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [receivedInvoices, setReceivedInvoices] = useState<any[]>([]);
+  const [showUploadInvoiceModal, setShowUploadInvoiceModal] = useState(false);
+  const [selectedReceivedInvoiceDetail, setSelectedReceivedInvoiceDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   // POS Slide Drawer State & cart items
@@ -1205,7 +1210,7 @@ export default function SalesPage() {
     setLoading(true);
 
     try {
-      const [clientsRes, servicesRes, productsRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes, clientVouchersRes, clientProductsRes] = await Promise.all([
+      const [clientsRes, servicesRes, productsRes, salesRes, appRes, movementsRes, budgetsRes, fiscalRes, clientVouchersRes, clientProductsRes, receivedInvoicesRes] = await Promise.all([
         fetch(`/api/clients?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/services?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/products?clinicId=${activeClinic.id}`, { cache: "no-store" }),
@@ -1216,6 +1221,7 @@ export default function SalesPage() {
         fetch(`/api/fiscal-profiles?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/client-vouchers?clinicId=${activeClinic.id}`, { cache: "no-store" }),
         fetch(`/api/client-products?clinicId=${activeClinic.id}`, { cache: "no-store" }),
+        fetch(`/api/invoices/received?clinicId=${activeClinic.id}`, { cache: "no-store" }),
       ]);
 
       const clientsData = await clientsRes.json();
@@ -1246,6 +1252,9 @@ export default function SalesPage() {
 
       const movementsData = await movementsRes.json();
       setMovements(movementsData);
+
+      const receivedInvoicesData = await receivedInvoicesRes.json();
+      if (Array.isArray(receivedInvoicesData)) setReceivedInvoices(receivedInvoicesData);
 
       const budgetsData = await budgetsRes.json();
       if (Array.isArray(budgetsData)) setSalesBudgets(budgetsData);
@@ -2466,6 +2475,96 @@ export default function SalesPage() {
     const filename = `Libro_Facturas_Emitidas_${fileClinicName}_${year}.xlsx`;
     XLSX.writeFile(wb, filename);
     toast.success("Libro de facturas emitidas exportado a Excel correctamente.");
+  };
+
+  const handleExportReceivedInvoicesExcel = async () => {
+    const list = getInvoicesList();
+    if (list.length === 0) {
+      toast.success("No hay facturas recibidas para exportar.");
+      return;
+    }
+
+    const XLSX = await import("xlsx");
+    const sheetData: any[][] = [];
+
+    // Header row for Libro Registro de Facturas Recibidas (AEAT)
+    const headers = [
+      "Nº RECEPCIÓN",
+      "Nº FACTURA PROVEEDOR",
+      "FECHA EXPEDICIÓN",
+      "FECHA RECEPCIÓN",
+      "PROVEEDOR / RAZÓN SOCIAL",
+      "NIF / CIF PROVEEDOR",
+      "CONCEPTO / DETALLE",
+      "CATEGORÍA GASTO",
+      "BASE IMPONIBLE (€)",
+      "CUOTA IVA SOPORTADO (€)",
+      "RETENCIÓN IRPF (€)",
+      "TOTAL FACTURA (€)",
+      "MÉTODO DE PAGO",
+      "ESTADO PAGO",
+      "TIENE ARCHIVO ADJUNTO",
+    ];
+    sheetData.push(headers);
+
+    let totBase = 0;
+    let totIva = 0;
+    let totRet = 0;
+    let totFinal = 0;
+
+    list.forEach((item, idx) => {
+      totBase += item.baseImponible || 0;
+      totIva += item.iva || 0;
+      totRet += item.retencion || 0;
+      totFinal += item.total || 0;
+
+      sheetData.push([
+        `REC-${String(idx + 1).padStart(4, "0")}`,
+        item.refFac,
+        item.fechaCreacion,
+        item.fechaOperacion,
+        item.cliente,
+        item.nif,
+        item.concept || "-",
+        item.tipo,
+        parseFloat((item.baseImponible || 0).toFixed(2)),
+        parseFloat((item.iva || 0).toFixed(2)),
+        parseFloat((item.retencion || 0).toFixed(2)),
+        parseFloat((item.total || 0).toFixed(2)),
+        item.metodoPago,
+        item.estadoPago,
+        item.fileUrl ? "Sí" : "No",
+      ]);
+    });
+
+    // Totals row
+    sheetData.push([
+      "TOTALES",
+      "",
+      "",
+      "",
+      `${list.length} facturas recibidas`,
+      "",
+      "",
+      "",
+      parseFloat(totBase.toFixed(2)),
+      parseFloat(totIva.toFixed(2)),
+      parseFloat(totRet.toFixed(2)),
+      parseFloat(totFinal.toFixed(2)),
+      "",
+      "",
+      "",
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Libro Facturas Recibidas");
+
+    const fileClinicName = (activeClinic?.name || "Clinica").replace(/[^a-zA-Z0-9]/g, "_");
+    const year = new Date().getFullYear();
+    const filename = `Libro_Facturas_Recibidas_${fileClinicName}_${year}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast.success("Libro de facturas recibidas exportado a Excel correctamente.");
   };
 
   const printInvoice = (inv: any, clinic: any, fiscalProfile?: any) => {
@@ -4409,13 +4508,45 @@ export default function SalesPage() {
         });
       }
     } else {
-      // Recibidas (expenses)
+      // Recibidas (Facturas de Proveedores y Gastos)
+      receivedInvoices.forEach((inv) => {
+        const invDate = new Date(inv.issueDate);
+        items.push({
+          id: inv.id,
+          rawInvoice: inv,
+          isReceivedInvoice: true,
+          refFac: inv.invoiceNumber,
+          fechaCreacion: invDate.toLocaleDateString("es-ES"),
+          fechaOperacion: invDate.toLocaleDateString("es-ES"),
+          fechaRaw: invDate,
+          cliente: inv.supplierName,
+          clientNumber: "-",
+          nif: inv.supplierNif || "-",
+          direccion: "-",
+          ciudad: "-",
+          codigoPostal: "-",
+          precioBruto: inv.baseAmount,
+          descuento: 0,
+          baseImponible: inv.baseAmount,
+          iva: inv.taxAmount,
+          retencion: inv.retentionAmount,
+          total: inv.total,
+          metodoPago: getPaymentMethodText(inv.paymentMethod),
+          tipo: inv.category ? inv.category.replace(/_/g, " ") : "Proveedor",
+          estadoPago: inv.status || "PAGADO",
+          fileUrl: inv.fileUrl,
+          concept: inv.concept,
+        });
+      });
+
+      // Incluir también los movimientos manuales antiguos
       movements
-        .filter((m) => m.type === "EXPENSE")
+        .filter((m) => m.type === "EXPENSE" && !receivedInvoices.some(inv => inv.id === m.id))
         .forEach((mov) => {
           const movDate = new Date(mov.date);
           items.push({
             id: mov.id,
+            isReceivedInvoice: false,
             refFac: `EXP-${mov.id.substring(0, 4).toUpperCase()}`,
             fechaCreacion: movDate.toLocaleDateString("es-ES"),
             fechaOperacion: movDate.toLocaleDateString("es-ES"),
@@ -4433,8 +4564,10 @@ export default function SalesPage() {
             retencion: 0,
             total: mov.amount,
             metodoPago: getPaymentMethodText(mov.method),
-            tipo: "Proveedor",
+            tipo: "Gasto manual",
             estadoPago: "PAGADO",
+            fileUrl: null,
+            concept: mov.concept,
           });
         });
     }
@@ -4619,6 +4752,9 @@ export default function SalesPage() {
     let transferBizumSum = 0;
     let exentoSum = 0;
 
+    let pendingSum = 0;
+    let pendingCount = 0;
+
     list.forEach((item) => {
       const tot = item.total || 0;
       const base = item.baseImponible || 0;
@@ -4628,6 +4764,11 @@ export default function SalesPage() {
       baseSum += base;
       ivaSum += iva;
       retencionSum += ret;
+
+      if (item.estadoPago === "PENDIENTE") {
+        pendingSum += tot;
+        pendingCount++;
+      }
 
       if (iva === 0 && base !== 0) {
         exentoSum += base;
@@ -4655,6 +4796,8 @@ export default function SalesPage() {
       card: cardSum,
       transferBizum: transferBizumSum,
       exento: exentoSum,
+      pendingSum,
+      pendingCount,
       count,
       ticketMedio,
     };
@@ -9215,36 +9358,89 @@ export default function SalesPage() {
               <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                 <input
                   type="text"
-                  placeholder="Buscar nº factura, cliente o NIF..."
+                  placeholder={activeSubTab === "recibidas" ? "Buscar nº factura, proveedor o CIF..." : "Buscar nº factura, cliente o NIF..."}
                   className={styles.facturasSearchInput}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                {showExcelDownload && (
+                {activeSubTab === "recibidas" && (
                   <button
                     type="button"
-                    className="btn btn-secondary"
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "6px",
                       height: "32px",
-                      padding: "0 12px",
+                      padding: "0 14px",
                       fontSize: "12px",
-                      fontWeight: 600,
+                      fontWeight: 700,
                       borderRadius: "8px",
-                      border: "1px solid var(--border-color)",
-                      background: "#ffffff",
-                      color: "var(--text-primary)",
+                      backgroundColor: "#0ea5e9",
+                      color: "#ffffff",
+                      border: "none",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
+                      boxShadow: "0 2px 6px rgba(14, 165, 233, 0.3)",
                     }}
-                    onClick={handleExportInvoicesExcel}
-                    title="Exportar Libro Registro de Facturas Emitidas para Gestoría / Asesoría Fiscal"
+                    onClick={() => setShowUploadInvoiceModal(true)}
+                    title="Subir PDF o imagen de factura con escaneo automático por IA"
                   >
-                    <IconDownload size={14} />
-                    <span>Libro Facturas Excel</span>
+                    <span style={{ fontSize: "14px" }}>✨</span>
+                    <span>Subir Factura (IA)</span>
                   </button>
+                )}
+                {showExcelDownload && (
+                  activeSubTab === "recibidas" ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        height: "32px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        borderRadius: "8px",
+                        border: "1px solid var(--border-color)",
+                        background: "#ffffff",
+                        color: "var(--text-primary)",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                      onClick={handleExportReceivedInvoicesExcel}
+                      title="Exportar Libro Registro de Facturas Recibidas para Gestoría"
+                    >
+                      <IconDownload size={14} />
+                      <span>Libro Facturas Recibidas</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        height: "32px",
+                        padding: "0 12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        borderRadius: "8px",
+                        border: "1px solid var(--border-color)",
+                        background: "#ffffff",
+                        color: "var(--text-primary)",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                      onClick={handleExportInvoicesExcel}
+                      title="Exportar Libro Registro de Facturas Emitidas para Gestoría / Asesoría Fiscal"
+                    >
+                      <IconDownload size={14} />
+                      <span>Libro Facturas Excel</span>
+                    </button>
+                  )
                 )}
               </div>
             </div>
@@ -9257,57 +9453,85 @@ export default function SalesPage() {
                   <div className={styles.metricsGrid}>
                     <div className={styles.metricCard}>
                       <div className={styles.metricCardHeader}>
-                        <span className={styles.metricCardTitle}>Total Facturado</span>
+                        <span className={styles.metricCardTitle}>
+                          {activeSubTab === "recibidas" ? "Total Facturas Recibidas" : "Total Facturado"}
+                        </span>
                         <div className={styles.metricCardIcon} style={{ background: "rgba(14, 165, 233, 0.1)", color: "#0ea5e9" }}>
                           <IconEuro size={16} />
                         </div>
                       </div>
                       <div className={styles.metricCardValue}>{formatPrice(fStats.total)}</div>
-                      <div className={styles.metricCardSub}>{fStats.count} facturas emitidas</div>
+                      <div className={styles.metricCardSub}>
+                        {activeSubTab === "recibidas" ? `${fStats.count} facturas recibidas` : `${fStats.count} facturas emitidas`}
+                      </div>
                     </div>
 
                     <div className={styles.metricCard}>
                       <div className={styles.metricCardHeader}>
-                        <span className={styles.metricCardTitle}>Cobrado en Efectivo</span>
+                        <span className={styles.metricCardTitle}>
+                          {activeSubTab === "recibidas" ? "Base Deducible" : "Cobrado en Efectivo"}
+                        </span>
                         <div className={styles.metricCardIcon} style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
                           <IconBanknote size={16} />
                         </div>
                       </div>
-                      <div className={styles.metricCardValue}>{formatPrice(fStats.cash)}</div>
-                      <div className={styles.metricCardSub}>Caja física</div>
+                      <div className={styles.metricCardValue}>
+                        {activeSubTab === "recibidas" ? formatPrice(fStats.base) : formatPrice(fStats.cash)}
+                      </div>
+                      <div className={styles.metricCardSub}>
+                        {activeSubTab === "recibidas" ? "Base imponible computable" : "Caja física"}
+                      </div>
                     </div>
 
                     <div className={styles.metricCard}>
                       <div className={styles.metricCardHeader}>
-                        <span className={styles.metricCardTitle}>Cobrado en Tarjeta</span>
+                        <span className={styles.metricCardTitle}>
+                          {activeSubTab === "recibidas" ? "IVA Soportado" : "Cobrado en Tarjeta"}
+                        </span>
                         <div className={styles.metricCardIcon} style={{ background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
                           <IconCreditCard size={16} />
                         </div>
                       </div>
-                      <div className={styles.metricCardValue}>{formatPrice(fStats.card)}</div>
-                      <div className={styles.metricCardSub}>TPV Bancario</div>
+                      <div className={styles.metricCardValue}>
+                        {activeSubTab === "recibidas" ? formatPrice(fStats.iva) : formatPrice(fStats.card)}
+                      </div>
+                      <div className={styles.metricCardSub}>
+                        {activeSubTab === "recibidas" ? "Deducible Mod. 303 AEAT" : "TPV Bancario"}
+                      </div>
                     </div>
 
                     <div className={styles.metricCard}>
                       <div className={styles.metricCardHeader}>
-                        <span className={styles.metricCardTitle}>Transferencias / Bizum</span>
+                        <span className={styles.metricCardTitle}>
+                          {activeSubTab === "recibidas" ? "Retenciones IRPF" : "Transferencias / Bizum"}
+                        </span>
                         <div className={styles.metricCardIcon} style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
                           <IconBizum size={16} />
                         </div>
                       </div>
-                      <div className={styles.metricCardValue}>{formatPrice(fStats.transferBizum)}</div>
-                      <div className={styles.metricCardSub}>Cuenta corriente / Bizum</div>
+                      <div className={styles.metricCardValue}>
+                        {activeSubTab === "recibidas" ? formatPrice(fStats.retencion) : formatPrice(fStats.transferBizum)}
+                      </div>
+                      <div className={styles.metricCardSub}>
+                        {activeSubTab === "recibidas" ? "Retenido Mod. 111 / 115" : "Cuenta corriente / Bizum"}
+                      </div>
                     </div>
 
                     <div className={styles.metricCard}>
                       <div className={styles.metricCardHeader}>
-                        <span className={styles.metricCardTitle}>Ticket Medio</span>
+                        <span className={styles.metricCardTitle}>
+                          {activeSubTab === "recibidas" ? "Pendiente de Pago" : "Ticket Medio"}
+                        </span>
                         <div className={styles.metricCardIcon} style={{ background: "rgba(139, 92, 246, 0.1)", color: "#8b5cf6" }}>
                           <IconReceipt size={16} />
                         </div>
                       </div>
-                      <div className={styles.metricCardValue}>{formatPrice(fStats.ticketMedio)}</div>
-                      <div className={styles.metricCardSub}>Promedio por factura</div>
+                      <div className={styles.metricCardValue}>
+                        {activeSubTab === "recibidas" ? formatPrice(fStats.pendingSum) : formatPrice(fStats.ticketMedio)}
+                      </div>
+                      <div className={styles.metricCardSub}>
+                        {activeSubTab === "recibidas" ? `${fStats.pendingCount} pendientes` : "Promedio por factura"}
+                      </div>
                     </div>
                   </div>
 
@@ -9324,7 +9548,7 @@ export default function SalesPage() {
                       </div>
                     )}
                     <div className={styles.taxSummaryItem}>
-                      <span>Cuota IVA Repercutido:</span>
+                      <span>{activeSubTab === "recibidas" ? "Cuota IVA Soportado:" : "Cuota IVA Repercutido:"}</span>
                       <strong>{formatPrice(fStats.iva)}</strong>
                     </div>
                     {fStats.retencion > 0 && (
@@ -9334,7 +9558,7 @@ export default function SalesPage() {
                       </div>
                     )}
                     <div className={styles.taxSummaryItem}>
-                      <span>Total General:</span>
+                      <span>{activeSubTab === "recibidas" ? "Total Gastos Recibidos:" : "Total General:"}</span>
                       <strong style={{ color: "#0f172a", fontSize: "14px" }}>{formatPrice(fStats.total)}</strong>
                     </div>
                   </div>
@@ -9346,113 +9570,244 @@ export default function SalesPage() {
             <div className={styles.tableWrapper} style={{ overflowX: "auto" }}>
               <table className="table" style={{ width: "100%", whiteSpace: "nowrap" }}>
                 <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        checked={selectedRowIds.length === getInvoicesList().length && getInvoicesList().length > 0}
-                        onChange={() => {
-                          if (selectedRowIds.length === getInvoicesList().length) {
-                            setSelectedRowIds([]);
-                          } else {
-                            setSelectedRowIds(getInvoicesList().map((item) => item.id));
-                          }
-                        }}
-                      />
-                    </th>
-                    <th>REF. FAC ▾</th>
-                    <th>FECHA CREACIÓN ▾</th>
-                    <th>FECHA OPERACIÓN ▾</th>
-                    <th>CLIENTE</th>
-                    <th>NÚMERO DE CLIENTE</th>
-                    <th>NIF</th>
-                    <th>DIRECCIÓN</th>
-                    <th>CIUDAD</th>
-                    <th>CÓDIGO POSTAL</th>
-                    <th>PRECIO BRUTO</th>
-                    <th>DESCUENTO</th>
-                    <th>BASE IMPONIBLE</th>
-                    <th>IVA</th>
-                    <th>RETENCIÓN</th>
-                    <th>TOTAL</th>
-                    <th>MÉTODO DE PAGO</th>
-                    <th>TIPO</th>
-                    <th>ESTADO PAGO</th>
-                  </tr>
+                  {activeSubTab === "recibidas" ? (
+                    <tr>
+                      <th style={{ width: "36px" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedRowIds.length === getInvoicesList().length && getInvoicesList().length > 0}
+                          onChange={() => {
+                            if (selectedRowIds.length === getInvoicesList().length) {
+                              setSelectedRowIds([]);
+                            } else {
+                              setSelectedRowIds(getInvoicesList().map((item) => item.id));
+                            }
+                          }}
+                        />
+                      </th>
+                      <th>REF. FACTURA ▾</th>
+                      <th>FECHA EMISIÓN ▾</th>
+                      <th>PROVEEDOR / RAZÓN SOCIAL ▾</th>
+                      <th>CIF / NIF</th>
+                      <th>CONCEPTO</th>
+                      <th>CATEGORÍA</th>
+                      <th>BASE IMPONIBLE</th>
+                      <th>IVA</th>
+                      <th>RETENCIÓN</th>
+                      <th>TOTAL</th>
+                      <th>MÉTODO DE PAGO</th>
+                      <th>ESTADO</th>
+                      <th>DOCUMENTO</th>
+                      <th style={{ textAlign: "center" }}>ACCIONES</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          checked={selectedRowIds.length === getInvoicesList().length && getInvoicesList().length > 0}
+                          onChange={() => {
+                            if (selectedRowIds.length === getInvoicesList().length) {
+                              setSelectedRowIds([]);
+                            } else {
+                              setSelectedRowIds(getInvoicesList().map((item) => item.id));
+                            }
+                          }}
+                        />
+                      </th>
+                      <th>REF. FAC ▾</th>
+                      <th>FECHA CREACIÓN ▾</th>
+                      <th>FECHA OPERACIÓN ▾</th>
+                      <th>CLIENTE</th>
+                      <th>NÚMERO DE CLIENTE</th>
+                      <th>NIF</th>
+                      <th>DIRECCIÓN</th>
+                      <th>CIUDAD</th>
+                      <th>CÓDIGO POSTAL</th>
+                      <th>PRECIO BRUTO</th>
+                      <th>DESCUENTO</th>
+                      <th>BASE IMPONIBLE</th>
+                      <th>IVA</th>
+                      <th>RETENCIÓN</th>
+                      <th>TOTAL</th>
+                      <th>MÉTODO DE PAGO</th>
+                      <th>TIPO</th>
+                      <th>ESTADO PAGO</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {getInvoicesList().length === 0 ? (
                     <tr>
-                      <td colSpan={19} className={styles.emptyState}>
-                        No se encontraron resultados
+                      <td colSpan={activeSubTab === "recibidas" ? 15 : 19} className={styles.emptyState}>
+                        {activeSubTab === "recibidas"
+                          ? "No se encontraron facturas recibidas en este período. Pulsa \"Subir Factura (IA)\" para añadir la primera."
+                          : "No se encontraron resultados"}
                       </td>
                     </tr>
                   ) : (
                     getInvoicesList()
                       .slice((currentPage - 1) * pageSize, currentPage * pageSize)
                       .map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={selectedRowIds.includes(item.id)}
-                              onChange={() => handleToggleRow(item.id)}
-                            />
-                          </td>
-                          <td>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              {item.rawSale ? (
-                                <button
-                                  className={styles.clientLink}
-                                  style={{ background: "none", border: "none", padding: 0, font: "inherit", cursor: "pointer", fontWeight: 600 }}
-                                  onClick={() => handleOpenExistingInvoice(item.rawSale)}
+                        activeSubTab === "recibidas" ? (
+                          <tr key={item.id}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedRowIds.includes(item.id)}
+                                onChange={() => handleToggleRow(item.id)}
+                              />
+                            </td>
+                            <td>
+                              <button
+                                className={styles.clientLink}
+                                style={{ background: "none", border: "none", padding: 0, font: "inherit", cursor: "pointer", fontWeight: 700, color: "#0ea5e9" }}
+                                onClick={() => setSelectedReceivedInvoiceDetail(item.rawInvoice || item)}
+                              >
+                                {item.refFac}
+                              </button>
+                            </td>
+                            <td>{item.fechaCreacion}</td>
+                            <td>
+                              <strong>{item.cliente}</strong>
+                            </td>
+                            <td>{item.nif}</td>
+                            <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={item.concept}>
+                              {item.concept || "-"}
+                            </td>
+                            <td>
+                              <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "10px", backgroundColor: "#f1f5f9", color: "#475569" }}>
+                                {item.tipo}
+                              </span>
+                            </td>
+                            <td>{formatPrice(item.baseImponible)}</td>
+                            <td>{formatPrice(item.iva)}</td>
+                            <td>{formatPrice(item.retencion)}</td>
+                            <td>
+                              <strong style={{ color: "#0f172a" }}>
+                                {formatPrice(item.total)}
+                              </strong>
+                            </td>
+                            <td>{item.metodoPago}</td>
+                            <td>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  padding: "2px 8px",
+                                  borderRadius: "12px",
+                                  backgroundColor: item.estadoPago === "PAGADO" ? "#dcfce7" : "#fef9c3",
+                                  color: item.estadoPago === "PAGADO" ? "#166534" : "#854d0e",
+                                }}
+                              >
+                                {item.estadoPago === "PAGADO" ? "✓ PAGADO" : "PENDIENTE"}
+                              </span>
+                            </td>
+                            <td>
+                              {item.fileUrl ? (
+                                <a
+                                  href={item.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#0284c7",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    textDecoration: "none",
+                                    fontWeight: 600,
+                                  }}
+                                  title="Ver archivo adjunto"
                                 >
-                                  {item.refFac}
-                                </button>
+                                  <Icons.Eye size={14} /> Ver PDF
+                                </a>
                               ) : (
-                                <strong>{item.refFac}</strong>
+                                <span style={{ color: "#94a3b8", fontSize: "12px" }}>-</span>
                               )}
-                              {item.isRectificativa && (
-                                <span className={styles.badgeRectificativa}>RECT</span>
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <button
+                                style={{
+                                  background: "none",
+                                  border: "1px solid #cbd5e1",
+                                  borderRadius: "6px",
+                                  padding: "3px 8px",
+                                  fontSize: "12px",
+                                  cursor: "pointer",
+                                  color: "#334155",
+                                }}
+                                onClick={() => setSelectedReceivedInvoiceDetail(item.rawInvoice || item)}
+                                title="Ver detalles y gestionar factura"
+                              >
+                                Gestionar
+                              </button>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={item.id}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedRowIds.includes(item.id)}
+                                onChange={() => handleToggleRow(item.id)}
+                              />
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                {item.rawSale ? (
+                                  <button
+                                    className={styles.clientLink}
+                                    style={{ background: "none", border: "none", padding: 0, font: "inherit", cursor: "pointer", fontWeight: 600 }}
+                                    onClick={() => handleOpenExistingInvoice(item.rawSale)}
+                                  >
+                                    {item.refFac}
+                                  </button>
+                                ) : (
+                                  <strong>{item.refFac}</strong>
+                                )}
+                                {item.isRectificativa && (
+                                  <span className={styles.badgeRectificativa}>RECT</span>
+                                )}
+                                {item.isSimplificada && (
+                                  <span className={styles.badgeSimplificada}>SIMP</span>
+                                )}
+                                {item.veriFactuHash && (
+                                  <span className={styles.badgeVerifactu} title="Huella Veri*Factu verificada">✓ VF</span>
+                                )}
+                              </div>
+                            </td>
+                            <td>{item.fechaCreacion}</td>
+                            <td>{item.fechaOperacion}</td>
+                            <td>{item.cliente}</td>
+                            <td>{item.clientNumber}</td>
+                            <td>{item.nif}</td>
+                            <td>{item.direccion}</td>
+                            <td>{item.ciudad}</td>
+                            <td>{item.codigoPostal}</td>
+                            <td>{formatPrice(item.precioBruto)}</td>
+                            <td>{formatPrice(item.descuento)}</td>
+                            <td>{formatPrice(item.baseImponible)}</td>
+                            <td>{formatPrice(item.iva)}</td>
+                            <td>{formatPrice(item.retencion)}</td>
+                            <td>
+                              <strong style={{ color: item.total < 0 ? "#dc2626" : "inherit" }}>
+                                {formatPrice(item.total)}
+                              </strong>
+                            </td>
+                            <td>{item.metodoPago}</td>
+                            <td>
+                              {item.isRectificativa ? (
+                                <span className={styles.badgeAbono}>Abono</span>
+                              ) : (
+                                item.tipo
                               )}
-                              {item.isSimplificada && (
-                                <span className={styles.badgeSimplificada}>SIMP</span>
-                              )}
-                              {item.veriFactuHash && (
-                                <span className={styles.badgeVerifactu} title="Huella Veri*Factu verificada">✓ VF</span>
-                              )}
-                            </div>
-                          </td>
-                          <td>{item.fechaCreacion}</td>
-                          <td>{item.fechaOperacion}</td>
-                          <td>{item.cliente}</td>
-                          <td>{item.clientNumber}</td>
-                          <td>{item.nif}</td>
-                          <td>{item.direccion}</td>
-                          <td>{item.ciudad}</td>
-                          <td>{item.codigoPostal}</td>
-                          <td>{formatPrice(item.precioBruto)}</td>
-                          <td>{formatPrice(item.descuento)}</td>
-                          <td>{formatPrice(item.baseImponible)}</td>
-                          <td>{formatPrice(item.iva)}</td>
-                          <td>{formatPrice(item.retencion)}</td>
-                          <td>
-                            <strong style={{ color: item.total < 0 ? "#dc2626" : "inherit" }}>
-                              {formatPrice(item.total)}
-                            </strong>
-                          </td>
-                          <td>{item.metodoPago}</td>
-                          <td>
-                            {item.isRectificativa ? (
-                              <span className={styles.badgeAbono}>Abono</span>
-                            ) : (
-                              item.tipo
-                            )}
-                          </td>
-                          <td>
-                            <span className={styles.badgePagado}>✓ PAGADO</span>
-                          </td>
-                        </tr>
+                            </td>
+                            <td>
+                              <span className={styles.badgePagado}>✓ PAGADO</span>
+                            </td>
+                          </tr>
+                        )
                       ))
                   )}
                 </tbody>
@@ -10752,6 +11107,22 @@ export default function SalesPage() {
       )}
 
       {showEditClientModal && renderEditClientDrawer()}
+
+      {/* RECEIVED INVOICE UPLOAD & AI SCAN MODAL */}
+      <ReceivedInvoiceUploadModal
+        isOpen={showUploadInvoiceModal}
+        onClose={() => setShowUploadInvoiceModal(false)}
+        clinicId={activeClinic?.id || ""}
+        onSuccess={fetchSalesData}
+      />
+
+      {/* RECEIVED INVOICE DETAIL & ACTIONS MODAL */}
+      <ReceivedInvoiceDetailModal
+        isOpen={!!selectedReceivedInvoiceDetail}
+        onClose={() => setSelectedReceivedInvoiceDetail(null)}
+        invoice={selectedReceivedInvoiceDetail}
+        onUpdated={fetchSalesData}
+      />
     </div>
   );
 }

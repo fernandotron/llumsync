@@ -54,6 +54,7 @@ model Clinic {
   services            Service[]
   fiscalProfiles    FiscalProfile[]
   products          Product[]
+  receivedInvoices  ReceivedInvoice[]
   whatsappApiUrl    String?
   whatsappInstanceName String?
   whatsappApiToken  String?
@@ -701,5 +702,34 @@ model LoyaltyTemplate {
   templates        String   @default("[]")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model ReceivedInvoice {
+  id              String    @id @default(uuid())
+  invoiceNumber   String    // Nº Factura del emisor
+  supplierName    String    // Razón social o Nombre del Proveedor
+  supplierNif     String?   // CIF o NIF del proveedor
+  concept         String?   // Concepto / Descripción
+  issueDate       DateTime  // Fecha de expedición de la factura
+  dueDate         DateTime? // Fecha límite / vencimiento de pago
+  baseAmount      Float     @default(0) // Base imponible
+  taxRate         Float     @default(21) // Tipo de IVA (%)
+  taxAmount       Float     @default(0) // Cuota de IVA
+  retentionRate   Float     @default(0) // Retención IRPF (%)
+  retentionAmount Float     @default(0) // Cuota IRPF
+  total           Float     // Importe total a pagar
+  paymentMethod   String    @default("TRANSFER") // CASH, CARD, TRANSFER, DIRECT_DEBIT, OTHER
+  status          String    @default("PAGADO") // PAGADO, PENDIENTE
+  category        String?   @default("MATERIAL_CLINICO") // MATERIAL_CLINICO, LABORATORIO, SUMINISTROS, ALQUILER, SERVICIOS_PROFESIONALES, OTROS
+  fileUrl         String?   // URL o ruta del documento almacenado (PDF o imagen)
+  rawOcrJson      String?   // JSON detallado extraído por IA (líneas, desglose)
+  notes           String?   // Observaciones adicionales
+  clinicId        String
+  clinic          Clinic    @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clinicId, issueDate])
+  @@index([clinicId, status])
 }
 
